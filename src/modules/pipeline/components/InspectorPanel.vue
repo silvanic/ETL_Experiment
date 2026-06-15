@@ -9,7 +9,7 @@ import Textarea from 'primevue/textarea'
 import Message from 'primevue/message'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
-import Tabs from 'primevue/tabs'
+import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 import { resolveValueWithVariables, toVariableToken, findUnresolvedVariables } from '@/modules/pipeline/domain/variables'
 import type {
@@ -360,7 +360,7 @@ function openApiResultDialog(): void {
         >
           {{ t('inspector.warnings.unresolvedVariables') }}: {{ unresolvedApiVariables.join(', ') }}
         </Message>
-        <Tabs>
+        <TabView>
           <TabPanel :header="t('inspector.tabs.parameters')" value="params">
             <div class="tab-content">
               <label>
@@ -434,7 +434,7 @@ function openApiResultDialog(): void {
               />
             </div>
           </TabPanel>
-        </Tabs>
+        </TabView>
       </template>
 
       <template v-if="selectedType === 'condition' && conditionConfig">
