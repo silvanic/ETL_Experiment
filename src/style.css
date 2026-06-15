@@ -1,0 +1,88 @@
+:root {
+  /* Light theme colors */
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --panel-soft: #f9fbfd;
+  --text: #16202b;
+  --text-soft: #4a6077;
+  --border: #d6dee6;
+  --accent: #136f63;
+  --accent-soft: #d8f3ee;
+  --danger: #b63b3b;
+  --code-bg: #eef3f8;
+  --code-border: #cfd9e4;
+  --shadow: 0 8px 24px rgba(20, 47, 79, 0.08);
+
+  font-family:
+    "IBM Plex Sans",
+    "Segoe UI",
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--text);
+  background: radial-gradient(circle at 20% 0%, #eef4fa 0%, #f4f6f8 50%, #f0f3f7 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme='dark'] {
+  --bg: #0f1419;
+  --panel: #1a1f2e;
+  --panel-soft: #25293d;
+  --text: #e4e7eb;
+  --text-soft: #9ca3af;
+  --border: #3a4557;
+  --accent: #4fb8a5;
+  --accent-soft: rgba(79, 184, 165, 0.15);
+  --code-bg: #101827;
+  --code-border: #2f3a4d;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+
+  background: radial-gradient(circle at 20% 0%, #141a27 0%, #0f1419 50%, #0d111a 100%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1419;
+    --panel: #1a1f2e;
+    --panel-soft: #25293d;
+    --text: #e4e7eb;
+    --text-soft: #9ca3af;
+    --border: #3a4557;
+    --accent: #4fb8a5;
+    --accent-soft: rgba(79, 184, 165, 0.15);
+    --code-bg: #101827;
+    --code-border: #2f3a4d;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+
+    background: radial-gradient(circle at 20% 0%, #141a27 0%, #0f1419 50%, #0d111a 100%);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: var(--text);
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.vue-flow__node {
+  background-color: var(--panel) !important;
+  border: 1px solid var(--border) !important;
+}

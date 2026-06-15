@@ -1,0 +1,84 @@
+/* Vue Flow custom theme for dark mode */
+
+[data-theme='dark'] .dark {
+  --vf-primary: var(--accent);
+  --vf-secondary: var(--text-soft);
+
+  /* Node styling */
+  --vf-node-bg: var(--panel);
+  --vf-node-text: var(--text);
+  --vf-node-border: var(--border);
+  --vf-node-selected-border: var(--accent);
+  --vf-node-selected-shadow: 0 0 0 2px var(--accent-soft);
+
+  /* Edge styling */
+  --vf-edge: var(--border);
+  --vf-edge-selected: var(--accent);
+  --vf-edge-text-bg: var(--panel);
+  --vf-edge-text-border: var(--border);
+
+  /* Controls */
+  --vf-controls-bg: var(--panel);
+  --vf-controls-border: var(--border);
+  --vf-controls-btn-bg: var(--panel-soft);
+  --vf-controls-btn-color: var(--text);
+  --vf-controls-btn-bg-hover: var(--accent-soft);
+}
+
+/* Light mode explicitly set */
+[data-theme='light'] .canvas {
+  --vf-primary: #0066cc;
+  --vf-secondary: #666;
+}
+
+/* Vue Flow node text color */
+.vue-flow__node {
+  color: var(--text);
+}
+
+/* Vue Flow selected node styling */
+.vue-flow__node.selected {
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.vue-flow__node.selected > * {
+  border-color: var(--accent) !important;
+}
+
+/* Vue Flow edge label styling */
+.vue-flow__edge-label {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+/* Vue Flow controls styling */
+.vue-flow__controls {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.vue-flow__controls button {
+  background: var(--panel-soft);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.vue-flow__controls button:hover {
+  background: var(--border);
+}
+
+/* Vue Flow background styling */
+.vue-flow__background {
+  background-color: transparent;
+}
+
+.vue-flow__background-pattern {
+  stroke: var(--border);
+  opacity: 0.5;
+}
+

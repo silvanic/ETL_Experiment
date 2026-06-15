@@ -1,0 +1,690 @@
+{
+  "fr": {
+    "pipelineEditor": {
+      "eyebrow": "Expérience ETL",
+      "menu": {
+        "actions": "Menu",
+        "export": "Exporter",
+        "import": "Importer",
+        "load": "Charger",
+        "newPipeline": "Nouveau pipeline",
+        "reset": "Réinitialiser",
+        "running": "Exécution en cours...",
+        "runPipeline": "Exécuter le pipeline",
+        "save": "Sauvegarder",
+        "settings": "Paramètres"
+      },
+      "tabs": {
+        "flow": "Flux",
+        "console": "Console"
+      },
+      "language": {
+        "currentFr": "Language: French",
+        "currentEn": "Language: English",
+        "switchToFr": "Switch to French",
+        "switchToEn": "Switch to English"
+      },
+      "settings": {
+        "autoOpenConsoleOnRunEnd": "Ouvrir automatiquement l'onglet Console à la fin d'une exécution"
+      },
+      "variables": {
+        "description": "Ajoute des variables globales du pipeline (nom + valeur).",
+        "namePlaceholder": "Nom de la variable",
+        "valuePlaceholder": "Valeur",
+        "add": "Ajouter",
+        "remove": "Supprimer la variable",
+        "empty": "Aucune variable pour le moment.",
+        "nameDuplicate": "Ce nom de variable existe déjà.",
+        "nameInvalid": "Le nom doit commencer par une lettre et ne contenir que des lettres, chiffres, _ ou -."
+      },
+      "toast": {
+        "executionSuccess": "Exécution réussie",
+        "executionSuccessDetail": "Le pipeline a été exécuté avec succès.",
+        "executionError": "Erreur lors de l'exécution",
+        "executionErrorDetail": "Une erreur s'est produite lors de l'exécution du pipeline.",
+        "startNodeAlreadyExists": "Nœud Départ déjà présent",
+        "startNodeAlreadyExistsDetail": "Un seul nœud Départ est autorisé dans le pipeline."
+      },
+      "storage": {
+        "save": "Sauvegarder",
+        "load": "Charger",
+        "empty": "Aucun projet sauvegardé pour le moment.",
+        "savedListLabel": "Liste des projets sauvegardés",
+        "loadDialogTitle": "Charger un projet",
+        "selectedProject": "Projet sélectionné",
+        "lastUpdate": "Dernière mise à jour",
+        "loadConfirm": "Charger ce projet",
+        "saveSuccess": "Projet sauvegardé",
+        "saveSuccessDetail": "Le projet a été enregistré dans le stockage local.",
+        "importSuccess": "Projet importé",
+        "importSuccessDetail": "Le projet \"{name}\" a été importé.",
+        "importInvalid": "Import invalide",
+        "importInvalidDetail": "Le fichier JSON n'est pas un pipeline valide.",
+        "loadSuccess": "Projet chargé",
+        "loadSuccessDetail": "Le projet \"{name}\" a été chargé.",
+        "loadMissing": "Projet introuvable",
+        "loadMissingDetail": "Cette sauvegarde n'est plus disponible."
+      },
+      "history": {
+        "title": "Historique des 3 dernières exécutions",
+        "empty": "Aucune exécution enregistrée pour le moment.",
+        "success": "Succès",
+        "error": "Échec",
+        "expand": "Agrandir",
+        "dialogTitle": "Détails d'exécution",
+        "eventCount": "{count} événement(s)"
+      },
+      "help": {
+        "menuLabel": "Aide",
+        "title": "Guide d'utilisation",
+        "section1Title": "Les nœuds disponibles",
+        "section2Title": "Exemple : Requête → Condition → Transformation",
+        "section3Title": "Condition sur tableau (wildcard *)",
+        "exampleIntro": "Flux minimal : récupérer une tâche via une API, vérifier si elle est terminée, puis extraire son titre.",
+        "exampleLabel": "Exemple",
+        "conditionArray": {
+          "intro": "Quand le chemin gauche contient le segment *, la condition est évaluée pour chaque élément du tableau.",
+          "wildcardLabel": "Wildcard",
+          "wildcardDesc": "Utilisez * comme segment complet dans le chemin (ex : $.users.*.age).",
+          "anyDesc": "La branche vrai est prise si au moins un élément valide la condition.",
+          "allDesc": "La branche vrai est prise uniquement si tous les éléments valident la condition.",
+          "noneDesc": "La branche vrai est prise uniquement si aucun élément ne valide la condition.",
+          "examplesLabel": "Cas extrêmes",
+          "examplesDesc": "Il est normal d'avoir tous les éléments côté vrai et aucun côté faux, ou l'inverse, selon les données."
+        },
+        "nodes": {
+          "start": {
+            "title": "Départ",
+            "desc": "Point d'entrée obligatoire du pipeline. Aucune configuration requise. L'exécution démarre toujours depuis ce nœud.",
+            "example": "Placez-le au début du flux et reliez-le au premier nœud actif.",
+            "noFields": "Ce nœud n'a aucun champ à configurer. Il sert uniquement de point de départ du flux."
+          },
+          "api": {
+            "title": "Requête API",
+            "desc": "Effectue un appel HTTP (GET ou POST) vers une URL. La réponse JSON est stockée dans le chemin de sortie et accessible dans les nœuds suivants.",
+            "example": "URL : https://jsonplaceholder.typicode.com/todos/1 | Méthode : GET | Chemin de sortie : $.todo",
+            "fields": {
+              "method": "Verbe HTTP de la requête : GET pour lire des données, POST pour en envoyer.",
+              "url": "Adresse complète de l'endpoint à appeler (ex : https://api.exemple.com/users).",
+              "headersRaw": "En-têtes HTTP au format JSON. Utile pour l'authentification (Authorization) ou le type de contenu (Content-Type). Laisser vide si inutile.",
+              "bodyRaw": "Corps de la requête en JSON. Principalement utilisé avec POST pour envoyer des données au serveur.",
+              "outputPath": "Chemin JSONPath où stocker la réponse. Les nœuds suivants y accèdent via ce chemin (ex : $.data)."
+            }
+          },
+          "condition": {
+            "title": "Condition",
+            "desc": "Évalue une expression logique sur les données du pipeline. Le chemin gauche accepte le wildcard * pour parcourir un tableau (ex: $.users.*.age). Selon le résultat, le flux est dirigé vers la branche « vrai » ou « faux ».",
+            "example": "Chemin gauche : $.users.*.age | Opérateur : supérieur à | Agrégation : Au moins un | Valeur : 18",
+            "fields": {
+              "leftPath": "Chemin JSONPath vers la valeur du pipeline à évaluer (ex : $.user.age, $.item.status). Utilisez * comme segment pour cibler tous les éléments d'un tableau (ex : $.users.*.age).",
+              "operator": "L'opération de comparaison à appliquer : égal, différent, supérieur, inférieur, contient ou existe.",
+              "aggregation": "Mode d'agrégation quand le chemin gauche contient * : Au moins un (any), Tous (all), Aucun (none).",
+              "rightType": "Type de la valeur de référence : texte, nombre, booléen ou nul.",
+              "rightValue": "La valeur à comparer avec la gauche. Doit correspondre au type sélectionné ci-dessus."
+            }
+          },
+          "filter": {
+            "title": "Filtre",
+            "desc": "Filtre les éléments d'un tableau selon une condition. Les éléments qui respectent la condition sont écrits dans le chemin de sortie (filtrés), les autres dans le chemin des rejetés. Les deux branches s'exécutent en parallèle.",
+            "example": "Source : api.result | Chemin élément : age | Opérateur : supérieur à | Valeur : 18 | Sortie : result.adults | Rejetés : result.minors",
+            "fields": {
+              "sourcePath": "Chemin JSONPath vers le tableau à filtrer dans les données du pipeline (ex : api.result).",
+              "itemPath": "Chemin relatif à chaque élément du tableau sur lequel appliquer la comparaison (ex : age, status). Laisser vide pour comparer l'élément entier.",
+              "operator": "L'opération de comparaison à appliquer sur chaque élément : égal, différent, supérieur, inférieur, contient ou existe.",
+              "rightType": "Type de la valeur de référence : texte, nombre, booléen ou nul.",
+              "rightValue": "La valeur à comparer avec chaque élément. Doit correspondre au type sélectionné.",
+              "outputPath": "Chemin JSONPath où stocker les éléments qui respectent la condition (filtrés).",
+              "outputPathRejected": "Chemin JSONPath où stocker les éléments qui ne respectent pas la condition (rejetés)."
+            }
+          },
+          "transform": {
+            "title": "Transformation",
+            "desc": "Modifie ou réorganise les données. Mode « Extraire » : copie une valeur d'un chemin vers un autre. Mode « Valeur fixe » : assigne directement une constante.",
+            "example": "Mode : Extraire | Chemin source : $.todo.title | Chemin cible : $.result",
+            "fields": {
+              "mode": "Extraire : copie la valeur d'un chemin source vers un chemin cible. Valeur fixe : assigne directement une constante.",
+              "sourcePath": "(Mode Extraire uniquement) Chemin JSONPath de la valeur à lire dans les données du pipeline.",
+              "targetPath": "Chemin JSONPath de destination où la valeur (extraite ou fixe) sera écrite.",
+              "literalValue": "(Mode Valeur fixe uniquement) La constante à assigner à la cible."
+            }
+          },
+          "output": {
+            "title": "Sortie",
+            "desc": "Nœud terminal du pipeline. Expose la valeur finale via le chemin configuré dans la console d'exécution.",
+            "example": "Chemin de sortie : $.result",
+            "fields": {
+              "outputPath": "Chemin JSONPath vers la valeur finale à afficher dans la console d'exécution."
+            }
+          }
+        },
+        "exampleSteps": {
+          "branchTrue": "vrai ✓",
+          "branchFalse": "faux ✗",
+          "noConfig": "Aucune configuration requise.",
+          "empty": "(vide)",
+          "taskNotDone": "Tâche non terminée"
+        }
+      }
+    },
+    "nodePalette": {
+      "title": "Noeuds",
+      "tag": "Palette",
+      "description": "Ajoute des briques puis relie-les dans le canevas.",
+      "nodes": {
+        "start": {
+          "title": "Départ",
+          "subtitle": "Point d'entrée"
+        },
+        "api": {
+          "title": "Requête API",
+          "subtitle": "GET / POST"
+        },
+        "condition": {
+          "title": "Condition",
+          "subtitle": "Branche vrai / faux"
+        },
+        "filter": {
+          "title": "Filtre",
+          "subtitle": "Filtrer un tableau"
+        },
+        "transform": {
+          "title": "Transformation",
+          "subtitle": "Correspondance ou valeur fixe"
+        },
+        "output": {
+          "title": "Sortie",
+          "subtitle": "Résultat final"
+        }
+      }
+    },
+    "pipelineCanvas": {
+      "nodeNamePlaceholder": "Nom du noeud"
+    },
+    "inspector": {
+      "title": "Inspecteur",
+      "emptySelection": "Sélectionne un nœud pour éditer sa configuration.",
+      "tabs": {
+        "parameters": "Paramètres",
+        "actions": "Actions"
+      },
+      "fields": {
+        "nodeName": "Nom",
+        "nodeNamePlaceholder": "Nom du noeud",
+        "method": "Méthode",
+        "url": "URL",
+        "outputPath": "Chemin de sortie",
+        "outputPathRejected": "Chemin des rejetés",
+        "headersJson": "En-têtes JSON",
+        "bodyJson": "Corps JSON",
+        "leftPath": "Chemin gauche",
+        "operator": "Opérateur",
+        "aggregation": "Agrégation",
+        "itemPath": "Chemin de l'élément",
+        "rightType": "Type droit",
+        "rightValue": "Valeur droite",
+        "mode": "Mode",
+        "sourcePath": "Chemin source",
+        "targetPath": "Chemin cible",
+        "literalValue": "Valeur littérale"
+      },
+      "buttons": {
+        "testApi": "Tester l'API",
+        "showResult": "Afficher le résultat"
+      },
+      "messages": {
+        "noApiResult": "Aucun résultat disponible.",
+        "startNoConfig": "Le nœud Départ n'a pas de configuration obligatoire.",
+        "variableTokenInvalid": "Variable détectée, mais le nom est vide.",
+        "variableTokenUnknown": "Variable #{name} introuvable.",
+        "variableTokenValue": "Variable #{name} = {value}"
+      },
+      "dialog": {
+        "apiResult": "Résultat API"
+      },
+      "errors": {
+        "missingApiUrl": "URL API manquante.",
+        "unknown": "Erreur inconnue."
+      },
+      "options": {
+        "conditionOperator": {
+          "equals": "Egal à",
+          "notEquals": "Différent de",
+          "greaterThan": "Supérieur à",
+          "lessThan": "Inférieur à",
+          "contains": "Contient",
+          "exists": "Existe"
+        },
+        "conditionAggregation": {
+          "any": "Au moins un",
+          "all": "Tous",
+          "none": "Aucun"
+        },
+        "rightType": {
+          "string": "Texte",
+          "number": "Nombre",
+          "boolean": "Booléen",
+          "null": "Nul"
+        },
+        "transformMode": {
+          "pickPath": "Extraire depuis un chemin",
+          "assignLiteral": "Assigner une valeur fixe"
+        }
+      },
+      "prefix": {
+        "error": "Erreur"
+      },
+      "warnings": {
+        "unresolvedVariables": "Variables manquantes"
+      }
+    },
+    "runConsole": {
+      "title": "Console d'exécution",
+      "eventCount": "{count} événement(s)",
+      "subtitleWithLogs": "Logs d'exécution les plus récents.",
+      "subtitleEmpty": "Aucune exécution pour le moment.",
+      "emptyMessage": "Aucune exécution enregistrée.",
+      "showDetails": "Détails"
+    },
+    "defaults": {
+      "pipelineName": "Pipeline API de démonstration",
+      "nodeLabel": {
+        "start": "Départ",
+        "api": "Requête API",
+        "condition": "Condition",
+        "filter": "Filtre",
+        "transform": "Transformation",
+        "output": "Sortie"
+      },
+      "edge": {
+        "true": "vrai",
+        "false": "faux",
+        "filtered": "filtrés",
+        "rejected": "rejetés"
+      }
+    },
+    "engine": {
+      "json": {
+        "invalid": "{fieldName} n'est pas un JSON valide.",
+        "headersMustBeObject": "Le JSON des en-têtes doit être un objet."
+      },
+      "api": {
+        "error": "Erreur API {status}: {statusText}",
+        "completed": "API {method} {url} terminée ({status})."
+      },
+      "condition": {
+        "result": "Condition : {leftPath} {operator} {rightValue} -> {branchLabel}",
+        "trueLabel": "vrai ✓",
+        "falseLabel": "faux ✗"
+      },
+      "filter": {
+        "result": "Filtre: {sourcePath} -> conservés {outputPath}, rejetés {outputPathRejected} ({kept} conservés, {rejected} rejetés sur {total})."
+      },
+      "transform": {
+        "result": "Transformation ({mode}) vers {targetPath}: {status}.",
+        "status": {
+          "applied": "appliquée",
+          "sourceMissing": "source introuvable (valeur undefined propagée)"
+        }
+      },
+      "output": {
+        "resolved": "Sortie résolue depuis le chemin \"{path}\"."
+      },
+      "run": {
+        "invalidStartNode": "Pipeline invalide: nœud Départ introuvable.",
+        "invalidNodeById": "Pipeline invalide: nœud {id} introuvable.",
+        "executionStarted": "Exécution démarrée.",
+        "executionCompleted": "Exécution terminée.",
+        "noEdgeForBranch": "Aucune arête trouvée pour la branche \"{branch}\" - pipeline arrêté.",
+        "noOutgoingEdge": "Aucune arête sortante - pipeline arrêté.",
+        "executionFailed": "Échec de l'exécution.",
+        "infiniteLoopStopped": "Exécution arrêtée pour éviter une boucle infinie.",
+        "dataIn": "Données en entrée",
+        "dataOut": "Données en sortie"
+      }
+    }
+  },
+  "en": {
+    "pipelineEditor": {
+      "eyebrow": "ETL Experience",
+      "menu": {
+        "actions": "Menu",
+        "export": "Export",
+        "import": "Import",
+        "load": "Load",
+        "newPipeline": "New pipeline",
+        "reset": "Reset",
+        "running": "Running...",
+        "runPipeline": "Run Pipeline",
+        "save": "Save",
+        "settings": "Settings"
+      },
+      "tabs": {
+        "flow": "Flow",
+        "console": "Console"
+      },
+      "language": {
+        "currentFr": "Langue: Francais",
+        "currentEn": "Language: English",
+        "switchToFr": "Switch to French",
+        "switchToEn": "Passer en anglais"
+      },
+      "settings": {
+        "autoOpenConsoleOnRunEnd": "Automatically open the Console tab when execution ends"
+      },
+      "variables": {
+        "description": "Add global pipeline variables (name + value).",
+        "namePlaceholder": "Variable name",
+        "valuePlaceholder": "Value",
+        "add": "Add",
+        "remove": "Remove variable",
+        "empty": "No variables yet.",
+        "nameDuplicate": "This variable name already exists.",
+        "nameInvalid": "Name must start with a letter and only contain letters, digits, _ or -."
+      },
+      "toast": {
+        "executionSuccess": "Execution successful",
+        "executionSuccessDetail": "The pipeline has been executed successfully.",
+        "executionError": "Execution error",
+        "executionErrorDetail": "An error occurred while executing the pipeline.",
+        "startNodeAlreadyExists": "Start node already exists",
+        "startNodeAlreadyExistsDetail": "Only one Start node is allowed in the pipeline."
+      },
+      "storage": {
+        "save": "Save",
+        "load": "Load",
+        "empty": "No saved project found yet.",
+        "savedListLabel": "Saved projects list",
+        "loadDialogTitle": "Load a project",
+        "selectedProject": "Selected project",
+        "lastUpdate": "Last update",
+        "loadConfirm": "Load this project",
+        "saveSuccess": "Project saved",
+        "saveSuccessDetail": "Project has been stored in local storage.",
+        "importSuccess": "Project imported",
+        "importSuccessDetail": "Project \"{name}\" has been imported.",
+        "importInvalid": "Invalid import",
+        "importInvalidDetail": "The JSON file is not a valid pipeline.",
+        "loadSuccess": "Project loaded",
+        "loadSuccessDetail": "Project \"{name}\" has been loaded.",
+        "loadMissing": "Project not found",
+        "loadMissingDetail": "This save is no longer available."
+      },
+      "history": {
+        "title": "Last 3 executions",
+        "empty": "No execution recorded yet.",
+        "success": "Success",
+        "error": "Failed",
+        "expand": "Expand",
+        "dialogTitle": "Execution details",
+        "eventCount": "{count} event(s)"
+      },
+      "help": {
+        "menuLabel": "Help",
+        "title": "User Guide",
+        "section1Title": "Available nodes",
+        "section2Title": "Example: Request → Condition → Transform",
+        "section3Title": "Array condition (wildcard *)",
+        "exampleIntro": "Minimal flow: fetch a task from an API, check if it is completed, then extract its title.",
+        "exampleLabel": "Example",
+        "conditionArray": {
+          "intro": "When the left path contains the * segment, the condition is evaluated for each array item.",
+          "wildcardLabel": "Wildcard",
+          "wildcardDesc": "Use * as a full path segment (e.g. $.users.*.age).",
+          "anyDesc": "The true branch is taken if at least one item matches the condition.",
+          "allDesc": "The true branch is taken only if all items match the condition.",
+          "noneDesc": "The true branch is taken only if no item matches the condition.",
+          "examplesLabel": "Edge cases",
+          "examplesDesc": "It is normal to have all items on true and none on false, or the opposite, depending on your data."
+        },
+        "nodes": {
+          "start": {
+            "title": "Start",
+            "desc": "Mandatory entry point. No configuration required. Execution always begins from this node.",
+            "example": "Place it at the beginning of the flow and connect it to the first active node.",
+            "noFields": "This node has no fields to configure. It only serves as the entry point of the flow."
+          },
+          "api": {
+            "title": "API Request",
+            "desc": "Performs an HTTP call (GET or POST) to a URL. The JSON response is stored at the output path and accessible in subsequent nodes.",
+            "example": "URL: https://jsonplaceholder.typicode.com/todos/1 | Method: GET | Output path: $.todo",
+            "fields": {
+              "method": "HTTP verb: GET to read data, POST to send data to the server.",
+              "url": "Full URL of the endpoint to call (e.g. https://api.example.com/users).",
+              "headersRaw": "HTTP headers in JSON format. Useful for authentication (Authorization) or content type (Content-Type). Leave empty if not needed.",
+              "bodyRaw": "Request body in JSON. Mainly used with POST to send data to the server.",
+              "outputPath": "JSONPath where the response will be stored. Subsequent nodes access it via this path (e.g. $.data)."
+            }
+          },
+          "condition": {
+            "title": "Condition",
+            "desc": "Evaluates a logical expression on pipeline data. The left path supports wildcard * to iterate over arrays (e.g. $.users.*.age). Routes the flow to the 'true' or 'false' branch based on the result.",
+            "example": "Left path: $.users.*.age | Operator: greater than | Aggregation: Any | Value: 18",
+            "fields": {
+              "leftPath": "JSONPath to the pipeline value to evaluate (e.g. $.user.age, $.item.status). Use * as a full segment to target all array items (e.g. $.users.*.age).",
+              "operator": "The comparison operation: equals, not equals, greater than, less than, contains, or exists.",
+              "aggregation": "Aggregation mode when the left path contains *: Any, All, None.",
+              "rightType": "Type of the reference value: string, number, boolean, or null.",
+              "rightValue": "The value to compare against the left side. Must match the selected type above."
+            }
+          },
+          "filter": {
+            "title": "Filter",
+            "desc": "Filters items from an array based on a condition. Items matching the condition are written to the output path (filtered), others to the rejected path. Both branches execute in parallel.",
+            "example": "Source: api.result | Item path: age | Operator: greater than | Value: 18 | Output: result.adults | Rejected: result.minors",
+            "fields": {
+              "sourcePath": "JSONPath to the array to filter in the pipeline data (e.g. api.result).",
+              "itemPath": "Path relative to each array item on which to apply the comparison (e.g. age, status). Leave empty to compare the whole item.",
+              "operator": "The comparison operation to apply on each item: equals, not equals, greater than, less than, contains, or exists.",
+              "rightType": "Type of the reference value: string, number, boolean, or null.",
+              "rightValue": "The value to compare each item against. Must match the selected type.",
+              "outputPath": "JSONPath where items matching the condition (filtered) will be stored.",
+              "outputPathRejected": "JSONPath where items not matching the condition (rejected) will be stored."
+            }
+          },
+          "transform": {
+            "title": "Transform",
+            "desc": "Modifies or reorganizes data. 'Pick path' mode: copies a value from one path to another. 'Literal' mode: assigns a constant directly.",
+            "example": "Mode: Pick | Source path: $.todo.title | Target path: $.result",
+            "fields": {
+              "mode": "Pick path: copies a value from a source path to a target path. Assign literal: directly assigns a constant.",
+              "sourcePath": "(Pick path mode only) JSONPath of the value to read from the pipeline data.",
+              "targetPath": "Destination JSONPath where the value (picked or literal) will be written.",
+              "literalValue": "(Assign literal mode only) The constant value to assign to the target."
+            }
+          },
+          "output": {
+            "title": "Output",
+            "desc": "Terminal node. Exposes the final value via the configured path in the execution console.",
+            "example": "Output path: $.result",
+            "fields": {
+              "outputPath": "JSONPath to the final value to display in the execution console."
+            }
+          }
+        },
+        "exampleSteps": {
+          "branchTrue": "true ✓",
+          "branchFalse": "false ✗",
+          "noConfig": "No configuration required.",
+          "empty": "(empty)",
+          "taskNotDone": "Task not completed"
+        }
+      }
+    },
+    "nodePalette": {
+      "title": "Nodes",
+      "tag": "Palette",
+      "description": "Add blocks and connect them on the canvas.",
+      "nodes": {
+        "start": {
+          "title": "Start",
+          "subtitle": "Entry point"
+        },
+        "api": {
+          "title": "API Request",
+          "subtitle": "GET / POST"
+        },
+        "condition": {
+          "title": "Condition",
+          "subtitle": "True / false branch"
+        },
+        "filter": {
+          "title": "Filter",
+          "subtitle": "Filter an array"
+        },
+        "transform": {
+          "title": "Transform",
+          "subtitle": "Mapping or fixed value"
+        },
+        "output": {
+          "title": "Output",
+          "subtitle": "Final result"
+        }
+      }
+    },
+    "pipelineCanvas": {
+      "nodeNamePlaceholder": "Node name"
+    },
+    "inspector": {
+      "title": "Inspector",
+      "emptySelection": "Select a node to edit its configuration.",
+      "tabs": {
+        "parameters": "Parameters",
+        "actions": "Actions"
+      },
+      "fields": {
+        "nodeName": "Name",
+        "nodeNamePlaceholder": "Node name",
+        "method": "Method",
+        "url": "URL",
+        "outputPath": "Output path",
+        "outputPathRejected": "Rejected output path",
+        "headersJson": "Headers JSON",
+        "bodyJson": "Body JSON",
+        "leftPath": "Left path",
+        "operator": "Operator",
+        "aggregation": "Aggregation",
+        "itemPath": "Item path",
+        "rightType": "Right type",
+        "rightValue": "Right value",
+        "mode": "Mode",
+        "sourcePath": "Source path",
+        "targetPath": "Target path",
+        "literalValue": "Literal value"
+      },
+      "buttons": {
+        "testApi": "Test API",
+        "showResult": "Show result"
+      },
+      "messages": {
+        "noApiResult": "No result available.",
+        "startNoConfig": "The Start node has no required configuration.",
+        "variableTokenInvalid": "Variable detected, but the name is empty.",
+        "variableTokenUnknown": "Variable #{name} was not found.",
+        "variableTokenValue": "Variable #{name} = {value}"
+      },
+      "dialog": {
+        "apiResult": "API result"
+      },
+      "errors": {
+        "missingApiUrl": "Missing API URL.",
+        "unknown": "Unknown error."
+      },
+      "options": {
+        "conditionOperator": {
+          "equals": "Equals",
+          "notEquals": "Not equals",
+          "greaterThan": "Greater than",
+          "lessThan": "Less than",
+          "contains": "Contains",
+          "exists": "Exists"
+        },
+        "conditionAggregation": {
+          "any": "Any",
+          "all": "All",
+          "none": "None"
+        },
+        "rightType": {
+          "string": "String",
+          "number": "Number",
+          "boolean": "Boolean",
+          "null": "Null"
+        },
+        "transformMode": {
+          "pickPath": "Pick from path",
+          "assignLiteral": "Assign literal value"
+        }
+      },
+      "prefix": {
+        "error": "Error"
+      },
+      "warnings": {
+        "unresolvedVariables": "Missing variables"
+      }
+    },
+    "runConsole": {
+      "title": "Execution console",
+      "eventCount": "{count} event(s)",
+      "subtitleWithLogs": "Most recent execution logs.",
+      "subtitleEmpty": "No execution yet.",
+      "emptyMessage": "No execution recorded.",
+      "showDetails": "Details"
+    },
+    "defaults": {
+      "pipelineName": "API demo pipeline",
+      "nodeLabel": {
+        "start": "Start",
+        "api": "API Request",
+        "condition": "Condition",
+        "filter": "Filter",
+        "transform": "Transform",
+        "output": "Output"
+      },
+      "edge": {
+        "true": "true",
+        "false": "false",
+        "filtered": "filtered",
+        "rejected": "rejected"
+      }
+    },
+    "engine": {
+      "json": {
+        "invalid": "{fieldName} is not valid JSON.",
+        "headersMustBeObject": "Headers JSON must be an object."
+      },
+      "api": {
+        "error": "API error {status}: {statusText}",
+        "completed": "API {method} {url} completed ({status})."
+      },
+      "condition": {
+        "result": "Condition: {leftPath} {operator} {rightValue} -> {branchLabel}",
+        "trueLabel": "true ✓",
+        "falseLabel": "false ✗"
+      },
+      "filter": {
+        "result": "Filter: {sourcePath} -> kept {outputPath}, rejected {outputPathRejected} ({kept} kept, {rejected} rejected of {total})."
+      },
+      "transform": {
+        "result": "Transform ({mode}) to {targetPath}: {status}.",
+        "status": {
+          "applied": "applied",
+          "sourceMissing": "source path not found (undefined propagated)"
+        }
+      },
+      "output": {
+        "resolved": "Output resolved from path \"{path}\"."
+      },
+      "run": {
+        "invalidStartNode": "Invalid pipeline: Start node not found.",
+        "invalidNodeById": "Invalid pipeline: node {id} not found.",
+        "executionStarted": "Execution started.",
+        "executionCompleted": "Execution completed.",
+        "noEdgeForBranch": "No edge found for branch \"{branch}\" - pipeline stopped.",
+        "noOutgoingEdge": "No outgoing edge - pipeline stopped.",
+        "executionFailed": "Execution failed.",
+        "infiniteLoopStopped": "Execution stopped to avoid an infinite loop.",
+        "dataIn": "Data in",
+        "dataOut": "Data out"
+      }
+    }
+  }
+}
