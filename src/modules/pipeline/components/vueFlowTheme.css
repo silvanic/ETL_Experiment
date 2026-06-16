@@ -1,6 +1,6 @@
 /* Vue Flow custom theme for dark mode */
 
-[data-theme='dark'] .dark {
+.app-dark {
   --vf-primary: var(--accent);
   --vf-secondary: var(--text-soft);
 

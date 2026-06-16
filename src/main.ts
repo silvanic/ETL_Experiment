@@ -9,9 +9,6 @@ import 'primeicons/primeicons.css'
 import App from './App.vue'
 import Tooltip from 'primevue/tooltip';
 
-
-document.documentElement.setAttribute('data-theme', 'dark')
-
 const app = createApp(App)
 app.use(createPinia())
 app.use(i18n)
@@ -19,7 +16,7 @@ app.use(PrimeVue, {
 	theme: {
 		preset: Material,
 		options: {
-			darkModeSelector: "[data-theme='dark']",
+			darkModeSelector: ".app-dark",
 		},
 	},
 })

@@ -27,7 +27,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-[data-theme='dark'] {
+.app-dark {
   --bg: #0f1419;
   --panel: #1a1f2e;
   --panel-soft: white;
