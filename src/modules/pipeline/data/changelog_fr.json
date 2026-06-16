@@ -1,0 +1,52 @@
+{
+  "v 0.0.2": {
+    "date": "16 juin 2026",
+    "sections": [
+      {
+        "title": "Exécution rapide",
+        "features": [
+          "Bouton Exécuter ajouté directement dans le canvas",
+          "Plus besoin de passer par la barre d'outils pour lancer le pipeline"
+        ]
+      },
+      {
+        "title": "Bugs et stabilité",
+        "features": [
+          "Correction de bugs critiques dans le moteur d'exécution",
+          "Meilleure gestion des erreurs lors du parcours du flux"
+        ]
+      },
+      {
+        "title": "Interface",
+        "features": [
+          "Refonte de la palette et du canvas pour plus de clarté",
+          "Meilleure lisibilité du panneau d'inspection"
+        ]
+      }
+    ]
+  },
+  "v 0.0.1": {
+    "date": "02 juin 2026",
+    "sections": [
+      {
+        "title": "6 nœuds pour construire",
+        "features": [
+          "Départ - point d'entrée du pipeline",
+          "Requête API - GET/POST HTTP",
+          "Condition - brancher selon une logique",
+          "Filtre - opérer sur les tableaux",
+          "Transformation - modifier les données",
+          "Sortie - exposer le résultat final"
+        ]
+      },
+      {
+        "title": "Export & Import",
+        "features": [
+          "Exporte ton pipeline en JSON",
+          "Nommage automatique du fichier",
+          "Import avec validation de la structure"
+        ]
+      }
+    ]
+  }
+}

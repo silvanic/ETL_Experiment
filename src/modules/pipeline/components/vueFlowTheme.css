@@ -25,12 +25,6 @@
   --vf-controls-btn-bg-hover: var(--accent-soft);
 }
 
-/* Light mode explicitly set */
-[data-theme='light'] .canvas {
-  --vf-primary: #0066cc;
-  --vf-secondary: #666;
-}
-
 /* Vue Flow node text color */
 .vue-flow__node {
   color: var(--text);
@@ -69,7 +63,7 @@
 }
 
 .vue-flow__controls button:hover {
-  background: var(--border);
+  background: var(--p-blue-300);
 }
 
 /* Vue Flow background styling */

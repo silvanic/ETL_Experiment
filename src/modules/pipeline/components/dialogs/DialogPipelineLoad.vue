@@ -111,7 +111,6 @@ function loadSelectedPipeline(): void {
 .saved-pipeline-item {
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--panel-soft);
 }
 
 .saved-pipeline-item--active {
@@ -145,7 +144,6 @@ function loadSelectedPipeline(): void {
 .saved-pipeline-preview {
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--panel-soft);
   padding: 0.65rem 0.75rem;
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import Dialog from 'primevue/dialog'
 import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
@@ -86,6 +86,8 @@ const dialogVisible = computed({
   set: (value: boolean) => emit('update:visible', value),
 })
 
+const selectedExample = ref<'example1' | 'example2'>('example1')
+
 const helpExampleSteps = computed((): HelpStep[] => [
   {
     type: 'start',
@@ -140,6 +142,41 @@ const helpExampleSteps = computed((): HelpStep[] => [
     ],
   },
 ])
+
+const helpExample2Steps = computed((): HelpStep[] => [
+  {
+    type: 'start',
+    title: t('pipelineEditor.help.nodes.start.title'),
+    noConfig: true,
+  },
+  {
+    type: 'api',
+    title: t('pipelineEditor.help.nodes.api.title'),
+    fields: [
+      { label: t('inspector.fields.method'), value: 'GET' },
+      { label: 'URL', value: 'https://jsonplaceholder.typicode.com/users' },
+      { label: t('inspector.fields.headersJson'), value: t('pipelineEditor.help.exampleSteps.empty') },
+      { label: t('inspector.fields.bodyJson'), value: t('pipelineEditor.help.exampleSteps.empty') },
+      { label: t('inspector.fields.outputPath'), value: '$.users' },
+    ],
+  },
+  {
+    type: 'transform',
+    title: t('pipelineEditor.help.nodes.transform.title'),
+    fields: [
+      { label: t('inspector.fields.mode'), value: t('inspector.options.transformMode.assignLiteral') },
+      { label: t('inspector.fields.literalValue'), value: 'true' },
+      { label: t('inspector.fields.targetPath'), value: '$.users[*].active' },
+    ],
+  },
+  {
+    type: 'output',
+    title: t('pipelineEditor.help.nodes.output.title'),
+    fields: [
+      { label: t('inspector.fields.outputPath'), value: '$.users' },
+    ],
+  },
+])
 </script>
 
 <template>
@@ -187,54 +224,87 @@ const helpExampleSteps = computed((): HelpStep[] => [
 
       <section class="help-section">
         <h3 class="help-section-title">{{ t('pipelineEditor.help.section2Title') }}</h3>
-        <p class="help-example-intro">{{ t('pipelineEditor.help.exampleIntro') }}</p>
+        <Tabs v-model:value="selectedExample">
+          <TabList>
+            <Tab value="example1">{{ t('pipelineEditor.help.example1Title') }}</Tab>
+            <Tab value="example2">{{ t('pipelineEditor.help.example2Title') }}</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel value="example1">
+              <p class="help-example-intro">{{ t('pipelineEditor.help.exampleIntro') }}</p>
+              <div class="help-ex-flow">
+                <template v-for="(step, i) in helpExampleSteps" :key="step.type">
+                  <div v-if="i > 0" class="help-ex-arrow">↓</div>
 
-        <div class="help-ex-flow">
-          <template v-for="(step, i) in helpExampleSteps" :key="step.type">
-            <div v-if="i > 0" class="help-ex-arrow">↓</div>
-
-            <div :class="['help-ex-card', `help-ex-card--${step.type}`]">
-              <div class="help-ex-card-header">
-                <span :class="['help-node-badge', `help-node-badge--${step.type}`]">{{ step.title }}</span>
-              </div>
-              <p v-if="step.noConfig" class="help-ex-noconfig">{{ t('pipelineEditor.help.exampleSteps.noConfig') }}</p>
-              <table v-else-if="step.fields?.length" class="help-ex-table">
-                <tbody>
-                  <tr v-for="field in step.fields" :key="field.label">
-                    <th>{{ field.label }}</th>
-                    <td><code>{{ field.value }}</code></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <template v-if="step.branches">
-              <div class="help-ex-arrow">↓</div>
-              <div class="help-ex-branches">
-                <div
-                  v-for="(branch, bKey) in step.branches"
-                  :key="bKey"
-                  class="help-ex-branch"
-                >
-                  <div :class="['help-branch-label', `help-branch-label--${bKey}`]">{{ branch.label }}</div>
-                  <div class="help-ex-card help-ex-card--transform">
+                  <div :class="['help-ex-card', `help-ex-card--${step.type}`]">
                     <div class="help-ex-card-header">
-                      <span class="help-node-badge help-node-badge--transform">{{ t('pipelineEditor.help.nodes.transform.title') }}</span>
+                      <span :class="['help-node-badge', `help-node-badge--${step.type}`]">{{ step.title }}</span>
                     </div>
-                    <table class="help-ex-table">
+                    <p v-if="step.noConfig" class="help-ex-noconfig">{{ t('pipelineEditor.help.exampleSteps.noConfig') }}</p>
+                    <table v-else-if="step.fields?.length" class="help-ex-table">
                       <tbody>
-                        <tr v-for="field in branch.fields" :key="field.label">
+                        <tr v-for="field in step.fields" :key="field.label">
                           <th>{{ field.label }}</th>
                           <td><code>{{ field.value }}</code></td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
-                </div>
+
+                  <template v-if="step.branches">
+                    <div class="help-ex-arrow">↓</div>
+                    <div class="help-ex-branches">
+                      <div
+                        v-for="(branch, bKey) in step.branches"
+                        :key="bKey"
+                        class="help-ex-branch"
+                      >
+                        <div :class="['help-branch-label', `help-branch-label--${bKey}`]">{{ branch.label }}</div>
+                        <div class="help-ex-card help-ex-card--transform">
+                          <div class="help-ex-card-header">
+                            <span class="help-node-badge help-node-badge--transform">{{ t('pipelineEditor.help.nodes.transform.title') }}</span>
+                          </div>
+                          <table class="help-ex-table">
+                            <tbody>
+                              <tr v-for="field in branch.fields" :key="field.label">
+                                <th>{{ field.label }}</th>
+                                <td><code>{{ field.value }}</code></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </template>
               </div>
-            </template>
-          </template>
-        </div>
+            </TabPanel>
+
+            <TabPanel value="example2">
+              <p class="help-example-intro">{{ t('pipelineEditor.help.example2Intro') }}</p>
+              <div class="help-ex-flow">
+                <template v-for="(step, i) in helpExample2Steps" :key="step.type">
+                  <div v-if="i > 0" class="help-ex-arrow">↓</div>
+
+                  <div :class="['help-ex-card', `help-ex-card--${step.type}`]">
+                    <div class="help-ex-card-header">
+                      <span :class="['help-node-badge', `help-node-badge--${step.type}`]">{{ step.title }}</span>
+                    </div>
+                    <p v-if="step.noConfig" class="help-ex-noconfig">{{ t('pipelineEditor.help.exampleSteps.noConfig') }}</p>
+                    <table v-else-if="step.fields?.length" class="help-ex-table">
+                      <tbody>
+                        <tr v-for="field in step.fields" :key="field.label">
+                          <th>{{ field.label }}</th>
+                          <td><code>{{ field.value }}</code></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </template>
+              </div>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </section>
 
       <section class="help-section">

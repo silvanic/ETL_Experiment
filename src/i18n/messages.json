@@ -1,5 +1,15 @@
 {
   "fr": {
+    "common": {
+      "cancel": "Annuler",
+      "confirm": "Confirmer",
+      "close": "Fermer",
+      "delete": "Supprimer",
+      "edit": "Modifier",
+      "save": "Enregistrer",
+      "loading": "Chargement...",
+      "error": "Erreur"
+    },
     "pipelineEditor": {
       "eyebrow": "Expérience ETL",
       "menu": {
@@ -19,10 +29,17 @@
         "console": "Console"
       },
       "language": {
-        "currentFr": "Language: French",
-        "currentEn": "Language: English",
-        "switchToFr": "Switch to French",
-        "switchToEn": "Switch to English"
+        "currentFr": "Langue : Français",
+        "currentEn": "Langue : Anglais",
+        "switchToFr": "Passer au français",
+        "switchToEn": "Passer à l'anglais"
+      },
+      "renameDialog": {
+        "open": "Renommer le pipeline",
+        "title": "Renommer le pipeline",
+        "nameLabel": "Nom du pipeline",
+        "save": "Enregistrer",
+        "cancel": "Annuler"
       },
       "settings": {
         "autoOpenConsoleOnRunEnd": "Ouvrir automatiquement l'onglet Console à la fin d'une exécution"
@@ -74,13 +91,21 @@
         "dialogTitle": "Détails d'exécution",
         "eventCount": "{count} événement(s)"
       },
+      "whatsNew": {
+        "menuLabel": "Nouveauté",
+        "title": "Historique des dernières versions",
+        "intro": "Retrouvez ici les évolutions récentes de l'éditeur de pipeline."
+      },
       "help": {
         "menuLabel": "Aide",
         "title": "Guide d'utilisation",
         "section1Title": "Les nœuds disponibles",
-        "section2Title": "Exemple : Requête → Condition → Transformation",
+        "section2Title": "Exemples guidés",
         "section3Title": "Condition sur tableau (wildcard *)",
         "exampleIntro": "Flux minimal : récupérer une tâche via une API, vérifier si elle est terminée, puis extraire son titre.",
+        "example1Title": "Requête → Condition → Transformation",
+        "example2Title": "Modifier une liste avec [*]",
+        "example2Intro": "Récupérer une liste d'utilisateurs via une API, puis forcer une propriété sur chaque objet du tableau grâce au wildcard [*] dans un nœud Transform.",
         "exampleLabel": "Exemple",
         "conditionArray": {
           "intro": "Quand le chemin gauche contient le segment *, la condition est évaluée pour chaque élément du tableau.",
@@ -139,12 +164,12 @@
           },
           "transform": {
             "title": "Transformation",
-            "desc": "Modifie ou réorganise les données. Mode « Extraire » : copie une valeur d'un chemin vers un autre. Mode « Valeur fixe » : assigne directement une constante.",
-            "example": "Mode : Extraire | Chemin source : $.todo.title | Chemin cible : $.result",
+            "desc": "Modifie ou réorganise les données. Mode « Extraire » : copie une valeur d'un chemin vers un autre. Mode « Valeur fixe » : assigne directement une constante. Le wildcard [*] permet d'appliquer la transformation sur chaque objet d'un tableau (ex. $.users[*].active).",
+            "example": "Mode : Valeur fixe | Valeur : true | Chemin cible : $.users[*].active (active tous les utilisateurs de la liste)",
             "fields": {
               "mode": "Extraire : copie la valeur d'un chemin source vers un chemin cible. Valeur fixe : assigne directement une constante.",
               "sourcePath": "(Mode Extraire uniquement) Chemin JSONPath de la valeur à lire dans les données du pipeline.",
-              "targetPath": "Chemin JSONPath de destination où la valeur (extraite ou fixe) sera écrite.",
+              "targetPath": "Chemin JSONPath de destination où la valeur sera écrite. Utilisez [*] pour cibler chaque élément d'un tableau (ex. $.items[*].price).",
               "literalValue": "(Mode Valeur fixe uniquement) La constante à assigner à la cible."
             }
           },
@@ -177,7 +202,7 @@
         },
         "api": {
           "title": "Requête API",
-          "subtitle": "GET / POST"
+          "subtitle": "GET / POST / PUT / PATCH / DELETE"
         },
         "condition": {
           "title": "Condition",
@@ -198,7 +223,8 @@
       }
     },
     "pipelineCanvas": {
-      "nodeNamePlaceholder": "Nom du noeud"
+      "nodeNamePlaceholder": "Nom du noeud",
+      "deleteNodeConfirm": "Voulez-vous vraiment supprimer le nœud \"{name}\" ?"
     },
     "inspector": {
       "title": "Inspecteur",
@@ -226,6 +252,9 @@
         "sourcePath": "Chemin source",
         "targetPath": "Chemin cible",
         "literalValue": "Valeur littérale"
+      },
+      "hints": {
+        "targetPathWildcard": "Astuce : utilisez [*] pour modifier chaque élément d'un tableau (ex. $.users[*].active)."
       },
       "buttons": {
         "testApi": "Tester l'API",
@@ -344,6 +373,16 @@
     }
   },
   "en": {
+    "common": {
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "close": "Close",
+      "delete": "Delete",
+      "edit": "Edit",
+      "save": "Save",
+      "loading": "Loading...",
+      "error": "Error"
+    },
     "pipelineEditor": {
       "eyebrow": "ETL Experience",
       "menu": {
@@ -367,6 +406,13 @@
         "currentEn": "Language: English",
         "switchToFr": "Switch to French",
         "switchToEn": "Passer en anglais"
+      },
+      "renameDialog": {
+        "open": "Rename pipeline",
+        "title": "Rename pipeline",
+        "nameLabel": "Pipeline name",
+        "save": "Save",
+        "cancel": "Cancel"
       },
       "settings": {
         "autoOpenConsoleOnRunEnd": "Automatically open the Console tab when execution ends"
@@ -418,13 +464,21 @@
         "dialogTitle": "Execution details",
         "eventCount": "{count} event(s)"
       },
+      "whatsNew": {
+        "menuLabel": "What's New",
+        "title": "Recent version history",
+        "intro": "Find the latest updates to the pipeline editor here."
+      },
       "help": {
         "menuLabel": "Help",
         "title": "User Guide",
         "section1Title": "Available nodes",
-        "section2Title": "Example: Request → Condition → Transform",
+        "section2Title": "Guided examples",
         "section3Title": "Array condition (wildcard *)",
         "exampleIntro": "Minimal flow: fetch a task from an API, check if it is completed, then extract its title.",
+        "example1Title": "Request → Condition → Transform",
+        "example2Title": "Update a list with [*]",
+        "example2Intro": "Fetch a list of users from an API, then force a property on every object in the array using the [*] wildcard in a Transform node.",
         "exampleLabel": "Example",
         "conditionArray": {
           "intro": "When the left path contains the * segment, the condition is evaluated for each array item.",
@@ -483,12 +537,12 @@
           },
           "transform": {
             "title": "Transform",
-            "desc": "Modifies or reorganizes data. 'Pick path' mode: copies a value from one path to another. 'Literal' mode: assigns a constant directly.",
-            "example": "Mode: Pick | Source path: $.todo.title | Target path: $.result",
+            "desc": "Modifies or reorganizes data. 'Pick path' mode: copies a value from one path to another. 'Literal' mode: assigns a constant directly. The [*] wildcard applies the transformation to every object in an array (e.g. $.users[*].active).",
+            "example": "Mode: Assign literal | Value: true | Target path: $.users[*].active (activates every user in the list)",
             "fields": {
               "mode": "Pick path: copies a value from a source path to a target path. Assign literal: directly assigns a constant.",
               "sourcePath": "(Pick path mode only) JSONPath of the value to read from the pipeline data.",
-              "targetPath": "Destination JSONPath where the value (picked or literal) will be written.",
+              "targetPath": "Destination JSONPath where the value will be written. Use [*] to target every element of an array (e.g. $.items[*].price).",
               "literalValue": "(Assign literal mode only) The constant value to assign to the target."
             }
           },
@@ -521,7 +575,7 @@
         },
         "api": {
           "title": "API Request",
-          "subtitle": "GET / POST"
+          "subtitle": "GET / POST / PUT / PATCH / DELETE"
         },
         "condition": {
           "title": "Condition",
@@ -542,7 +596,8 @@
       }
     },
     "pipelineCanvas": {
-      "nodeNamePlaceholder": "Node name"
+      "nodeNamePlaceholder": "Node name",
+      "deleteNodeConfirm": "Are you sure you want to delete node \"{name}\"?"
     },
     "inspector": {
       "title": "Inspector",
@@ -570,6 +625,9 @@
         "sourcePath": "Source path",
         "targetPath": "Target path",
         "literalValue": "Literal value"
+      },
+      "hints": {
+        "targetPathWildcard": "Tip: use [*] to modify every element in an array (e.g. $.users[*].active)."
       },
       "buttons": {
         "testApi": "Test API",

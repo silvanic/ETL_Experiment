@@ -163,7 +163,6 @@ h2 {
 .group-item {
 	border: 1px solid var(--border);
 	border-radius: 10px;
-	background: var(--panel-soft);
 	overflow: hidden;
 }
 

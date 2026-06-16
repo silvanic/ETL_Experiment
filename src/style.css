@@ -30,7 +30,7 @@
 [data-theme='dark'] {
   --bg: #0f1419;
   --panel: #1a1f2e;
-  --panel-soft: #25293d;
+  --panel-soft: white;
   --text: #e4e7eb;
   --text-soft: #9ca3af;
   --border: #3a4557;
@@ -41,24 +41,6 @@
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 
   background: radial-gradient(circle at 20% 0%, #141a27 0%, #0f1419 50%, #0d111a 100%);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1419;
-    --panel: #1a1f2e;
-    --panel-soft: #25293d;
-    --text: #e4e7eb;
-    --text-soft: #9ca3af;
-    --border: #3a4557;
-    --accent: #4fb8a5;
-    --accent-soft: rgba(79, 184, 165, 0.15);
-    --code-bg: #101827;
-    --code-border: #2f3a4d;
-    --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-
-    background: radial-gradient(circle at 20% 0%, #141a27 0%, #0f1419 50%, #0d111a 100%);
-  }
 }
 
 * {

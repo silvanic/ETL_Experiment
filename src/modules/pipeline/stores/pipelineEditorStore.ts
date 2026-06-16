@@ -75,6 +75,8 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   const pipeline = ref<PipelineDefinition>(loadPipeline())
   const savedPipelines = ref<SavedPipelineSummary[]>(listSavedPipelines())
   const selectedNodeId = ref<string | null>(null)
+  const nodeCreationCenter = ref<{ x: number; y: number } | null>(null)
+  const nodeCreationTick = ref(0)
   const isRunning = ref(false)
   const logs = ref<ExecutionLog[]>([])
   const runHistory = ref<ExecutionRun[]>([])
@@ -249,6 +251,10 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     pipeline.value.updatedAt = new Date().toISOString()
   }
 
+  function setNodeCreationCenter(position: { x: number; y: number } | null): void {
+    nodeCreationCenter.value = position
+  }
+
   function addNodeByType(type: NodeType): void {
     if (type === 'start' && nodes.value.some((node) => node.data.type === 'start')) {
       toast.add({
@@ -260,10 +266,18 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
       return
     }
 
-    const x = 220 + (nodes.value.length % 4) * 260
-    const y = 100 + Math.floor(nodes.value.length / 4) * 160
+    let x = 220 + (nodes.value.length % 4) * 260
+    let y = 100 + Math.floor(nodes.value.length / 4) * 160
+
+    if (nodeCreationCenter.value) {
+      const estimatedNodeWidth = type === 'start' || type === 'output' ? 140 : 180
+      const estimatedNodeHeight = 64
+      x = nodeCreationCenter.value.x - estimatedNodeWidth / 2
+      y = nodeCreationCenter.value.y - estimatedNodeHeight / 2
+    }
 
     nodes.value = [...nodes.value, createNode(type, x, y)]
+    nodeCreationTick.value += 1
   }
 
   function updateNodeName(nodeId: string, name: string): void {
@@ -282,6 +296,15 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
         },
       }
     })
+  }
+
+  function removeNode(nodeId: string): void {
+    nodes.value = nodes.value.filter((node) => node.id !== nodeId)
+    edges.value = edges.value.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+
+    if (selectedNodeId.value === nodeId) {
+      selectedNodeId.value = null
+    }
   }
 
   function onNodesChange(changes: NodeChange[]): void {
@@ -446,15 +469,18 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     edges,
     selectedNode,
     selectedNodeId,
+    nodeCreationTick,
     isRunning,
     logs,
     runHistory,
     addNodeByType,
+    removeNode,
     updateNodeName,
     onNodesChange,
     onEdgesChange,
     onConnect,
     setSelectedNode,
+    setNodeCreationCenter,
     updateSelectedNodeConfig,
     relocalizePipelineLabels,
     refreshSavedPipelines,

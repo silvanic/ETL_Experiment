@@ -70,8 +70,6 @@ export function createNode(type: NodeType, x: number, y: number): PipelineNode {
   let typeNode = "default";
   if(["start"].includes(type)) {
     typeNode = "input";
-  }else if(["output"].includes(type)) {
-    typeNode = "output";
   }
 
   return {

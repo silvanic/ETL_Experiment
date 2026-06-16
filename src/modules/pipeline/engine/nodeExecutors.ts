@@ -300,12 +300,12 @@ const filterExecutor: NodeExecutor = async (node, context) => {
     const leftValue = resolvedItemPath.trim() ? getByPath(item, resolvedItemPath) : item
     return evaluateCondition(leftValue, config.operator, rightValue)
   })
+  console.log('Filter Executor:', sourceValue, sourceItems, accepted, rightValue, resolvedItemPath, config.operator)
 
   const rejected = sourceItems.filter((item) => !accepted.includes(item))
 
   setByPath(context.data, resolvedOutputPath, accepted)
   setByPath(context.data, resolvedOutputPathRejected, rejected)
-
   return {
     message: t('engine.filter.result', {
       sourcePath: resolvedSourcePath,

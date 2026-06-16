@@ -9,7 +9,6 @@ import Textarea from 'primevue/textarea'
 import Message from 'primevue/message'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
-import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 import { resolveValueWithVariables, toVariableToken, findUnresolvedVariables } from '@/modules/pipeline/domain/variables'
 import type {
@@ -20,6 +19,7 @@ import type {
   TransformNodeConfig,
 } from '@/modules/pipeline/domain/types'
 import { useI18n } from 'vue-i18n'
+import { TabList, TabPanels, Tabs, Tab } from 'primevue'
 
 const store = usePipelineEditorStore()
 const { t } = useI18n()
@@ -65,7 +65,7 @@ const outputConfig = computed(() =>
   selectedType.value === 'output' ? (selectedData.value?.config as OutputNodeConfig) : null,
 )
 
-const apiMethodOptions = ['GET', 'POST']
+const apiMethodOptions = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const conditionOperatorOptions = computed<{ label: string; value: ConditionNodeConfig['operator'] }[]>(() => [
   { label: t('inspector.options.conditionOperator.equals'), value: 'equals' },
   { label: t('inspector.options.conditionOperator.notEquals'), value: 'notEquals' },
@@ -360,81 +360,87 @@ function openApiResultDialog(): void {
         >
           {{ t('inspector.warnings.unresolvedVariables') }}: {{ unresolvedApiVariables.join(', ') }}
         </Message>
-        <TabView>
-          <TabPanel :header="t('inspector.tabs.parameters')" value="params">
-            <div class="tab-content">
-              <label>
-                URL
-                <AutoComplete
-                  :model-value="apiConfig.url"
-                  :suggestions="variableSuggestions"
-                  dropdown
-                  @complete="completeVariables"
-                  @update:model-value="patchConfig({ url: String($event) })"
+        <Tabs value="params">
+          <TabList>
+            <Tab value="params">{{ t('inspector.tabs.parameters') }}</Tab>
+            <Tab value="actions">{{ t('inspector.tabs.actions') }}</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel value="params">
+              <div class="tab-content">
+                <label>
+                  URL
+                  <AutoComplete
+                    :model-value="apiConfig.url"
+                    :suggestions="variableSuggestions.length > 0 ? variableSuggestions : null"
+                    dropdown
+                    @complete="completeVariables"
+                    @update:model-value="patchConfig({ url: String($event) })"
+                  />
+                  <p v-if="isVariableTokenInput(apiConfig.url)" class="hint">
+                    {{ variableTokenHint(apiConfig.url) }}
+                  </p>
+                </label>
+                <label>
+                  {{ t('inspector.fields.method') }}
+                  <Select
+                    :options="apiMethodOptions"
+                    :model-value="apiConfig.method"
+                    @update:model-value="patchConfig({ method: String($event) })"
+                  />
+                </label>
+                <label>
+                  {{ t('inspector.fields.outputPath') }}
+                  <AutoComplete
+                    :model-value="apiConfig.outputPath"
+                    :suggestions="variableSuggestions"
+                    dropdown
+                    @complete="completeVariables"
+                    @update:model-value="patchConfig({ outputPath: String($event) })"
+                  />
+                  <p v-if="isVariableTokenInput(apiConfig.outputPath)" class="hint">
+                    {{ variableTokenHint(apiConfig.outputPath) }}
+                  </p>
+                </label>
+                <label>
+                  {{ t('inspector.fields.headersJson') }}
+                  <Textarea
+                    rows="4"
+                    auto-resize
+                    :model-value="apiConfig.headersRaw"
+                    @update:model-value="patchConfig({ headersRaw: String($event) })"
+                  />
+                </label>
+                <label>
+                  {{ t('inspector.fields.bodyJson') }}
+                  <Textarea
+                    rows="4"
+                    auto-resize
+                    :model-value="apiConfig.bodyRaw"
+                    @update:model-value="patchConfig({ bodyRaw: String($event) })"
+                  />
+                </label>
+              </div>
+            </TabPanel>
+            <TabPanel value="actions">
+              <div class="tab-actions">
+                <Button
+                  :label="t('inspector.buttons.testApi')"
+                  icon="pi pi-play"
+                  :loading="isApiLoading"
+                  @click="runApiCall"
                 />
-                <p v-if="isVariableTokenInput(apiConfig.url)" class="hint">
-                  {{ variableTokenHint(apiConfig.url) }}
-                </p>
-              </label>
-              <label>
-                {{ t('inspector.fields.method') }}
-                <Select
-                  :options="apiMethodOptions"
-                  :model-value="apiConfig.method"
-                  @update:model-value="patchConfig({ method: String($event) })"
+                <Button
+                  :label="t('inspector.buttons.showResult')"
+                  icon="pi pi-eye"
+                  severity="secondary"
+                  :disabled="!hasApiResponse"
+                  @click="openApiResultDialog"
                 />
-              </label>
-              <label>
-                {{ t('inspector.fields.outputPath') }}
-                <AutoComplete
-                  :model-value="apiConfig.outputPath"
-                  :suggestions="variableSuggestions"
-                  dropdown
-                  @complete="completeVariables"
-                  @update:model-value="patchConfig({ outputPath: String($event) })"
-                />
-                <p v-if="isVariableTokenInput(apiConfig.outputPath)" class="hint">
-                  {{ variableTokenHint(apiConfig.outputPath) }}
-                </p>
-              </label>
-              <label>
-                {{ t('inspector.fields.headersJson') }}
-                <Textarea
-                  rows="4"
-                  auto-resize
-                  :model-value="apiConfig.headersRaw"
-                  @update:model-value="patchConfig({ headersRaw: String($event) })"
-                />
-              </label>
-              <label>
-                {{ t('inspector.fields.bodyJson') }}
-                <Textarea
-                  rows="4"
-                  auto-resize
-                  :model-value="apiConfig.bodyRaw"
-                  @update:model-value="patchConfig({ bodyRaw: String($event) })"
-                />
-              </label>
-            </div>
-          </TabPanel>
-          <TabPanel :header="t('inspector.tabs.actions')" value="actions">
-            <div class="tab-actions">
-              <Button
-                :label="t('inspector.buttons.testApi')"
-                icon="pi pi-play"
-                :loading="isApiLoading"
-                @click="runApiCall"
-              />
-              <Button
-                :label="t('inspector.buttons.showResult')"
-                icon="pi pi-eye"
-                severity="secondary"
-                :disabled="!hasApiResponse"
-                @click="openApiResultDialog"
-              />
-            </div>
-          </TabPanel>
-        </TabView>
+              </div>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </template>
 
       <template v-if="selectedType === 'condition' && conditionConfig">
@@ -641,6 +647,9 @@ function openApiResultDialog(): void {
           <p v-if="isVariableTokenInput(transformConfig.targetPath)" class="hint">
             {{ variableTokenHint(transformConfig.targetPath) }}
           </p>
+          <p v-else-if="!transformConfig.targetPath.includes('[*]')" class="hint hint--info">
+            {{ t('inspector.hints.targetPathWildcard') }}
+          </p>
         </label>
         <label>
           {{ t('inspector.fields.literalValue') }}
@@ -764,6 +773,12 @@ label {
 .hint {
   margin: 0;
   font-style: italic;
+}
+
+.hint--info {
+  color: var(--text-soft);
+  font-style: normal;
+  font-size: 0.78rem;
 }
 
 .api-result {

@@ -4,7 +4,6 @@ import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditor
 import type { NodeType } from '@/modules/pipeline/domain/types'
 import Panel from 'primevue/panel'
 import Button from 'primevue/button'
-import Tag from 'primevue/tag'
 import { useI18n } from 'vue-i18n'
 
 const store = usePipelineEditorStore()
@@ -48,9 +47,6 @@ const entries = computed<{ type: NodeType; title: string; subtitle: string }[]>(
   <Panel class="panel">
     <template #header>
       <h2>{{ t('nodePalette.title') }}</h2>
-    </template>
-    <template #icons>
-      <Tag severity="secondary" :value="t('nodePalette.tag')" />
     </template>
 
     <header>

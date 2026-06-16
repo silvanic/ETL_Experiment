@@ -1,0 +1,52 @@
+{
+  "v 0.0.2": {
+    "date": "June 16, 2026",
+    "sections": [
+      {
+        "title": "Quick Execution",
+        "features": [
+          "Run button now directly in the canvas",
+          "No need to switch back to the toolbar anymore"
+        ]
+      },
+      {
+        "title": "Bugs & Stability",
+        "features": [
+          "Fixed critical bugs in the execution engine",
+          "Better error handling during flow execution"
+        ]
+      },
+      {
+        "title": "Interface",
+        "features": [
+          "Redesigned palette and canvas for clarity",
+          "Better readability in the inspector panel"
+        ]
+      }
+    ]
+  },
+  "v 0.0.1": {
+    "date": "June 02, 2026",
+    "sections": [
+      {
+        "title": "6 Nodes to Build",
+        "features": [
+          "Start - entry point for your pipeline",
+          "API Request - GET/POST HTTP calls",
+          "Condition - branch based on logic",
+          "Filter - operate on arrays",
+          "Transform - modify your data",
+          "Output - expose the final result"
+        ]
+      },
+      {
+        "title": "Export & Import",
+        "features": [
+          "Export your pipeline to JSON",
+          "Automatic filename generation",
+          "Import with structure validation"
+        ]
+      }
+    ]
+  }
+}
