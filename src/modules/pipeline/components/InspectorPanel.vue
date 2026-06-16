@@ -372,7 +372,7 @@ function openApiResultDialog(): void {
                   URL
                   <AutoComplete
                     :model-value="apiConfig.url"
-                    :suggestions="variableSuggestions.length > 0 ? variableSuggestions : null"
+                    :suggestions="variableSuggestions"
                     dropdown
                     @complete="completeVariables"
                     @update:model-value="patchConfig({ url: String($event) })"
