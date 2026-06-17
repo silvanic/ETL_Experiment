@@ -21,7 +21,7 @@ export interface StartNodeConfig {
 export interface ApiNodeConfig {
   url: string
   method: HttpMethod
-  headersRaw: string
+  headers: Array<{ key: string; value: string }>
   bodyRaw: string
   outputPath: string
 }

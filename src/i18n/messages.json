@@ -231,7 +231,9 @@
       "emptySelection": "Sélectionne un nœud pour éditer sa configuration.",
       "tabs": {
         "parameters": "Paramètres",
-        "actions": "Actions"
+        "actions": "Actions",
+        "request": "Requête",
+        "response": "Réponse"
       },
       "fields": {
         "nodeName": "Nom",
@@ -258,11 +260,19 @@
       },
       "buttons": {
         "testApi": "Tester l'API",
-        "showResult": "Afficher le résultat"
+        "showResult": "Afficher le résultat",
+        "addHeader": "Ajouter un en-tête"
       },
       "messages": {
         "noApiResult": "Aucun résultat disponible.",
         "startNoConfig": "Le nœud Départ n'a pas de configuration obligatoire.",
+        "headersEmpty": "Aucun en-tête configuré.",
+        "headersEmptyKey": "Attention : au moins une clé d'en-tête est vide.",
+        "headersValid": "{count} en-tête(s) configuré(s).",
+        "bodyJsonEmpty": "Corps vide : aucun payload ne sera envoyé.",
+        "bodyJsonPendingVariables": "Validation partielle impossible tant que des variables sont manquantes : {variables}",
+        "bodyJsonValid": "Corps JSON valide.",
+        "bodyJsonInvalid": "Corps JSON invalide. Vérifie les guillemets, les virgules et les accolades.",
         "variableTokenInvalid": "Variable détectée, mais le nom est vide.",
         "variableTokenUnknown": "Variable #{name} introuvable.",
         "variableTokenValue": "Variable #{name} = {value}"
@@ -369,6 +379,9 @@
         "infiniteLoopStopped": "Exécution arrêtée pour éviter une boucle infinie.",
         "dataIn": "Données en entrée",
         "dataOut": "Données en sortie"
+      },
+      "start": {
+        "begin": "Pipeline démarré"
       }
     }
   },
@@ -604,7 +617,9 @@
       "emptySelection": "Select a node to edit its configuration.",
       "tabs": {
         "parameters": "Parameters",
-        "actions": "Actions"
+        "actions": "Actions",
+        "request": "Request",
+        "response": "Response"
       },
       "fields": {
         "nodeName": "Name",
@@ -631,11 +646,19 @@
       },
       "buttons": {
         "testApi": "Test API",
-        "showResult": "Show result"
+        "showResult": "Show result",
+        "addHeader": "Add header"
       },
       "messages": {
         "noApiResult": "No result available.",
         "startNoConfig": "The Start node has no required configuration.",
+        "headersEmpty": "No headers configured.",
+        "headersEmptyKey": "Warning: at least one header key is empty.",
+        "headersValid": "{count} header(s) configured.",
+        "bodyJsonEmpty": "Empty body: no payload will be sent.",
+        "bodyJsonPendingVariables": "Cannot fully validate while variables are missing: {variables}",
+        "bodyJsonValid": "Valid JSON body.",
+        "bodyJsonInvalid": "Invalid JSON body. Check quotes, commas, and braces.",
         "variableTokenInvalid": "Variable detected, but the name is empty.",
         "variableTokenUnknown": "Variable #{name} was not found.",
         "variableTokenValue": "Variable #{name} = {value}"
@@ -742,6 +765,9 @@
         "infiniteLoopStopped": "Execution stopped to avoid an infinite loop.",
         "dataIn": "Data in",
         "dataOut": "Data out"
+      },
+      "start": {
+        "begin": "Pipeline started"
       }
     }
   }

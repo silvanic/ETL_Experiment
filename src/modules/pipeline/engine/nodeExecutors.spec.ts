@@ -19,7 +19,7 @@ function createApiNode(overrides: Partial<ApiNodeConfig> = {}): PipelineNode<'ap
       config: {
         url: 'https://example.test/users',
         method: 'GET',
-        headersRaw: '',
+        headers: [],
         bodyRaw: '',
         outputPath: 'api.result',
         ...overrides,
@@ -164,7 +164,7 @@ describe('api executor', () => {
     const node = createApiNode({
       method: 'POST',
       bodyRaw: '{"name":"Ada"}',
-      headersRaw: '{"Accept":"application/json"}',
+      headers: [{ key: 'Accept', value: 'application/json' }],
     })
 
     await executorByType.api(node, context)
@@ -241,6 +241,50 @@ describe('api executor', () => {
         },
         result: {
           fromVariable: {
+            ok: true,
+          },
+        },
+      }),
+    )
+  })
+
+  it('supports concatenating variables inside URL and outputPath', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    )
+
+    context.data.__variables = {
+      host: 'https://example.test',
+      endpoint: '/users',
+      outputBase: 'result',
+    }
+
+    const node = createApiNode({
+      url: '#host#endpoint?source=#outputBase',
+      outputPath: '#outputBase.items',
+    })
+
+    await executorByType.api(node, context)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://example.test/users?source=result',
+      expect.objectContaining({ method: 'GET' }),
+    )
+
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        __variables: {
+          host: 'https://example.test',
+          endpoint: '/users',
+          outputBase: 'result',
+        },
+        result: {
+          items: {
             ok: true,
           },
         },

@@ -62,7 +62,7 @@ describe('runPipeline', () => {
     const apiConfig = apiNode.data.config as ApiNodeConfig
     apiConfig.method = 'POST'
     apiConfig.bodyRaw = '{"name":"Ada","active":true}'
-    apiConfig.headersRaw = '{"Accept":"application/json"}'
+    apiConfig.headers = [{ key: 'Accept', value: 'application/json' }]
 
     await runPipeline(definition)
 

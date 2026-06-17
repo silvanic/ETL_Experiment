@@ -10,13 +10,51 @@ const startConfigSchema = z.object({
   note: z.string().optional(),
 })
 
-const apiConfigSchema = z.object({
-  url: z.string().url(),
-  method: z.enum(['GET', 'POST']),
-  headersRaw: z.string(),
-  bodyRaw: z.string(),
-  outputPath: z.string().min(1),
+const apiHeaderSchema = z.object({
+  key: z.string(),
+  value: z.string(),
 })
+
+function parseLegacyHeadersRaw(raw: string | undefined): Array<{ key: string; value: string }> {
+  if (!raw || !raw.trim()) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return []
+    }
+
+    return Object.entries(parsed).map(([key, value]) => ({
+      key,
+      value: String(value),
+    }))
+  } catch {
+    return []
+  }
+}
+
+const apiConfigSchema = z
+  .object({
+    url: z.string().url(),
+    method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']),
+    headers: z.array(apiHeaderSchema).optional(),
+    headersRaw: z.string().optional(),
+    bodyRaw: z.string(),
+    outputPath: z.string().min(1),
+  })
+  .transform((config) => {
+    const headers = config.headers ?? parseLegacyHeadersRaw(config.headersRaw)
+
+    return {
+      url: config.url,
+      method: config.method,
+      headers,
+      bodyRaw: config.bodyRaw,
+      outputPath: config.outputPath,
+    }
+  })
 
 const conditionConfigSchema = z.object({
   leftPath: z.string().min(1),

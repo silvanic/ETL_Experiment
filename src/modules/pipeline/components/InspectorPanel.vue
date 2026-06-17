@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditorStore'
 import Panel from 'primevue/panel'
 import AutoComplete from 'primevue/autocomplete'
@@ -10,6 +10,8 @@ import Message from 'primevue/message'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import TabPanel from 'primevue/tabpanel'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
 import { resolveValueWithVariables, toVariableToken, findUnresolvedVariables } from '@/modules/pipeline/domain/variables'
 import type {
   ApiNodeConfig,
@@ -94,7 +96,14 @@ const isApiLoading = ref(false)
 const isApiResultDialogVisible = ref(false)
 const lastApiResult = ref<unknown | null>(null)
 const lastApiError = ref<string | null>(null)
+const lastApiRequest = ref<{
+  method: string
+  url: string
+  headers: Record<string, string>
+  body: string
+} | null>(null)
 const variableSuggestions = ref<string[]>([])
+const cursorByField = ref<Record<string, { start: number; end: number; value: string }>>({})
 
 const variableMap = computed<Record<string, string>>(() => {
   return store.pipeline.variables.reduce<Record<string, string>>((acc, variable) => {
@@ -123,7 +132,10 @@ const unresolvedApiVariables = computed(() => {
   }
 
   const unresolvedInUrl = findUnresolvedVariables(apiConfig.value.url, variableMap.value)
-  const unresolvedInHeaders = findUnresolvedVariables(apiConfig.value.headersRaw, variableMap.value)
+  const unresolvedInHeaders = apiConfig.value.headers.flatMap(header => [
+    ...findUnresolvedVariables(header.key, variableMap.value),
+    ...findUnresolvedVariables(header.value, variableMap.value),
+  ])
   const unresolvedInBody = findUnresolvedVariables(apiConfig.value.bodyRaw, variableMap.value)
   const unresolvedInPath = findUnresolvedVariables(apiConfig.value.outputPath, variableMap.value)
 
@@ -183,12 +195,84 @@ const unresolvedOutputVariables = computed(() => {
   return findUnresolvedVariables(outputConfig.value.outputPath, variableMap.value)
 })
 
+const apiHeadersValidation = computed(() => {
+  if (!apiConfig.value) {
+    return null
+  }
+
+  // Vérifier les clés vides
+  const hasEmptyKeys = apiConfig.value.headers.some(header => !header.key.trim())
+  if (hasEmptyKeys) {
+    return {
+      severity: 'warn' as const,
+      text: t('inspector.messages.headersEmptyKey'),
+    }
+  }
+
+  return null
+})
+
+const apiBodyValidation = computed(() => {
+  if (!apiConfig.value) {
+    return null
+  }
+
+  const rawBody = apiConfig.value.bodyRaw ?? ''
+  if (!rawBody.trim()) {
+    return {
+      severity: 'info' as const,
+      text: t('inspector.messages.bodyJsonEmpty'),
+    }
+  }
+
+  const unresolvedInBody = findUnresolvedVariables(rawBody, variableMap.value)
+  if (unresolvedInBody.length > 0) {
+    return {
+      severity: 'warn' as const,
+      text: t('inspector.messages.bodyJsonPendingVariables', {
+        variables: unresolvedInBody.join(', '),
+      }),
+    }
+  }
+
+  try {
+    JSON.parse(resolveWithPipelineVariables(rawBody))
+    return {
+      severity: 'success' as const,
+      text: t('inspector.messages.bodyJsonValid'),
+    }
+  } catch {
+    return {
+      severity: 'error' as const,
+      text: t('inspector.messages.bodyJsonInvalid'),
+    }
+  }
+})
+
 const hasApiResponse = computed(() => {
   if (lastApiError.value) {
     return true
   }
 
   return lastApiResult.value !== null
+})
+
+const prettyApiRequest = computed(() => {
+  if (!lastApiRequest.value) {
+    return t('inspector.messages.noApiResult')
+  }
+
+  const { method, url, headers, body } = lastApiRequest.value
+  const lines: string[] = [
+    `${method} ${url}`,
+    ...(Object.keys(headers).length > 0 ? [Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join('\n')] : []),
+  ]
+
+  if (body.trim()) {
+    lines.push('', body)
+  }
+
+  return lines.join('\n')
 })
 
 const prettyApiResponse = computed(() => {
@@ -229,15 +313,215 @@ function patchNodeName(value: string | number | undefined): void {
   store.updateNodeName(node.id, String(value ?? ''))
 }
 
+// Méthode à revoir pour optimiser les suggestions de variables et de chemins de sortie
 function completeVariables(event: { query: string }): void {
   const rawQuery = String(event.query ?? '')
   const query = rawQuery.toLowerCase()
 
-  if (rawQuery.startsWith('#')) {
-    variableSuggestions.value = variableTokens.value.filter((token) => token.toLowerCase().includes(query))
-  } else {
-    variableSuggestions.value = outputPathSuggestions.value.filter((path) => path.toLowerCase().includes(query))
+  const candidates = Array.from(new Set([...variableTokens.value, ...outputPathSuggestions.value]))
+  variableSuggestions.value = candidates.filter((candidate) => candidate.toLowerCase().includes(query))
+  variableSuggestions.value = candidates;
+}
+
+function openSuggestionMenu(): void {
+  variableSuggestions.value = Array.from(new Set([...variableTokens.value, ...outputPathSuggestions.value]))
+}
+
+function patchFieldValue(fieldKey: string, value: string): void {
+  if (fieldKey === 'api.url') {
+    patchConfig({ url: value })
+    return
   }
+
+  if (fieldKey === 'api.outputPath') {
+    patchConfig({ outputPath: value })
+    return
+  }
+
+  if (fieldKey === 'api.headersRaw') {
+    patchConfig({ headersRaw: value })
+    return
+  }
+
+  if (fieldKey === 'api.bodyRaw') {
+    patchConfig({ bodyRaw: value })
+    return
+  }
+
+  if (fieldKey === 'condition.leftPath') {
+    patchConfig({ leftPath: value })
+    return
+  }
+
+  if (fieldKey === 'condition.rightValue') {
+    patchConfig({ rightValue: value })
+    return
+  }
+
+  if (fieldKey === 'filter.sourcePath') {
+    patchConfig({ sourcePath: value })
+    return
+  }
+
+  if (fieldKey === 'filter.itemPath') {
+    patchConfig({ itemPath: value })
+    return
+  }
+
+  if (fieldKey === 'filter.rightValue') {
+    patchConfig({ rightValue: value })
+    return
+  }
+
+  if (fieldKey === 'filter.outputPath') {
+    patchConfig({ outputPath: value })
+    return
+  }
+
+  if (fieldKey === 'filter.outputPathRejected') {
+    patchConfig({ outputPathRejected: value })
+    return
+  }
+
+  if (fieldKey === 'transform.sourcePath') {
+    patchConfig({ sourcePath: value })
+    return
+  }
+
+  if (fieldKey === 'transform.targetPath') {
+    patchConfig({ targetPath: value })
+    return
+  }
+
+  if (fieldKey === 'transform.literalValue') {
+    patchConfig({ literalValue: value })
+    return
+  }
+
+  if (fieldKey === 'output.outputPath') {
+    patchConfig({ outputPath: value })
+  }
+}
+
+function readFieldValue(fieldKey: string): string {
+  if (fieldKey === 'api.url') {
+    return apiConfig.value?.url ?? ''
+  }
+
+  if (fieldKey === 'api.outputPath') {
+    return apiConfig.value?.outputPath ?? ''
+  }
+
+  if (fieldKey === 'api.bodyRaw') {
+    return apiConfig.value?.bodyRaw ?? ''
+  }
+
+  if (fieldKey === 'condition.leftPath') {
+    return conditionConfig.value?.leftPath ?? ''
+  }
+
+  if (fieldKey === 'condition.rightValue') {
+    return conditionConfig.value?.rightValue ?? ''
+  }
+
+  if (fieldKey === 'filter.sourcePath') {
+    return filterConfig.value?.sourcePath ?? ''
+  }
+
+  if (fieldKey === 'filter.itemPath') {
+    return filterConfig.value?.itemPath ?? ''
+  }
+
+  if (fieldKey === 'filter.rightValue') {
+    return filterConfig.value?.rightValue ?? ''
+  }
+
+  if (fieldKey === 'filter.outputPath') {
+    return filterConfig.value?.outputPath ?? ''
+  }
+
+  if (fieldKey === 'filter.outputPathRejected') {
+    return filterConfig.value?.outputPathRejected ?? ''
+  }
+
+  if (fieldKey === 'transform.sourcePath') {
+    return transformConfig.value?.sourcePath ?? ''
+  }
+
+  if (fieldKey === 'transform.targetPath') {
+    return transformConfig.value?.targetPath ?? ''
+  }
+
+  if (fieldKey === 'transform.literalValue') {
+    return transformConfig.value?.literalValue ?? ''
+  }
+
+  if (fieldKey === 'output.outputPath') {
+    return outputConfig.value?.outputPath ?? ''
+  }
+
+  return ''
+}
+
+function captureCursorPosition(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+    return
+  }
+
+  const fieldKey = target.id
+  if (!fieldKey) {
+    return
+  }
+
+  const start = target.selectionStart ?? target.value.length
+  const end = target.selectionEnd ?? start
+  cursorByField.value[fieldKey] = {
+    start,
+    end,
+    value: target.value,
+  }
+}
+
+function insertVariableTokenAtField(fieldKey: string, token: string): void {
+  const currentValue = readFieldValue(fieldKey)
+  const cursor = cursorByField.value[fieldKey] ?? {
+    start: currentValue.length,
+    end: currentValue.length,
+    value: currentValue,
+  }
+  const nextValue =
+    cursor.value.slice(0, cursor.start) + token + cursor.value.slice(cursor.end)
+
+  patchFieldValue(fieldKey, nextValue)
+
+  const nextCursorPosition = cursor.start + token.length
+  cursorByField.value[fieldKey] = {
+    start: nextCursorPosition,
+    end: nextCursorPosition,
+    value: nextValue,
+  }
+
+  nextTick(() => {
+    const element = document.getElementById(fieldKey)
+    if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) {
+      return
+    }
+
+    element.focus()
+    element.setSelectionRange(nextCursorPosition, nextCursorPosition)
+  })
+}
+
+function handleSuggestionSelect(fieldKey: string, event: { value?: unknown }): void {
+  const selectedValue = String(event.value ?? '')
+  if (!selectedValue.startsWith('#')) {
+    return
+  }
+
+  setTimeout(() => {
+    insertVariableTokenAtField(fieldKey, selectedValue)
+  }, 0)
 }
 
 function isVariableTokenInput(value: string | undefined): boolean {
@@ -279,7 +563,10 @@ async function runApiCall(): Promise<void> {
     return
   }
 
-  const resolvedHeadersRaw = resolveWithPipelineVariables(config.headersRaw)
+  const resolvedHeaders = config.headers.map(header => ({
+    key: resolveWithPipelineVariables(header.key),
+    value: resolveWithPipelineVariables(header.value),
+  }))
   const resolvedBodyRaw = resolveWithPipelineVariables(config.bodyRaw)
 
   lastApiError.value = null
@@ -287,18 +574,28 @@ async function runApiCall(): Promise<void> {
   isApiLoading.value = true
 
   try {
-    let headers: Record<string, string> | undefined
-    if (resolvedHeadersRaw?.trim()) {
-      headers = JSON.parse(resolvedHeadersRaw) as Record<string, string>
-    }
+    const headers: Record<string, string> = {}
+    resolvedHeaders.forEach(header => {
+      if (header.key.trim()) {
+        headers[header.key] = header.value
+      }
+    })
 
     const init: RequestInit = {
       method: config.method,
-      headers,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
     }
 
     if (config.method !== 'GET' && resolvedBodyRaw?.trim()) {
       init.body = resolvedBodyRaw
+    }
+
+    // Sauvegarder les détails de la requête
+    lastApiRequest.value = {
+      method: config.method,
+      url: resolvedUrl,
+      headers,
+      body: resolvedBodyRaw,
     }
 
     const response = await fetch(resolvedUrl, init)
@@ -371,10 +668,16 @@ function openApiResultDialog(): void {
                 <label>
                   URL
                   <AutoComplete
+                    input-id="api.url"
                     :model-value="apiConfig.url"
                     :suggestions="variableSuggestions"
                     dropdown
+                    @focus="captureCursorPosition"
+                    @click="captureCursorPosition"
+                    @keyup="captureCursorPosition"
+                    @focusin="openSuggestionMenu"
                     @complete="completeVariables"
+                    @item-select="handleSuggestionSelect('api.url', $event)"
                     @update:model-value="patchConfig({ url: String($event) })"
                   />
                   <p v-if="isVariableTokenInput(apiConfig.url)" class="hint">
@@ -392,33 +695,95 @@ function openApiResultDialog(): void {
                 <label>
                   {{ t('inspector.fields.outputPath') }}
                   <AutoComplete
+                    input-id="api.outputPath"
                     :model-value="apiConfig.outputPath"
                     :suggestions="variableSuggestions"
                     dropdown
+                    @focus="captureCursorPosition"
+                    @click="captureCursorPosition"
+                    @keyup="captureCursorPosition"
+                    @focusin="openSuggestionMenu"
                     @complete="completeVariables"
+                    @item-select="handleSuggestionSelect('api.outputPath', $event)"
                     @update:model-value="patchConfig({ outputPath: String($event) })"
                   />
                   <p v-if="isVariableTokenInput(apiConfig.outputPath)" class="hint">
                     {{ variableTokenHint(apiConfig.outputPath) }}
                   </p>
                 </label>
-                <label>
-                  {{ t('inspector.fields.headersJson') }}
-                  <Textarea
-                    rows="4"
-                    auto-resize
-                    :model-value="apiConfig.headersRaw"
-                    @update:model-value="patchConfig({ headersRaw: String($event) })"
-                  />
-                </label>
+                <div class="headers-section">
+                  <div class="headers-header">
+                    <label>{{ t('inspector.fields.headersJson') }}</label>
+                    <Button
+                      size="small"
+                      :label="t('inspector.buttons.addHeader')"
+                      icon="pi pi-plus"
+                      @click="patchConfig({ headers: [...(apiConfig.headers || []), { key: '', value: '' }] })"
+                    />
+                  </div>
+                  <DataTable
+                    :value="apiConfig.headers || []"
+                    size="small"
+                    responsive-layout="scroll"
+                    :rows="10"
+                  >
+                    <Column header="Clé" style="width: 45%">
+                      <template #body="slotProps">
+                        <InputText
+                          :model-value="slotProps.data.key"
+                          @update:model-value="slotProps.data.key = $event; patchConfig({ headers: apiConfig.headers })"
+                          placeholder="ex: Authorization"
+                        />
+                      </template>
+                    </Column>
+                    <Column header="Valeur" style="width: 45%">
+                      <template #body="slotProps">
+                        <InputText
+                          :model-value="slotProps.data.value"
+                          @update:model-value="slotProps.data.value = $event; patchConfig({ headers: apiConfig.headers })"
+                          placeholder="ex: Bearer token"
+                        />
+                      </template>
+                    </Column>
+                    <Column style="width: 10%">
+                      <template #body="slotProps">
+                        <Button
+                          size="small"
+                          icon="pi pi-trash"
+                          severity="danger"
+                          text
+                          @click="patchConfig({ headers: apiConfig.headers.filter((_, i) => i !== slotProps.index) })"
+                        />
+                      </template>
+                    </Column>
+                  </DataTable>
+                  <Message
+                    v-if="apiHeadersValidation"
+                    class="body-validation-message"
+                    :severity="apiHeadersValidation.severity"
+                    :closable="false"
+                  >
+                    {{ apiHeadersValidation.text }}
+                  </Message>
+                </div>
                 <label>
                   {{ t('inspector.fields.bodyJson') }}
                   <Textarea
-                    rows="4"
+                    id="api_bodyRaw "
+                    rows="5"
+                    cols="30"
                     auto-resize
                     :model-value="apiConfig.bodyRaw"
                     @update:model-value="patchConfig({ bodyRaw: String($event) })"
                   />
+                  <Message
+                    v-if="apiBodyValidation"
+                    class="body-validation-message"
+                    :severity="apiBodyValidation.severity"
+                    :closable="false"
+                  >
+                    {{ apiBodyValidation.text }}
+                  </Message>
                 </label>
               </div>
             </TabPanel>
@@ -454,10 +819,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.leftPath') }}
           <AutoComplete
+            input-id="condition.leftPath"
             :model-value="conditionConfig.leftPath"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('condition.leftPath', $event)"
             @update:model-value="patchConfig({ leftPath: String($event) })"
           />
           <p v-if="isVariableTokenInput(conditionConfig.leftPath)" class="hint">
@@ -497,10 +868,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.rightValue') }}
           <AutoComplete
+            input-id="condition.rightValue"
             :model-value="conditionConfig.rightValue"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('condition.rightValue', $event)"
             @update:model-value="patchConfig({ rightValue: String($event) })"
           />
           <p v-if="isVariableTokenInput(conditionConfig.rightValue)" class="hint">
@@ -520,10 +897,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.sourcePath') }}
           <AutoComplete
+            input-id="filter.sourcePath"
             :model-value="filterConfig.sourcePath"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('filter.sourcePath', $event)"
             @update:model-value="patchConfig({ sourcePath: String($event) })"
           />
           <p v-if="isVariableTokenInput(filterConfig.sourcePath)" class="hint">
@@ -533,10 +916,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.itemPath') }}
           <AutoComplete
+            input-id="filter.itemPath"
             :model-value="filterConfig.itemPath"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('filter.itemPath', $event)"
             @update:model-value="patchConfig({ itemPath: String($event) })"
           />
           <p v-if="isVariableTokenInput(filterConfig.itemPath)" class="hint">
@@ -566,10 +955,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.rightValue') }}
           <AutoComplete
+            input-id="filter.rightValue"
             :model-value="filterConfig.rightValue"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('filter.rightValue', $event)"
             @update:model-value="patchConfig({ rightValue: String($event) })"
           />
           <p v-if="isVariableTokenInput(filterConfig.rightValue)" class="hint">
@@ -579,10 +974,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.outputPath') }}
           <AutoComplete
+            input-id="filter.outputPath"
             :model-value="filterConfig.outputPath"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('filter.outputPath', $event)"
             @update:model-value="patchConfig({ outputPath: String($event) })"
           />
           <p v-if="isVariableTokenInput(filterConfig.outputPath)" class="hint">
@@ -592,10 +993,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.outputPathRejected') }}
           <AutoComplete
+            input-id="filter.outputPathRejected"
             :model-value="filterConfig.outputPathRejected"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('filter.outputPathRejected', $event)"
             @update:model-value="patchConfig({ outputPathRejected: String($event) })"
           />
           <p v-if="isVariableTokenInput(filterConfig.outputPathRejected)" class="hint">
@@ -625,10 +1032,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.sourcePath') }}
           <AutoComplete
+            input-id="transform.sourcePath"
             :model-value="transformConfig.sourcePath"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('transform.sourcePath', $event)"
             @update:model-value="patchConfig({ sourcePath: String($event) })"
           />
           <p v-if="isVariableTokenInput(transformConfig.sourcePath)" class="hint">
@@ -638,10 +1051,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.targetPath') }}
           <AutoComplete
+            input-id="transform.targetPath"
             :model-value="transformConfig.targetPath"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('transform.targetPath', $event)"
             @update:model-value="patchConfig({ targetPath: String($event) })"
           />
           <p v-if="isVariableTokenInput(transformConfig.targetPath)" class="hint">
@@ -654,10 +1073,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.literalValue') }}
           <AutoComplete
+            input-id="transform.literalValue"
             :model-value="transformConfig.literalValue"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('transform.literalValue', $event)"
             @update:model-value="patchConfig({ literalValue: String($event) })"
           />
           <p v-if="isVariableTokenInput(transformConfig.literalValue)" class="hint">
@@ -677,10 +1102,16 @@ function openApiResultDialog(): void {
         <label>
           {{ t('inspector.fields.outputPath') }}
           <AutoComplete
+            input-id="output.outputPath"
             :model-value="outputConfig.outputPath"
             :suggestions="variableSuggestions"
             dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
             @complete="completeVariables"
+            @item-select="handleSuggestionSelect('output.outputPath', $event)"
             @update:model-value="patchConfig({ outputPath: String($event) })"
           />
           <p v-if="isVariableTokenInput(outputConfig.outputPath)" class="hint">
@@ -698,9 +1129,22 @@ function openApiResultDialog(): void {
       v-model:visible="isApiResultDialogVisible"
       modal
       :header="t('inspector.dialog.apiResult')"
-      :style="{ width: 'min(90vw, 700px)' }"
+      :style="{ width: 'min(90vw, 900px)' }"
     >
-      <pre class="api-result">{{ prettyApiResponse }}</pre>
+      <Tabs value="response">
+        <TabList>
+          <Tab value="request">{{ t('inspector.tabs.request') }}</Tab>
+          <Tab value="response">{{ t('inspector.tabs.response') }}</Tab>
+        </TabList>
+        <TabPanels>
+          <TabPanel value="request">
+            <pre class="api-result">{{ prettyApiRequest }}</pre>
+          </TabPanel>
+          <TabPanel value="response">
+            <pre class="api-result">{{ prettyApiResponse }}</pre>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </Dialog>
   </Panel>
 </template>
@@ -775,6 +1219,10 @@ label {
   font-style: italic;
 }
 
+.body-validation-message {
+  margin-top: 0.2rem;
+}
+
 .hint--info {
   color: var(--text-soft);
   font-style: normal;
@@ -790,4 +1238,35 @@ label {
   max-height: 60vh;
   overflow: auto;
 }
+
+.headers-section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.headers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.headers-header label {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+:deep(.p-datatable-sm .p-datatable-thead > tr > th) {
+  padding: 0.35rem;
+  font-size: 0.84rem;
+}
+
+:deep(.p-datatable-sm .p-datatable-tbody > tr > td) {
+  padding: 0.35rem;
+}
+
+:deep(.p-datatable-sm .p-datatable-tbody > tr > td input) {
+  font-size: 0.9rem;
+}
 </style>
+

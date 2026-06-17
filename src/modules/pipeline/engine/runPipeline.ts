@@ -30,7 +30,8 @@ function createLog(
   }
 }
 
-const TRACED_TYPES = new Set<string>(['api', 'condition', 'filter', 'transform'])
+const TRACED_TYPES_IN = new Set<string>(['condition', 'filter', 'transform'])
+const TRACED_TYPES_OUT = new Set<string>(['api', 'condition', 'filter', 'transform'])
 
 function snapshotData(data: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(data).filter(([key]) => !key.startsWith('__')))
@@ -86,27 +87,34 @@ export async function runPipeline(definition: PipelineDefinition): Promise<RunRe
     
     try {
       
-      context.logs.push(createLog(currentNode, 'info', t('engine.run.executionStarted')))
-      
-      const { nextBranch, details, message, dataOut } = await executor(currentNode, context)
-      
-      context.logs.push(
-        createLog(currentNode, 'info', message ?? t('engine.run.executionCompleted'), details),
-      )
-      
-      const traced = TRACED_TYPES.has(currentNode.data.type)
-      if (traced) {
-        context.logs.push(createLog(currentNode, 'info', t('engine.run.dataIn'), snapshotData(context.data)))
+      if(currentNode.data.type === 'start') {
+        context.logs.push(createLog(currentNode, 'info', t('engine.start.begin')))
+      }else{
+        context.logs.push(createLog(currentNode, 'info', t('engine.run.executionStarted')))
       }
 
 
-      if (traced) {
+      const tracedIn = TRACED_TYPES_IN.has(currentNode.data.type)
+      if (tracedIn) {
+        context.logs.push(createLog(currentNode, 'info', t('engine.run.dataIn'), snapshotData(context.data)))
+      }
+
+      
+      const { nextBranch, details, message, dataOut } = await executor(currentNode, context)      
+      
+      if(currentNode.data.type !== 'start') {
+        context.logs.push(
+          createLog(currentNode, 'info', message ?? t('engine.run.executionCompleted'), details),
+        )
+      }
+
+      const tracedOut = TRACED_TYPES_OUT.has(currentNode.data.type)
+      if (tracedOut) {
         context.logs.push(
           createLog(currentNode, 'info', t('engine.run.dataOut'), dataOut ?? snapshotData(context.data)),
         )
       }
-
-
+      
       const outgoing = getOutgoingEdges(definition.edges, currentNode.id)
       if (outgoing.length === 0) {
         continue

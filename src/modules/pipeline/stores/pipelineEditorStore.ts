@@ -70,6 +70,10 @@ function nodeLabel(type: NodeType): string {
   return t('defaults.nodeLabel.output')
 }
 
+function isFiniteCoordinate(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
 export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   const toast = useToast()
   const pipeline = ref<PipelineDefinition>(loadPipeline())
@@ -269,14 +273,20 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     let x = 220 + (nodes.value.length % 4) * 260
     let y = 100 + Math.floor(nodes.value.length / 4) * 160
 
-    if (nodeCreationCenter.value) {
+    if (
+      nodeCreationCenter.value
+      && isFiniteCoordinate(nodeCreationCenter.value.x)
+      && isFiniteCoordinate(nodeCreationCenter.value.y)
+    ) {
       const estimatedNodeWidth = type === 'start' || type === 'output' ? 140 : 180
       const estimatedNodeHeight = 64
       x = nodeCreationCenter.value.x - estimatedNodeWidth / 2
       y = nodeCreationCenter.value.y - estimatedNodeHeight / 2
     }
 
-    nodes.value = [...nodes.value, createNode(type, x, y)]
+    const newNode = createNode(type, x, y)
+    nodes.value = [...nodes.value, newNode]
+    selectedNodeId.value = newNode.id
     nodeCreationTick.value += 1
   }
 

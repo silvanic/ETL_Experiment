@@ -1,26 +1,58 @@
 {
+  "v 0.0.3": {
+    "date": "June 17, 2026",
+    "sections": [
+      {
+        "title": "Variables",
+        "features": [
+          "Use variables everywhere (URL, body, output path)",
+          "Combine text and variables easily (e.g. #host#endpoint)",
+          "Automatic variable suggestions while typing",
+          "Insert the selected variable exactly at the cursor position"
+        ]
+      },
+      {
+        "title": "Interface",
+        "features": [
+          "Headers editor in table format (easier to edit, no JSON needed)",
+          "Add, edit, or remove headers directly in the inspector",
+          "Shows the sent request (method, URL, headers, body) in a dedicated tab",
+          "View request and response in two separate tabs"
+        ]
+      },
+      {
+        "title": "Bugs & Stability",
+        "features": [
+          "Better handling for multi-line JSON",
+          "Visual validation for JSON headers and JSON body",
+          "Clearer and more user-friendly validation messages",
+          "API errors are shown in a more actionable way"
+        ]
+      }
+    ]
+  },
   "v 0.0.2": {
     "date": "June 16, 2026",
     "sections": [
       {
         "title": "Quick Execution",
         "features": [
-          "Run button now directly in the canvas",
-          "No need to switch back to the toolbar anymore"
+          "Run your pipeline directly from the canvas",
+          "Fewer back-and-forth actions with the toolbar"
         ]
       },
       {
         "title": "Bugs & Stability",
         "features": [
-          "Fixed critical bugs in the execution engine",
-          "Better error handling during flow execution"
+          "More reliable execution, even on complex flows",
+          "Fewer unexpected stops during execution"
         ]
       },
       {
         "title": "Interface",
         "features": [
-          "Redesigned palette and canvas for clarity",
-          "Better readability in the inspector panel"
+          "Cleaner palette and canvas for faster use",
+          "Inspector panel is easier to read"
         ]
       }
     ]
@@ -31,20 +63,20 @@
       {
         "title": "6 Nodes to Build",
         "features": [
-          "Start - entry point for your pipeline",
-          "API Request - GET/POST HTTP calls",
-          "Condition - branch based on logic",
-          "Filter - operate on arrays",
-          "Transform - modify your data",
-          "Output - expose the final result"
+          "Start: the entry point of your pipeline",
+          "API Request: fetch or send data",
+          "Condition: branch into true/false paths",
+          "Filter: keep only the items you need",
+          "Transform: reshape data for your use case",
+          "Output: expose the final result"
         ]
       },
       {
         "title": "Export & Import",
         "features": [
-          "Export your pipeline to JSON",
+          "One-click JSON export",
           "Automatic filename generation",
-          "Import with structure validation"
+          "Guided import with structure validation"
         ]
       }
     ]

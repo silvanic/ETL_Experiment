@@ -58,6 +58,23 @@ function readCurrentPipelineId(): string | null {
   return localStorage.getItem(CURRENT_PIPELINE_ID_KEY)
 }
 
+function removeSavedPipelineReference(pipelineId: string, removeEntry = false): void {
+  if (removeEntry) {
+    localStorage.removeItem(getEntryKey(pipelineId))
+  }
+
+  const currentIndex = readIndex()
+  const nextIndex = currentIndex.filter((item) => item.id !== pipelineId)
+
+  if (nextIndex.length !== currentIndex.length) {
+    writeIndex(nextIndex)
+  }
+
+  if (readCurrentPipelineId() === pipelineId) {
+    localStorage.removeItem(CURRENT_PIPELINE_ID_KEY)
+  }
+}
+
 function loadLegacyPipeline(): PipelineDefinition | null {
   const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
   if (!raw) {
@@ -77,17 +94,27 @@ export function listSavedPipelines(): SavedPipelineSummary[] {
 }
 
 export function loadSavedPipeline(pipelineId: string): PipelineDefinition | null {
-  const raw = localStorage.getItem(getEntryKey(pipelineId))
+  const entryKey = getEntryKey(pipelineId)
+  const raw = localStorage.getItem(entryKey)
   if (!raw) {
+    removeSavedPipelineReference(pipelineId)
     return null
   }
 
   try {
     const parsed = JSON.parse(raw)
     const definition = pipelineDefinitionSchema.parse(parsed)
+
+    // Persist canonical format after schema transforms/migrations.
+    const canonicalRaw = JSON.stringify(definition)
+    if (canonicalRaw !== raw) {
+      localStorage.setItem(entryKey, canonicalRaw)
+    }
+
     saveCurrentPipelineId(definition.id)
     return definition
   } catch {
+    removeSavedPipelineReference(pipelineId, true)
     return null
   }
 }

@@ -25,12 +25,11 @@ export function buildVariableMap(variables: PipelineVariable[]): Record<string, 
 }
 
 export function resolveValueWithVariables(value: string, variableMap: Record<string, string>): string {
-  if (!value.startsWith(VARIABLE_PREFIX)) {
-    return value
-  }
+  const regex = /#([a-zA-Z][a-zA-Z0-9_-]*)/g
 
-  const variableName = value.slice(VARIABLE_PREFIX.length)
-  return variableMap[variableName] ?? value
+  return value.replace(regex, (token, variableName: string) => {
+    return variableMap[variableName] ?? token
+  })
 }
 
 export function extractVariableReferences(value: string): string[] {

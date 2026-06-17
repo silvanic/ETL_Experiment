@@ -18,27 +18,68 @@ import type {
 
 type NodeExecutor = (node: PipelineNode, context: ExecutionContext) => Promise<ExecutorResult>
 
+function escapeMultilineJsonStrings(text: string): string {
+  let inString = false
+  let escaped = false
+  let out = ''
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i]
+
+    if (char === '"' && !escaped) {
+      inString = !inString
+      out += char
+      escaped = false
+      continue
+    }
+
+    if (char === '\\' && !escaped) {
+      out += char
+      escaped = true
+      continue
+    }
+
+    if (inString && (char === '\n' || char === '\r')) {
+      out += '\\n'
+      escaped = false
+      continue
+    }
+
+    if (inString && char === '\t') {
+      out += '\\t'
+      escaped = false
+      continue
+    }
+
+    out += char
+    escaped = false
+  }
+
+  return out
+}
+
 function parseJsonOrThrow(text: string, fieldName: string): unknown {
   try {
     return JSON.parse(text)
   } catch {
-    throw new Error(t('engine.json.invalid', { fieldName }))
+    try {
+      return JSON.parse(escapeMultilineJsonStrings(text))
+    } catch {
+      throw new Error(t('engine.json.invalid', { fieldName }))
+    }
   }
 }
 
-function parseHeaders(headersRaw: string): HeadersInit {
-  if (!headersRaw.trim()) {
+function parseHeaders(headersArray: Array<{ key: string; value: string }>): HeadersInit {
+  if (!headersArray || headersArray.length === 0) {
     return {}
   }
 
-  const parsed = parseJsonOrThrow(headersRaw, t('inspector.fields.headersJson'))
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error(t('engine.json.headersMustBeObject'))
-  }
-
-  return Object.entries(parsed as Record<string, unknown>).reduce<Record<string, string>>(
-    (acc, [key, value]) => {
-      acc[key] = String(value)
+  return headersArray.reduce<Record<string, string>>(
+    (acc, { key, value }) => {
+      if (key.trim()) {
+        acc[key] = value
+      }
       return acc
     },
     {},
@@ -185,10 +226,13 @@ const apiExecutor: NodeExecutor = async (node, context) => {
 
   const config = node.data.config as ApiNodeConfig
   const resolvedUrl = resolveConfigValue(config.url, context)
-  const resolvedHeadersRaw = resolveConfigValue(config.headersRaw, context)
+  const resolvedHeaders = config.headers.map(header => ({
+    key: resolveConfigValue(header.key, context),
+    value: resolveConfigValue(header.value, context),
+  }))
   const resolvedBodyRaw = resolveConfigValue(config.bodyRaw, context)
   const resolvedOutputPath = resolveConfigValue(config.outputPath, context)
-  const headers = parseHeaders(resolvedHeadersRaw)
+  const headers = parseHeaders(resolvedHeaders)
 
   const requestInit: RequestInit = {
     method: config.method,
@@ -199,13 +243,6 @@ const apiExecutor: NodeExecutor = async (node, context) => {
     if (resolvedBodyRaw.trim()) {
       const parsedBody = parseJsonOrThrow(resolvedBodyRaw, t('inspector.fields.bodyJson'))
       requestInit.body = JSON.stringify(parsedBody)
-    }
-
-    if (!(headers as Record<string, string>)['Content-Type']) {
-      requestInit.headers = {
-        ...(headers as Record<string, string>),
-        'Content-Type': 'application/json',
-      }
     }
   }
 
@@ -224,7 +261,9 @@ const apiExecutor: NodeExecutor = async (node, context) => {
       }),
     )
   }
-
+  if(requestInit.body && typeof requestInit.body === 'string') {
+    requestInit.body = JSON.parse(requestInit.body as string);
+  }
   setByPath(context.data, resolvedOutputPath, payload)
 
   return {
@@ -235,7 +274,7 @@ const apiExecutor: NodeExecutor = async (node, context) => {
     }),
     details: {
       url: resolvedUrl,
-      requestInit
+      requestInit,
     }
   }
 }

@@ -1,26 +1,58 @@
 {
+  "v 0.0.3": {
+    "date": "17 juin 2026",
+    "sections": [
+      {
+        "title": "Variables",
+        "features": [
+          "Utilise tes variables partout (URL, corps, chemin de sortie)",
+          "Combine facilement texte et variables (ex : #host#endpoint)",
+          "Suggestions automatiques de variables pendant la saisie",
+          "Insertion de la variable exactement à la position du curseur"
+        ]
+      },
+      {
+        "title": "Interface",
+        "features": [
+          "Éditeur d'en-têtes au format tableau (plus facile à éditer, pas besoin de JSON)",
+          "Ajoute, modifie ou supprime des en-têtes directement dans l'inspecteur",
+          "Affiche la requête envoyée (méthode, URL, en-têtes, corps) dans un onglet dédié",
+          "Visualise la requête et la réponse dans deux onglets distincts"
+        ]
+      },
+      {
+        "title": "Bugs et stabilité",
+        "features": [
+          "Meilleure gestion du JSON multi-ligne",
+          "Validation visuelle des en-têtes JSON et du corps JSON",
+          "Messages de validation plus clairs et compréhensibles",
+          "Erreurs API affichées de façon plus utile pour corriger rapidement"
+        ]
+      }
+    ]
+  },
   "v 0.0.2": {
     "date": "16 juin 2026",
     "sections": [
       {
         "title": "Exécution rapide",
         "features": [
-          "Bouton Exécuter ajouté directement dans le canvas",
-          "Plus besoin de passer par la barre d'outils pour lancer le pipeline"
+          "Lance le pipeline directement depuis le canvas",
+          "Moins d'allers-retours avec la barre d'outils"
         ]
       },
       {
         "title": "Bugs et stabilité",
         "features": [
-          "Correction de bugs critiques dans le moteur d'exécution",
-          "Meilleure gestion des erreurs lors du parcours du flux"
+          "Exécution plus fiable, même sur des flux complexes",
+          "Moins d'arrêts inattendus pendant le parcours"
         ]
       },
       {
         "title": "Interface",
         "features": [
-          "Refonte de la palette et du canvas pour plus de clarté",
-          "Meilleure lisibilité du panneau d'inspection"
+          "Palette et canvas simplifiés pour aller plus vite",
+          "Inspecteur plus lisible au quotidien"
         ]
       }
     ]
@@ -31,20 +63,20 @@
       {
         "title": "6 nœuds pour construire",
         "features": [
-          "Départ - point d'entrée du pipeline",
-          "Requête API - GET/POST HTTP",
-          "Condition - brancher selon une logique",
-          "Filtre - opérer sur les tableaux",
-          "Transformation - modifier les données",
-          "Sortie - exposer le résultat final"
+          "Départ : point de lancement du pipeline",
+          "Requête API : récupère ou envoie des données",
+          "Condition : crée des branches vrai/faux",
+          "Filtre : garde uniquement les éléments utiles",
+          "Transformation : adapte les données à ton besoin",
+          "Sortie : expose le résultat final"
         ]
       },
       {
         "title": "Export & Import",
         "features": [
-          "Exporte ton pipeline en JSON",
-          "Nommage automatique du fichier",
-          "Import avec validation de la structure"
+          "Export JSON en un clic",
+          "Nom de fichier généré automatiquement",
+          "Import guidé avec vérification de la structure"
         ]
       }
     ]

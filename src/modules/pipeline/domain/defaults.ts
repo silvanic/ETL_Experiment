@@ -14,7 +14,10 @@ import { t } from '@/i18n'
 const defaultApiConfig: ApiNodeConfig = {
   url: 'https://jsonplaceholder.typicode.com/users',
   method: 'GET',
-  headersRaw: '{\n  "Accept": "application/json"\n}',
+  headers: [
+    { key: 'Accept', value: 'application/json' },
+    { key: 'Content-Type', value: 'application/json' },
+  ],
   bodyRaw: '{\n  "sample": true\n}',
   outputPath: 'api.result',
 }

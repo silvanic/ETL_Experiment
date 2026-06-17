@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   Handle,
   MarkerType,
@@ -36,6 +36,21 @@ const paneState = ref<PaneState | null>(null)
 const pendingNodeCreationFit = ref(false)
 const nodesInitialized = useNodesInitialized()
 
+const flowNodes = computed(() => {
+  return store.nodes.map((node) => {
+    const isSelected = store.selectedNodeId === node.id
+
+    return {
+      ...node,
+      selected: isSelected,
+      data: {
+        ...node.data,
+        isSelected,
+      },
+    }
+  })
+})
+
 async function fitAfterNodeCreation(): Promise<void> {
   if (!pendingNodeCreationFit.value || !paneState.value) {
     return
@@ -54,7 +69,15 @@ function syncNodeCreationCenter(viewport: ViewportState): void {
   }
 
   const { width, height } = paneState.value.dimensions
-  if (width <= 0 || height <= 0 || viewport.zoom === 0) {
+  const hasValidDimensions = Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0
+  const hasValidViewport =
+    Number.isFinite(viewport.x)
+    && Number.isFinite(viewport.y)
+    && Number.isFinite(viewport.zoom)
+    && viewport.zoom > 0
+
+  if (!hasValidDimensions || !hasValidViewport) {
+    store.setNodeCreationCenter(null)
     return
   }
 
@@ -132,7 +155,7 @@ watch(nodesInitialized, (isInitialized) => {
 <template>
   <section class="panel">
     <VueFlow
-      :nodes="store.nodes"
+      :nodes="flowNodes"
       :edges="store.edges"
       :default-edge-options="{ markerEnd: MarkerType.ArrowClosed, type: 'step' }"
       :fit-view-on-init="true"
