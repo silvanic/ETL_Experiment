@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   Handle,
   MarkerType,
   Position,
   VueFlow,
   useNodesInitialized,
+  useVueFlow,
   type Connection,
   type EdgeChange,
   type NodeChange,
@@ -16,6 +17,7 @@ import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { ControlButton } from '@vue-flow/controls'
 import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditorStore'
+import CustomStepEdge from './CustomStepEdge.vue'
 import Button from 'primevue/button'
 
 import '@vue-flow/core/dist/style.css'
@@ -25,6 +27,7 @@ import './vueFlowTheme.css'
 import { t } from '@/i18n'
 
 const store = usePipelineEditorStore()
+const { getSelectedEdges } = useVueFlow()
 type ViewportState = { x: number; y: number; zoom: number }
 type PaneState = {
   dimensions: { width: number; height: number }
@@ -91,6 +94,30 @@ function onNodesChange(changes: NodeChange[]): void {
   store.onNodesChange(changes)
 }
 
+function onDeleteKey(event: KeyboardEvent): void {
+  if (event.key !== 'Backspace' && event.key !== 'Delete') {
+    return
+  }
+
+  const selectedEdges = getSelectedEdges.value
+  if (selectedEdges.length === 0) {
+    return
+  }
+
+  const changes: EdgeChange[] = selectedEdges.map((edge) => ({
+    type: 'remove',
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    sourceHandle: edge.sourceHandle ?? null,
+    targetHandle: edge.targetHandle ?? null,
+  }))
+  store.onEdgesChange(changes)
+}
+
+onMounted(() => window.addEventListener('keydown', onDeleteKey))
+onUnmounted(() => window.removeEventListener('keydown', onDeleteKey))
+
 function onEdgesChange(changes: EdgeChange[]): void {
   store.onEdgesChange(changes)
 }
@@ -101,6 +128,10 @@ function onConnect(connection: Connection): void {
 
 function onNodeClick(event: NodeMouseEvent): void {
   store.setSelectedNode(event.node.id)
+}
+
+function onEdgeClick(): void {
+  store.setSelectedNode(null)
 }
 
 function onPaneClick(): void {
@@ -159,16 +190,20 @@ watch(nodesInitialized, (isInitialized) => {
       :edges="store.edges"
       :default-edge-options="{ markerEnd: MarkerType.ArrowClosed, type: 'step' }"
       :fit-view-on-init="true"
-      :class="['canvas', 'dark']"
       :delete-key-code="null"
+      :class="['canvas', 'dark']"
       @nodes-change="onNodesChange"
       @edges-change="onEdgesChange"
       @connect="onConnect"
       @node-click="onNodeClick"
+      @edge-click="onEdgeClick"
       @pane-click="onPaneClick"
       @pane-ready="onPaneReady"
       @move="onMove"
     >
+      <template #edge-step="edgeProps">
+        <CustomStepEdge v-bind="edgeProps" />
+      </template>
       <Background :gap="20" :size="1.1" />
       <Controls position="top-left":show-interactive="false">
         <ControlButton>

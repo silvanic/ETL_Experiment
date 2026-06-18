@@ -1,4 +1,29 @@
 {
+  "v 0.0.4": {
+    "date": "June 18, 2026",
+    "sections": [
+      {
+        "title": "SetVariable Node",
+        "features": [
+          "New SetVariable node to extract values and assign them to your pipeline variables",
+          "The \"Variable Name\" field now only suggests parameter variables to avoid confusion"
+        ]
+      },
+      {
+        "title": "Interface",
+        "features": [
+          "Added a visible delete button on links to make removal easier without relying on keyboard shortcuts"
+        ]
+      },
+      {
+        "title": "Bugs & Stability",
+        "features": [
+          "Fixed variable resolution in the Output node (simple variable, object variable, and path cases)",
+          "Simplified output details to show only the requested output path and final value"
+        ]
+      }
+    ]
+  },
   "v 0.0.3": {
     "date": "June 17, 2026",
     "sections": [

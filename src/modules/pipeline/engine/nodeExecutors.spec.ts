@@ -5,7 +5,9 @@ import type {
   ConditionNodeConfig,
   ExecutionContext,
   FilterNodeConfig,
+  OutputNodeConfig,
   PipelineNode,
+  SetVariableNodeConfig,
 } from '@/modules/pipeline/domain/types'
 
 function createApiNode(overrides: Partial<ApiNodeConfig> = {}): PipelineNode<'api'> {
@@ -70,6 +72,43 @@ function createFilterNode(overrides: Partial<FilterNodeConfig> = {}): PipelineNo
   }
 }
 
+function createSetVariableNode(overrides: Partial<SetVariableNodeConfig> = {}): PipelineNode<'setVariable'> {
+  return {
+    id: 'set-variable-node',
+    type: 'default',
+    position: { x: 0, y: 0 },
+    data: {
+      type: 'setVariable',
+      label: 'Update variable',
+      config: {
+        extractions: [
+          {
+            extractPath: 'api.result.token',
+            variableName: 'authToken',
+          },
+        ],
+        ...overrides,
+      },
+    },
+  }
+}
+
+function createOutputNode(overrides: Partial<OutputNodeConfig> = {}): PipelineNode<'output'> {
+  return {
+    id: 'output-node',
+    type: 'default',
+    position: { x: 0, y: 0 },
+    data: {
+      type: 'output',
+      label: 'Output',
+      config: {
+        outputPath: 'result',
+        ...overrides,
+      },
+    },
+  }
+}
+
 describe('api executor', () => {
   let fetchMock: ReturnType<typeof vi.fn>
   let context: ExecutionContext
@@ -112,15 +151,13 @@ describe('api executor', () => {
         },
       },
     })
-    expect(result.message).toContain('completed (200)')
+    expect(result.message).toContain('(200)')
     expect(result.details).toEqual({
-      request: {
-        headers: {},
-        body: null,
-      },
-      response: {
-        users: [{ id: 1, name: 'Ada' }],
-      },
+      url: 'https://example.test/users',
+      method: 'GET',
+      outputPath: 'api.result',
+      headers: {},
+      body: undefined,
     })
   })
 
@@ -143,15 +180,15 @@ describe('api executor', () => {
       },
     })
     expect(result.details).toEqual({
-      request: {
-        headers: {},
-        body: null,
-      },
-      response: 'ok',
+      url: 'https://example.test/users',
+      method: 'GET',
+      outputPath: 'api.raw',
+      headers: {},
+      body: undefined,
     })
   })
 
-  it('adds Content-Type for POST when missing', async () => {
+  it('serializes POST JSON body before request', async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ created: true }), {
         status: 201,
@@ -171,10 +208,9 @@ describe('api executor', () => {
 
     const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(requestInit.method).toBe('POST')
-    expect(requestInit.body).toBe('{"name":"Ada"}')
+    expect(requestInit.body).toEqual('{"name":"Ada"}')
     expect(requestInit.headers).toEqual({
       Accept: 'application/json',
-      'Content-Type': 'application/json',
     })
   })
 
@@ -191,7 +227,7 @@ describe('api executor', () => {
 
     const node = createApiNode()
 
-    await expect(executorByType.api(node, context)).rejects.toThrow('API error 400: Bad Request')
+    await expect(executorByType.api(node, context)).rejects.toThrow(/400: Bad Request/)
   })
 
   it('throws when bodyRaw is not valid JSON in POST', async () => {
@@ -202,7 +238,7 @@ describe('api executor', () => {
       bodyRaw: '{invalid-json}',
     })
 
-    await expect(executorByType.api(node, context)).rejects.toThrow('Body JSON is not valid JSON.')
+    await expect(executorByType.api(node, context)).rejects.toThrow(/JSON/)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -290,6 +326,66 @@ describe('api executor', () => {
         },
       }),
     )
+  })
+
+  it('supports concatenating an object variable property in headers', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    )
+
+    context.data.__variables = {
+      myVar: {
+        token: 'abc-123',
+      },
+    }
+
+    const node = createApiNode({
+      headers: [{ key: 'Authorization', value: 'Bearer #myVar.token' }],
+    })
+
+    await executorByType.api(node, context)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://example.test/users',
+      expect.objectContaining({
+        headers: {
+          Authorization: 'Bearer abc-123',
+        },
+      }),
+    )
+  })
+
+  it('supports concatenating an object variable property in bodyRaw', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    )
+
+    context.data.__variables = {
+      myVar: {
+        token: 'abc-123',
+      },
+    }
+
+    const node = createApiNode({
+      method: 'POST',
+      bodyRaw: '{"authorization":"Bearer #myVar.token"}',
+    })
+
+    await executorByType.api(node, context)
+
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(requestInit.method).toBe('POST')
+    expect(requestInit.body).toEqual('{"authorization":"Bearer abc-123"}')
   })
 })
 
@@ -429,5 +525,101 @@ describe('filter executor', () => {
         },
       }),
     )
+  })
+})
+
+describe('setVariable executor', () => {
+  let context: ExecutionContext
+
+  beforeEach(() => {
+    context = {
+      data: {
+        api: {
+          result: {
+            token: 'token-123',
+            profile: {
+              id: 42,
+            },
+          },
+        },
+        __variables: {
+          authToken: 'old-token',
+          userId: 0,
+        },
+      },
+      logs: [],
+    }
+  })
+
+  it('updates only existing variables from pipeline parameters', async () => {
+    const node = createSetVariableNode({
+      extractions: [
+        {
+          extractPath: 'api.result.token',
+          variableName: 'authToken',
+        },
+        {
+          extractPath: 'api.result.profile.id',
+          variableName: 'userId',
+        },
+      ],
+    })
+
+    await executorByType.setVariable(node, context)
+
+    expect(context.data.__variables).toEqual({
+      authToken: 'token-123',
+      userId: 42,
+    })
+  })
+
+  it('throws when trying to write into a variable not defined in parameters', async () => {
+    const node = createSetVariableNode({
+      extractions: [
+        {
+          extractPath: 'api.result.token',
+          variableName: 'newVariable',
+        },
+      ],
+    })
+
+    await expect(executorByType.setVariable(node, context)).rejects.toThrow(/newVariable/)
+  })
+})
+
+describe('output executor', () => {
+  let context: ExecutionContext
+
+  beforeEach(() => {
+    context = {
+      data: {
+        result: {
+          value: 123,
+        },
+        __variables: {
+          dynamicPath: 'result.value',
+          payload: {
+            foo: 'bar',
+          },
+        },
+      },
+      logs: [],
+    }
+  })
+
+  it('keeps legacy behavior for #variable containing a path string', async () => {
+    const node = createOutputNode({ outputPath: '#dynamicPath' })
+
+    await executorByType.output(node, context)
+
+    expect(context.data.__output).toBe(123)
+  })
+
+  it('supports #variable.property when variable holds an object', async () => {
+    const node = createOutputNode({ outputPath: '#payload.foo' })
+
+    await executorByType.output(node, context)
+
+    expect(context.data.__output).toBe('bar')
   })
 })

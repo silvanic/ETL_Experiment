@@ -1,6 +1,6 @@
 import type { Position } from '@vue-flow/core'
 
-export type NodeType = 'start' | 'api' | 'condition' | 'filter' | 'transform' | 'output'
+export type NodeType = 'start' | 'api' | 'setVariable' | 'condition' | 'filter' | 'transform' | 'output'
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
 export type ConditionOperator =
   | 'equals'
@@ -55,9 +55,17 @@ export interface OutputNodeConfig {
   outputPath: string
 }
 
+export interface SetVariableNodeConfig {
+  extractions: Array<{
+    extractPath: string
+    variableName: string
+  }>
+}
+
 export type NodeConfigMap = {
   start: StartNodeConfig
   api: ApiNodeConfig
+  setVariable: SetVariableNodeConfig
   condition: ConditionNodeConfig
   filter: FilterNodeConfig
   transform: TransformNodeConfig

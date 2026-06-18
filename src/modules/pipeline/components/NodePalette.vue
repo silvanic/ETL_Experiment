@@ -21,6 +21,11 @@ const entries = computed<{ type: NodeType; title: string; subtitle: string }[]>(
     subtitle: t('nodePalette.nodes.api.subtitle'),
   },
   {
+    type: 'setVariable',
+    title: t('nodePalette.nodes.setVariable.title'),
+    subtitle: t('nodePalette.nodes.setVariable.subtitle'),
+  },
+  {
     type: 'condition',
     title: t('nodePalette.nodes.condition.title'),
     subtitle: t('nodePalette.nodes.condition.subtitle'),

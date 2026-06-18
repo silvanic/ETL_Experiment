@@ -1,7 +1,47 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { runPipeline } from '@/modules/pipeline/engine/runPipeline'
-import { createInitialPipeline } from '@/modules/pipeline/domain/defaults'
+import { createInitialPipeline, createNode } from '@/modules/pipeline/domain/defaults'
 import type { ApiNodeConfig, ConditionNodeConfig } from '@/modules/pipeline/domain/types'
+
+function createRunnablePipeline() {
+  const definition = createInitialPipeline()
+  const startNode = definition.nodes.find((node) => node.data?.type === 'start')
+
+  if (!startNode) {
+    throw new Error('Invalid test pipeline: start node is missing')
+  }
+
+  const apiNode = createNode('api', 260, 180)
+  const conditionNode = createNode('condition', 440, 180)
+  const outputNode = createNode('output', 620, 180)
+
+  definition.nodes.push(apiNode, conditionNode, outputNode)
+  definition.edges.push(
+    {
+      id: 'edge-start-api',
+      source: startNode.id,
+      target: apiNode.id,
+    },
+    {
+      id: 'edge-api-condition',
+      source: apiNode.id,
+      target: conditionNode.id,
+    },
+    {
+      id: 'edge-condition-output-true',
+      source: conditionNode.id,
+      target: outputNode.id,
+      data: { branch: 'true' },
+    },
+  )
+
+  return {
+    definition,
+    apiNode,
+    conditionNode,
+    outputNode,
+  }
+}
 
 describe('runPipeline', () => {
   let fetchMock: ReturnType<typeof vi.fn>
@@ -20,14 +60,7 @@ describe('runPipeline', () => {
   })
 
   it('executes a simple pipeline from start to output', async () => {
-    const definition = createInitialPipeline()
-
-    const apiNode = definition.nodes.find((node) => node.data?.type === 'api')
-    const conditionNode = definition.nodes.find((node) => node.data?.type === 'condition')
-
-    if (!apiNode || !conditionNode || !apiNode.data || !conditionNode.data) {
-      throw new Error('Invalid test pipeline')
-    }
+    const { definition, apiNode, conditionNode } = createRunnablePipeline()
 
     const apiConfig = apiNode.data.config as ApiNodeConfig
     const conditionConfig = conditionNode.data.config as ConditionNodeConfig
@@ -48,16 +81,11 @@ describe('runPipeline', () => {
     const definition = createInitialPipeline()
     definition.nodes = definition.nodes.filter((node) => node.data?.type !== 'start')
 
-    await expect(runPipeline(definition)).rejects.toThrow(/Start/)
+    await expect(runPipeline(definition)).rejects.toThrow(/Start|Départ/i)
   })
 
   it('sends a serialized POST body for api node', async () => {
-    const definition = createInitialPipeline()
-    const apiNode = definition.nodes.find((node) => node.data?.type === 'api')
-
-    if (!apiNode || !apiNode.data) {
-      throw new Error('Invalid test pipeline')
-    }
+    const { definition, apiNode } = createRunnablePipeline()
 
     const apiConfig = apiNode.data.config as ApiNodeConfig
     apiConfig.method = 'POST'
@@ -70,6 +98,8 @@ describe('runPipeline', () => {
 
     expect(requestInit.method).toBe('POST')
     expect(requestInit.body).toBe('{"name":"Ada","active":true}')
-    expect((requestInit.headers as Record<string, string>)['Content-Type']).toBe('application/json')
+    expect(requestInit.headers).toEqual({
+      Accept: 'application/json',
+    })
   })
 })

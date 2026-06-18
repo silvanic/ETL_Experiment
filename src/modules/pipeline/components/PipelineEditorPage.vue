@@ -11,6 +11,7 @@ import PipelineRunDialog from '@/modules/pipeline/components/dialogs/DialogPipel
 import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditorStore'
 import { setLocale, type AppLocale } from '@/i18n'
 import InputText from 'primevue/inputtext'
+import Textarea from 'primevue/textarea'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Menubar from 'primevue/menubar'
@@ -25,6 +26,7 @@ import Badge from 'primevue/badge'
 import type { MenuItem } from 'primevue/menuitem'
 import { useI18n } from 'vue-i18n'
 import type { ExecutionRun } from '@/modules/pipeline/domain/types'
+import { isValidVariableName } from '@/modules/pipeline/domain/variables'
 import changelogFr from '@/modules/pipeline/data/changelog_fr.json'
 import changelogEn from '@/modules/pipeline/data/changelog_en.json'
 
@@ -40,8 +42,43 @@ const importFileInput = ref<HTMLInputElement | null>(null)
 const selectedRunId = ref<string | null>(null)
 const selectedSavedPipelineId = ref<string | null>(null)
 const draftPipelineName = ref('')
+const newTabVariableName = ref('')
+const newTabVariableValue = ref('')
+const tabVariableError = ref<string | null>(null)
+const selectedTabVariableId = ref<string | null>(null)
+const isAddingTabVariable = ref(false)
 const autoOpenConsoleOnRunEndStorageKey = 'pipeline.editor.autoOpenConsoleOnRunEnd'
 const autoOpenConsoleOnRunEnd = ref(localStorage.getItem(autoOpenConsoleOnRunEndStorageKey) === 'true' || true)
+
+const inspectorWidthStorageKey = 'pipeline.editor.inspectorWidth'
+const inspectorMinWidth = 280
+const inspectorMaxWidth = 700
+const inspectorWidth = ref(
+  Math.min(
+    inspectorMaxWidth,
+    Math.max(inspectorMinWidth, parseInt(localStorage.getItem(inspectorWidthStorageKey) ?? '400', 10)),
+  ),
+)
+
+function startInspectorResize(event: MouseEvent): void {
+  event.preventDefault()
+  const startX = event.clientX
+  const startWidth = inspectorWidth.value
+
+  function onMouseMove(e: MouseEvent): void {
+    const delta = startX - e.clientX
+    inspectorWidth.value = Math.min(inspectorMaxWidth, Math.max(inspectorMinWidth, startWidth + delta))
+  }
+
+  function onMouseUp(): void {
+    document.removeEventListener('mousemove', onMouseMove)
+    document.removeEventListener('mouseup', onMouseUp)
+    localStorage.setItem(inspectorWidthStorageKey, String(inspectorWidth.value))
+  }
+
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+}
 const { t, locale } = useI18n()
 
 const languageLabel = computed(() =>
@@ -120,6 +157,9 @@ const menuItems = computed<MenuItem[]>(() => [
         command: () => showSettingsDialog.value = true
       },
       {
+        separator: true
+      },
+      {
         label: t('pipelineEditor.whatsNew.menuLabel'),
         icon: 'pi pi-megaphone',
         command: () => showWhatsNewDialog.value = true
@@ -141,9 +181,69 @@ const lastRuns = computed<ExecutionRun[]>(() => store.runHistory.slice(0, 3))
 const selectedRun = computed<ExecutionRun | null>(() =>
   store.runHistory.find((run) => run.id === selectedRunId.value) ?? null,
 )
+const canAddTabVariable = computed(() => newTabVariableName.value.trim().length > 0)
+const selectedTabVariable = computed(() => {
+  if (!selectedTabVariableId.value) {
+    return null
+  }
+  return store.pipeline.variables.find((variable) => variable.id === selectedTabVariableId.value) ?? null
+})
+
+watch(newTabVariableName, () => {
+  tabVariableError.value = null
+})
 
 function addVariable(name: string, value: string): void {
   store.addVariable(name, value)
+}
+
+function addVariableFromTab(): void {
+  const trimmedName = newTabVariableName.value.trim()
+  if (!trimmedName) {
+    return
+  }
+
+  if (!isValidVariableName(trimmedName)) {
+    tabVariableError.value = t('pipelineEditor.variables.nameInvalid')
+    return
+  }
+
+  const duplicateExists = store.pipeline.variables.some(
+    (variable) => variable.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+  )
+
+  if (duplicateExists) {
+    tabVariableError.value = t('pipelineEditor.variables.nameDuplicate')
+    return
+  }
+
+  addVariable(trimmedName, newTabVariableValue.value)
+  cancelAddTabVariable()
+}
+
+function countVariableLines(value: string): number {
+  return value.split('\n').length
+}
+
+function selectTabVariable(variableId: string): void {
+  selectedTabVariableId.value = variableId
+  isAddingTabVariable.value = false
+  tabVariableError.value = null
+}
+
+function startAddTabVariable(): void {
+  selectedTabVariableId.value = null
+  isAddingTabVariable.value = true
+  newTabVariableName.value = ''
+  newTabVariableValue.value = ''
+  tabVariableError.value = null
+}
+
+function cancelAddTabVariable(): void {
+  isAddingTabVariable.value = false
+  newTabVariableName.value = ''
+  newTabVariableValue.value = ''
+  tabVariableError.value = null
 }
 
 function updateVariableName(variableId: string, value: string): void {
@@ -156,6 +256,9 @@ function updateVariableValue(variableId: string, value: string): void {
 
 function removeVariable(variableId: string): void {
   store.removeVariable(variableId)
+  if (selectedTabVariableId.value === variableId) {
+    selectedTabVariableId.value = null
+  }
 }
 
 function toggleLanguage(): void {
@@ -416,14 +519,22 @@ store.relocalizePipelineLabels()
     <Tabs v-model:value="activeTab" class="workspace-tabs">
       <TabList>
         <Tab value="flow">{{ t('pipelineEditor.tabs.flow') }}</Tab>
+        <Tab value="variables">{{ t('pipelineEditor.tabs.variables') }}</Tab>
         <Tab value="console">{{ t('pipelineEditor.tabs.console') }}</Tab>
       </TabList>
       <TabPanels>
         <TabPanel value="flow">
-          <section class="workspace-grid">
+          <section
+            class="workspace-grid"
+            :class="{ 'workspace-grid--inspector-open': !!store.selectedNode }"
+            :style="store.selectedNode ? { '--inspector-width': inspectorWidth + 'px' } : {}"
+          >
             <NodePalette />
             <PipelineCanvas />
-            <InspectorPanel />
+            <div class="inspector-wrapper" :style="store.selectedNode ? { width: inspectorWidth + 'px' } : {}">
+              <div class="inspector-resize-handle" @mousedown="startInspectorResize" />
+              <InspectorPanel />
+            </div>
           </section>
           <section class="run-history" aria-label="run-history">
             <div class="run-history-header">
@@ -459,6 +570,137 @@ store.relocalizePipelineLabels()
         <TabPanel value="console">
           <section class="console-view">
             <RunConsole />
+          </section>
+        </TabPanel>
+        <TabPanel value="variables">
+          <section class="variables-tab">
+            <div class="variables-tab-header">
+              <h3>{{ t('pipelineEditor.variables.title') }}</h3>
+              <p>{{ t('pipelineEditor.variables.description') }}</p>
+            </div>
+
+            <div class="tab-variables-container">
+              <aside class="tab-variables-sidebar">
+                <div class="tab-sidebar-header">
+                  <h4 class="tab-sidebar-title">{{ t('pipelineEditor.variables.title') }}</h4>
+                  <Button
+                    icon="pi pi-plus"
+                    severity="success"
+                    rounded
+                    text
+                    :aria-label="t('pipelineEditor.variables.add')"
+                    @click="startAddTabVariable"
+                  />
+                </div>
+
+                <div class="tab-variables-list">
+
+                  <div v-if="store.pipeline.variables.length === 0" class="tab-list-empty">
+                    {{ t('pipelineEditor.variables.empty') }}
+                  </div>
+
+                  <button
+                    v-for="variable in store.pipeline.variables"
+                    :key="variable.id"
+                    type="button"
+                    class="tab-list-item"
+                    :class="{ 'tab-list-item--active': selectedTabVariableId === variable.id }"
+                    @click="selectTabVariable(variable.id)"
+                  >
+                    <span class="tab-item-icon"><i class="pi pi-circle-fill" /></span>
+                    <span class="tab-item-content">
+                      <span class="tab-item-name">{{ variable.name }}</span>
+                      <span class="tab-item-meta">{{ countVariableLines(variable.value) }} {{ t('pipelineEditor.variables.lines') }}</span>
+                    </span>
+                  </button>
+                </div>
+              </aside>
+
+              <section class="tab-variables-editor">
+                <Message v-if="tabVariableError" severity="error" :closable="true" @close="tabVariableError = null">
+                  {{ tabVariableError }}
+                </Message>
+
+                <div v-if="isAddingTabVariable" class="tab-editor-content">
+                  <h4 class="tab-editor-title">{{ t('pipelineEditor.variables.newVariable') }}</h4>
+
+                  <div class="tab-form-group">
+                    <label class="tab-form-label">{{ t('pipelineEditor.variables.namePlaceholder') }}</label>
+                    <InputText
+                      :model-value="newTabVariableName"
+                      :placeholder="t('pipelineEditor.variables.namePlaceholder')"
+                      @update:model-value="newTabVariableName = String($event)"
+                    />
+                  </div>
+
+                  <div class="tab-form-group">
+                    <label class="tab-form-label">{{ t('pipelineEditor.variables.valuePlaceholder') }}</label>
+                    <Textarea
+                      :model-value="newTabVariableValue"
+                      auto-resize
+                      rows="8"
+                      :placeholder="t('pipelineEditor.variables.valuePlaceholder')"
+                      @update:model-value="newTabVariableValue = String($event)"
+                    />
+                    <small class="tab-line-count">{{ countVariableLines(newTabVariableValue) }} {{ t('pipelineEditor.variables.lines') }}</small>
+                  </div>
+
+                  <div class="tab-form-actions">
+                    <Button
+                      :label="t('pipelineEditor.variables.add')"
+                      icon="pi pi-check"
+                      severity="success"
+                      :disabled="!canAddTabVariable"
+                      @click="addVariableFromTab"
+                    />
+                    <Button
+                      :label="t('common.cancel')"
+                      icon="pi pi-times"
+                      severity="secondary"
+                      @click="cancelAddTabVariable"
+                    />
+                  </div>
+                </div>
+
+                <div v-else-if="selectedTabVariable" class="tab-editor-content">
+                  <h4 class="tab-editor-title">{{ selectedTabVariable.name }}</h4>
+
+                  <div class="tab-form-group">
+                    <label class="tab-form-label">{{ t('pipelineEditor.variables.namePlaceholder') }}</label>
+                    <InputText
+                      :model-value="selectedTabVariable.name"
+                      @update:model-value="updateVariableName(selectedTabVariable.id, String($event))"
+                    />
+                  </div>
+
+                  <div class="tab-form-group">
+                    <label class="tab-form-label">{{ t('pipelineEditor.variables.valuePlaceholder') }}</label>
+                    <Textarea
+                      :model-value="selectedTabVariable.value"
+                      auto-resize
+                      rows="8"
+                      :placeholder="t('pipelineEditor.variables.valuePlaceholder')"
+                      @update:model-value="updateVariableValue(selectedTabVariable.id, String($event))"
+                    />
+                    <small class="tab-line-count">{{ countVariableLines(selectedTabVariable.value) }} {{ t('pipelineEditor.variables.lines') }}</small>
+                  </div>
+
+                  <div class="tab-form-actions">
+                    <Button
+                      icon="pi pi-trash"
+                      severity="danger"
+                      :label="t('pipelineEditor.variables.remove')"
+                      @click="removeVariable(selectedTabVariable.id)"
+                    />
+                  </div>
+                </div>
+
+                <div v-else class="tab-editor-empty">
+                  <i class="pi pi-inbox" />
+                  <p>{{ t('pipelineEditor.variables.selectOrCreate') }}</p>
+                </div>
+              </section>
+            </div>
           </section>
         </TabPanel>
       </TabPanels>
@@ -557,11 +799,227 @@ store.relocalizePipelineLabels()
   flex-direction: column;
 }
 
+.variables-tab {
+  min-height: 56vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.variables-tab-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.variables-tab-header p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+.tab-variables-container {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+  min-height: 0;
+  flex: 1;
+}
+
+.tab-variables-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-right: 1px solid var(--surface-border);
+  padding-right: 1rem;
+  min-height: 0;
+}
+
+.tab-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tab-sidebar-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tab-variables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  min-height: 0;
+}
+
+.tab-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+}
+
+.tab-list-item:hover {
+  background: var(--surface-100);
+}
+
+.tab-list-item--active {
+  background: var(--primary-50);
+  border-color: var(--primary-200);
+}
+
+.tab-list-item--new {
+  background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+  border: 1px dashed var(--primary-200);
+}
+
+.tab-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  color: var(--text-soft);
+}
+
+.tab-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.tab-item-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-item-meta {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.tab-list-empty {
+  padding: 1rem 0.5rem;
+  text-align: center;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.tab-variables-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  background: var(--surface-50);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tab-editor-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tab-editor-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 2px solid var(--primary-200);
+  padding-bottom: 0.75rem;
+}
+
+.tab-editor-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--text-soft);
+  min-height: 200px;
+}
+
+.tab-editor-empty i {
+  font-size: 2.5rem;
+  opacity: 0.5;
+}
+
+.tab-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tab-form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tab-line-count {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.tab-form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
 .workspace-grid {
   min-height: 56vh;
   display: grid;
   gap: 0.9rem;
-  grid-template-columns: 220px 1fr 320px;
+  grid-template-columns: 220px 1fr 0px;
+  transition: grid-template-columns 0.25s ease;
+}
+
+.workspace-grid--inspector-open {
+  grid-template-columns: 220px 1fr var(--inspector-width, 400px);
+}
+
+.inspector-wrapper {
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+}
+
+.inspector-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 1;
+  border-radius: 4px 0 0 4px;
+  transition: background 0.15s ease;
+}
+
+.inspector-resize-handle:hover,
+.inspector-resize-handle:active {
+  background: var(--primary-color, #6366f1);
+  opacity: 0.5;
 }
 
 .run-history {
@@ -707,9 +1165,20 @@ store.relocalizePipelineLabels()
 }
 
 @media (max-width: 1100px) {
-  .workspace-grid {
+  .workspace-grid,
+  .workspace-grid--inspector-open {
     grid-template-columns: 1fr;
     grid-template-rows: auto 58vh auto;
+    transition: none;
+  }
+
+  .inspector-wrapper {
+    overflow: visible;
+    width: auto !important;
+  }
+
+  .inspector-resize-handle {
+    display: none;
   }
 
   .toolbar-menubar :deep(.p-menubar) {
@@ -732,6 +1201,22 @@ store.relocalizePipelineLabels()
 
   .run-history-count {
     margin-left: 0;
+  }
+
+  .tab-variables-container {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .tab-variables-sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--surface-border);
+    padding-right: 0;
+    padding-bottom: 1rem;
+  }
+
+  .tab-variables-list {
+    max-height: 180px;
   }
 }
 </style>

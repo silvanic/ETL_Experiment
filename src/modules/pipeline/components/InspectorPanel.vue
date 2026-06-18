@@ -18,6 +18,7 @@ import type {
   ConditionNodeConfig,
   FilterNodeConfig,
   OutputNodeConfig,
+  SetVariableNodeConfig,
   TransformNodeConfig,
 } from '@/modules/pipeline/domain/types'
 import { useI18n } from 'vue-i18n'
@@ -49,6 +50,14 @@ const apiConfig = computed(() => {
   }
 
   return selectedData.value?.config as ApiNodeConfig
+})
+
+const setVariableConfig = computed(() => {
+  if (selectedType.value !== 'setVariable') {
+    return null
+  }
+
+  return selectedData.value?.config as SetVariableNodeConfig
 })
 
 const conditionConfig = computed(() =>
@@ -113,6 +122,7 @@ const variableMap = computed<Record<string, string>>(() => {
 })
 
 const variableTokens = computed(() => store.pipeline.variables.map((variable) => toVariableToken(variable.name)))
+const parameterVariableNames = computed(() => store.pipeline.variables.map((variable) => variable.name))
 
 const outputPathSuggestions = computed(() =>
   store.pipeline.nodes
@@ -140,6 +150,35 @@ const unresolvedApiVariables = computed(() => {
   const unresolvedInPath = findUnresolvedVariables(apiConfig.value.outputPath, variableMap.value)
 
   return Array.from(new Set([...unresolvedInUrl, ...unresolvedInHeaders, ...unresolvedInBody, ...unresolvedInPath]))
+})
+
+const unresolvedSetVariableVariables = computed(() => {
+  if (!setVariableConfig.value) {
+    return []
+  }
+
+  const unresolvedInExtractions = setVariableConfig.value.extractions.flatMap(extraction => [
+    ...findUnresolvedVariables(extraction.extractPath, variableMap.value),
+    ...findUnresolvedVariables(extraction.variableName, variableMap.value),
+  ])
+
+  return Array.from(new Set([...unresolvedInExtractions]))
+})
+
+const invalidSetVariableNames = computed(() => {
+  if (!setVariableConfig.value) {
+    return []
+  }
+
+  const allowedVariableNames = new Set(parameterVariableNames.value)
+
+  return Array.from(
+    new Set(
+      setVariableConfig.value.extractions
+        .map((extraction) => extraction.variableName.trim())
+        .filter((name) => name.length > 0 && !allowedVariableNames.has(name)),
+    ),
+  )
 })
 
 const unresolvedConditionVariables = computed(() => {
@@ -193,6 +232,23 @@ const unresolvedOutputVariables = computed(() => {
   }
 
   return findUnresolvedVariables(outputConfig.value.outputPath, variableMap.value)
+})
+
+const outputPathValidation = computed(() => {
+  if (!outputConfig.value) {
+    return null
+  }
+
+  const path = outputConfig.value.outputPath?.trim() ?? ''
+  
+  if (!path) {
+    return {
+      severity: 'error' as const,
+      text: t('inspector.errors.outputPathEmpty'),
+    }
+  }
+
+  return null
 })
 
 const apiHeadersValidation = computed(() => {
@@ -631,7 +687,19 @@ function openApiResultDialog(): void {
 <template>
   <Panel class="panel">
     <template #header>
-      <h2>{{ t('inspector.title') }}</h2>
+      <div class="panel-header">
+        <h2>{{ t('inspector.title') }}</h2>
+        <Button
+          v-if="store.selectedNode"
+          icon="pi pi-times"
+          severity="secondary"
+          text
+          rounded
+          size="small"
+          :aria-label="t('common.close')"
+          @click="store.setSelectedNode(null)"
+        />
+      </div>
     </template>
 
     <header>
@@ -806,6 +874,70 @@ function openApiResultDialog(): void {
             </TabPanel>
           </TabPanels>
         </Tabs>
+      </template>
+
+      <template v-if="selectedType === 'setVariable' && setVariableConfig">
+        <Message
+          v-if="invalidSetVariableNames.length > 0"
+          severity="error"
+          :closable="false"
+        >
+          {{ t('inspector.errors.setVariableUnknownNames') }}: {{ invalidSetVariableNames.join(', ') }}
+        </Message>
+        <Message
+          v-if="unresolvedSetVariableVariables.length > 0"
+          severity="warn"
+          :closable="false"
+        >
+          {{ t('inspector.warnings.unresolvedVariables') }}: {{ unresolvedSetVariableVariables.join(', ') }}
+        </Message>
+        <div class="extractions-section">
+          <div class="extractions-header">
+            <Button
+              size="small"
+              :label="t('inspector.buttons.addExtraction')"
+              icon="pi pi-plus"
+              @click="patchConfig({ extractions: [...(setVariableConfig.extractions || []), { extractPath: '', variableName: '' }] })"
+            />
+          </div>
+          <DataTable
+            :value="setVariableConfig.extractions || []"
+            size="small"
+            responsive-layout="scroll"
+            :rows="10"
+          >
+            <Column header="Extract Path" style="width: 45%">
+              <template #body="slotProps">
+                <InputText
+                  :model-value="slotProps.data.extractPath"
+                  @update:model-value="slotProps.data.extractPath = $event; patchConfig({ extractions: setVariableConfig.extractions })"
+                  placeholder="ex: api.result.token"
+                />
+              </template>
+            </Column>
+            <Column header="Variable Name" style="width: 45%">
+              <template #body="slotProps">
+                <Select
+                  :options="parameterVariableNames"
+                  :model-value="slotProps.data.variableName"
+                  :placeholder="t('inspector.placeholders.setVariableVariableName')"
+                  @update:model-value="slotProps.data.variableName = String($event ?? ''); patchConfig({ extractions: setVariableConfig.extractions })"
+                />
+              </template>
+            </Column>
+            <Column style="width: 10%">
+              <template #body="slotProps">
+                <Button
+                  size="small"
+                  icon="pi pi-trash"
+                  severity="danger"
+                  text
+                  @click="patchConfig({ extractions: setVariableConfig.extractions.filter((_, i) => i !== slotProps.index) })"
+                />
+              </template>
+            </Column>
+          </DataTable>
+        </div>
       </template>
 
       <template v-if="selectedType === 'condition' && conditionConfig">
@@ -1093,6 +1225,14 @@ function openApiResultDialog(): void {
 
       <template v-if="selectedType === 'output' && outputConfig">
         <Message
+          v-if="outputPathValidation"
+          class="body-validation-message"
+          :severity="outputPathValidation.severity"
+          :closable="false"
+        >
+          {{ outputPathValidation.text }}
+        </Message>
+        <Message
           v-if="unresolvedOutputVariables.length > 0"
           severity="warn"
           :closable="false"
@@ -1153,6 +1293,13 @@ function openApiResultDialog(): void {
 .panel {
   height: 100%;
   overflow: auto;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 h2 {
@@ -1267,6 +1414,11 @@ label {
 
 :deep(.p-datatable-sm .p-datatable-tbody > tr > td input) {
   font-size: 0.9rem;
+}
+
+.extractions-header{
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 </style>
 

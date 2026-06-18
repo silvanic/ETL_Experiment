@@ -43,7 +43,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const helpNodeKeys = ['start', 'api', 'condition', 'filter', 'transform', 'output'] as const
+const helpNodeKeys = ['start', 'api', 'setVariable', 'condition', 'filter', 'transform', 'output'] as const
 
 const helpNodeFieldDefs: Record<typeof helpNodeKeys[number], HelpFieldDef[]> = {
   start: [],
@@ -53,6 +53,11 @@ const helpNodeFieldDefs: Record<typeof helpNodeKeys[number], HelpFieldDef[]> = {
     { labelKey: 'inspector.fields.headersJson', descKey: 'pipelineEditor.help.nodes.api.fields.headersRaw' },
     { labelKey: 'inspector.fields.bodyJson', descKey: 'pipelineEditor.help.nodes.api.fields.bodyRaw' },
     { labelKey: 'inspector.fields.outputPath', descKey: 'pipelineEditor.help.nodes.api.fields.outputPath' },
+  ],
+  setVariable: [
+    { labelKey: 'inspector.fields.extractions', descKey: 'pipelineEditor.help.nodes.setVariable.fields.extractions' },
+    { labelKey: 'inspector.fields.valueExtractPath', descKey: 'pipelineEditor.help.nodes.setVariable.fields.extractPath' },
+    { labelKey: 'inspector.fields.variableName', descKey: 'pipelineEditor.help.nodes.setVariable.fields.variableName' },
   ],
   condition: [
     { labelKey: 'inspector.fields.leftPath', descKey: 'pipelineEditor.help.nodes.condition.fields.leftPath' },

@@ -89,10 +89,7 @@ export async function runPipeline(definition: PipelineDefinition): Promise<RunRe
       
       if(currentNode.data.type === 'start') {
         context.logs.push(createLog(currentNode, 'info', t('engine.start.begin')))
-      }else{
-        context.logs.push(createLog(currentNode, 'info', t('engine.run.executionStarted')))
       }
-
 
       const tracedIn = TRACED_TYPES_IN.has(currentNode.data.type)
       if (tracedIn) {

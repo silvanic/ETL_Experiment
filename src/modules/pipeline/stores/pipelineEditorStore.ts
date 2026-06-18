@@ -67,6 +67,10 @@ function nodeLabel(type: NodeType): string {
     return t('defaults.nodeLabel.transform')
   }
 
+  if (type === 'setVariable') {
+    return t('defaults.nodeLabel.setVariable')
+  }
+
   return t('defaults.nodeLabel.output')
 }
 

@@ -7,6 +7,7 @@ import type {
   NodeType,
   PipelineDefinition,
   PipelineNode,
+  SetVariableNodeConfig,
   TransformNodeConfig,
 } from '@/modules/pipeline/domain/types'
 import { t } from '@/i18n'
@@ -47,9 +48,19 @@ const defaultFilterConfig: FilterNodeConfig = {
   outputPathRejected: 'result.rejected',
 }
 
+const defaultSetVariableConfig: SetVariableNodeConfig = {
+  extractions: [
+    {
+      extractPath: 'api.result.token',
+      variableName: 'authToken',
+    },
+  ],
+}
+
 const defaultByType: NodeConfigMap = {
   start: { note: '' },
   api: defaultApiConfig,
+  setVariable: defaultSetVariableConfig,
   condition: defaultConditionConfig,
   filter: defaultFilterConfig,
   transform: defaultTransformConfig,
@@ -64,6 +75,7 @@ export function createNode(type: NodeType, x: number, y: number): PipelineNode {
   const labels: Record<NodeType, string> = {
     start: t('defaults.nodeLabel.start'),
     api: t('defaults.nodeLabel.api'),
+    setVariable: t('defaults.nodeLabel.setVariable'),
     condition: t('defaults.nodeLabel.condition'),
     filter: t('defaults.nodeLabel.filter'),
     transform: t('defaults.nodeLabel.transform'),

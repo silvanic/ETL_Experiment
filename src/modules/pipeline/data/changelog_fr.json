@@ -1,4 +1,29 @@
 {
+  "v 0.0.4": {
+    "date": "18 juin 2026",
+    "sections": [
+      {
+        "title": "Nœud SetVariable",
+        "features": [
+          "Nouveau nœud SetVariable pour extraire des valeurs et les affecter à tes variables de pipeline",
+          "Le champ \"Nom de variable\" propose uniquement les variables des paramètres pour éviter les confusions"
+        ]
+      },
+      {
+        "title": "Interface",
+        "features": [
+          "Ajout d'un bouton visible sur les liens pour les supprimer facilement, sans dépendre du clavier"
+        ]
+      },
+      {
+        "title": "Bugs et stabilité",
+        "features": [
+          "Correction de la résolution des variables dans le nœud Sortie (cas variable simple, variable objet et chemin)",
+          "Détails de sortie simplifiés pour afficher uniquement le chemin demandé et la valeur finale"
+        ]
+      }
+    ]
+  },
   "v 0.0.3": {
     "date": "17 juin 2026",
     "sections": [

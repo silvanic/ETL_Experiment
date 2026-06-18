@@ -3,11 +3,16 @@ import type {
   ConditionNodeConfig,
   OutputNodeConfig,
   PipelineNode,
+  SetVariableNodeConfig,
   TransformNodeConfig,
 } from '@/modules/pipeline/domain/types'
 
 export function isApiNode(node: PipelineNode): boolean {
   return node.data.type === 'api'
+}
+
+export function isSetVariableNode(node: PipelineNode): boolean {
+  return node.data.type === 'setVariable'
 }
 
 export function isConditionNode(node: PipelineNode): boolean {
@@ -24,6 +29,10 @@ export function isOutputNode(node: PipelineNode): boolean {
 
 export function asApiConfig(node: PipelineNode): ApiNodeConfig {
   return node.data.config as ApiNodeConfig
+}
+
+export function asSetVariableConfig(node: PipelineNode): SetVariableNodeConfig {
+  return node.data.config as SetVariableNodeConfig
 }
 
 export function asConditionConfig(node: PipelineNode): ConditionNodeConfig {

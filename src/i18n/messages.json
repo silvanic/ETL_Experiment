@@ -26,7 +26,8 @@
       },
       "tabs": {
         "flow": "Flux",
-        "console": "Console"
+        "console": "Console",
+        "variables": "Variables"
       },
       "language": {
         "currentFr": "Langue : Français",
@@ -52,7 +53,11 @@
         "remove": "Supprimer la variable",
         "empty": "Aucune variable pour le moment.",
         "nameDuplicate": "Ce nom de variable existe déjà.",
-        "nameInvalid": "Le nom doit commencer par une lettre et ne contenir que des lettres, chiffres, _ ou -."
+        "nameInvalid": "Le nom doit commencer par une lettre et ne contenir que des lettres, chiffres, _ ou -.",
+          "newVariable": "Nouvelle variable",
+          "lines": "lignes",
+          "title": "Variables",
+          "selectOrCreate": "Sélectionnez une variable ou créez-en une nouvelle"
       },
       "toast": {
         "executionSuccess": "Exécution réussie",
@@ -136,6 +141,16 @@
               "outputPath": "Chemin JSONPath où stocker la réponse. Les nœuds suivants y accèdent via ce chemin (ex : $.data)."
             }
           },
+          "setVariable": {
+            "title": "Mise à jour de variable",
+            "desc": "Extrait une ou plusieurs valeurs depuis les données du pipeline et met à jour les variables déjà définies dans les paramètres.",
+            "example": "Extraction : $.api.result.token -> authToken",
+            "fields": {
+              "extractions": "Liste des extractions à exécuter. Chaque ligne associe un chemin de valeur à un nom de variable cible.",
+              "extractPath": "Chemin JSONPath complet de la valeur à lire dans le contexte d'exécution (ex : $.api.result.token).",
+              "variableName": "Nom de la variable paramètre à mettre à jour avec la valeur extraite."
+            }
+          },
           "condition": {
             "title": "Condition",
             "desc": "Évalue une expression logique sur les données du pipeline. Le chemin gauche accepte le wildcard * pour parcourir un tableau (ex: $.users.*.age). Selon le résultat, le flux est dirigé vers la branche « vrai » ou « faux ».",
@@ -204,6 +219,10 @@
           "title": "Requête API",
           "subtitle": "GET / POST / PUT / PATCH / DELETE"
         },
+        "setVariable": {
+          "title": "Mise à jour de variable",
+          "subtitle": "Extraire et stocker en variable"
+        },
         "condition": {
           "title": "Condition",
           "subtitle": "Branche vrai / faux"
@@ -244,6 +263,8 @@
         "outputPathRejected": "Chemin des rejetés",
         "headersJson": "En-têtes JSON",
         "bodyJson": "Corps JSON",
+        "valueExtractPath": "Chemin d'extraction de la valeur",
+        "variableName": "Nom de la variable",
         "leftPath": "Chemin gauche",
         "operator": "Opérateur",
         "aggregation": "Agrégation",
@@ -253,7 +274,8 @@
         "mode": "Mode",
         "sourcePath": "Chemin source",
         "targetPath": "Chemin cible",
-        "literalValue": "Valeur littérale"
+        "literalValue": "Valeur littérale",
+        "extractions": "Extractions"
       },
       "hints": {
         "targetPathWildcard": "Astuce : utilisez [*] pour modifier chaque élément d'un tableau (ex. $.users[*].active)."
@@ -261,7 +283,8 @@
       "buttons": {
         "testApi": "Tester l'API",
         "showResult": "Afficher le résultat",
-        "addHeader": "Ajouter un en-tête"
+        "addHeader": "Ajouter un en-tête",
+        "addExtraction": "Ajouter une extraction"
       },
       "messages": {
         "noApiResult": "Aucun résultat disponible.",
@@ -282,7 +305,12 @@
       },
       "errors": {
         "missingApiUrl": "URL API manquante.",
-        "unknown": "Erreur inconnue."
+        "unknown": "Erreur inconnue.",
+        "setVariableUnknownNames": "Variables non définies dans les paramètres",
+        "outputPathEmpty": "Le chemin de sortie est vide. Cela exposera toutes les données du pipeline."
+      },
+      "placeholders": {
+        "setVariableVariableName": "Choisir une variable paramètre"
       },
       "options": {
         "conditionOperator": {
@@ -329,6 +357,7 @@
       "nodeLabel": {
         "start": "Départ",
         "api": "Requête API",
+        "setVariable": "Mise à jour de variable",
         "condition": "Condition",
         "filter": "Filtre",
         "transform": "Transformation",
@@ -349,6 +378,10 @@
       "api": {
         "error": "Erreur API {status}: {statusText}",
         "completed": "API {method} {url} terminée ({status})."
+      },
+      "setVariable": {
+        "completed": "{count} variable(s) mise(s) à jour.",
+        "unknownVariable": "La variable \"{name}\" n'est pas définie dans les paramètres du pipeline."
       },
       "condition": {
         "result": "Condition : {leftPath} {operator} {rightValue} -> {branchLabel}",
@@ -412,7 +445,8 @@
       },
       "tabs": {
         "flow": "Flow",
-        "console": "Console"
+        "console": "Console",
+        "variables": "Variables"
       },
       "language": {
         "currentFr": "Langue: Francais",
@@ -438,7 +472,11 @@
         "remove": "Remove variable",
         "empty": "No variables yet.",
         "nameDuplicate": "This variable name already exists.",
-        "nameInvalid": "Name must start with a letter and only contain letters, digits, _ or -."
+        "nameInvalid": "Name must start with a letter and only contain letters, digits, _ or -.",
+          "newVariable": "New variable",
+          "lines": "lines",
+          "title": "Variables",
+          "selectOrCreate": "Select a variable or create a new one"
       },
       "toast": {
         "executionSuccess": "Execution successful",
@@ -522,6 +560,16 @@
               "outputPath": "JSONPath where the response will be stored. Subsequent nodes access it via this path (e.g. $.data)."
             }
           },
+          "setVariable": {
+            "title": "Update variable",
+            "desc": "Extracts one or more values from pipeline data and updates variables already defined in pipeline parameters.",
+            "example": "Extraction: $.api.result.token -> authToken",
+            "fields": {
+              "extractions": "List of extractions to execute. Each row links a value path to a target variable name.",
+              "extractPath": "Full JSONPath of the value to read from the execution context (e.g. $.api.result.token).",
+              "variableName": "Name of the parameter variable to update with the extracted value."
+            }
+          },
           "condition": {
             "title": "Condition",
             "desc": "Evaluates a logical expression on pipeline data. The left path supports wildcard * to iterate over arrays (e.g. $.users.*.age). Routes the flow to the 'true' or 'false' branch based on the result.",
@@ -590,6 +638,10 @@
           "title": "API Request",
           "subtitle": "GET / POST / PUT / PATCH / DELETE"
         },
+        "setVariable": {
+          "title": "Update variable",
+          "subtitle": "Extract and store in variable"
+        },
         "condition": {
           "title": "Condition",
           "subtitle": "True / false branch"
@@ -629,8 +681,8 @@
         "outputPath": "Output path",
         "outputPathRejected": "Rejected output path",
         "headersJson": "Headers JSON",
-        "bodyJson": "Body JSON",
-        "leftPath": "Left path",
+        "bodyJson": "Body JSON",        "valueExtractPath": "Value extract path",
+        "variableName": "Variable name",        "leftPath": "Left path",
         "operator": "Operator",
         "aggregation": "Aggregation",
         "itemPath": "Item path",
@@ -639,7 +691,8 @@
         "mode": "Mode",
         "sourcePath": "Source path",
         "targetPath": "Target path",
-        "literalValue": "Literal value"
+        "literalValue": "Literal value",
+        "extractions": "Extractions"
       },
       "hints": {
         "targetPathWildcard": "Tip: use [*] to modify every element in an array (e.g. $.users[*].active)."
@@ -647,7 +700,8 @@
       "buttons": {
         "testApi": "Test API",
         "showResult": "Show result",
-        "addHeader": "Add header"
+        "addHeader": "Add header",
+        "addExtraction": "Add extraction"
       },
       "messages": {
         "noApiResult": "No result available.",
@@ -668,7 +722,12 @@
       },
       "errors": {
         "missingApiUrl": "Missing API URL.",
-        "unknown": "Unknown error."
+        "unknown": "Unknown error.",
+        "setVariableUnknownNames": "Variables not defined in pipeline parameters",
+        "outputPathEmpty": "The output path is empty. This will expose all pipeline data."
+      },
+      "placeholders": {
+        "setVariableVariableName": "Select a parameter variable"
       },
       "options": {
         "conditionOperator": {
@@ -715,6 +774,7 @@
       "nodeLabel": {
         "start": "Start",
         "api": "API Request",
+        "setVariable": "Update variable",
         "condition": "Condition",
         "filter": "Filter",
         "transform": "Transform",
@@ -735,6 +795,10 @@
       "api": {
         "error": "API error {status}: {statusText}",
         "completed": "API {method} {url} completed ({status})."
+      },
+      "setVariable": {
+        "completed": "{count} variable(s) updated.",
+        "unknownVariable": "Variable \"{name}\" is not defined in pipeline parameters."
       },
       "condition": {
         "result": "Condition: {leftPath} {operator} {rightValue} -> {branchLabel}",

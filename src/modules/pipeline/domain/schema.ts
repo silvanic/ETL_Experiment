@@ -85,9 +85,19 @@ const outputConfigSchema = z.object({
   outputPath: z.string().min(1),
 })
 
+const setVariableConfigSchema = z.object({
+  extractions: z.array(
+    z.object({
+      extractPath: z.string().min(1),
+      variableName: z.string().min(1),
+    })
+  ).min(1),
+})
+
 const nodeDataSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('start'), label: z.string(), name: z.string().optional(), config: startConfigSchema }),
   z.object({ type: z.literal('api'), label: z.string(), name: z.string().optional(), config: apiConfigSchema }),
+  z.object({ type: z.literal('setVariable'), label: z.string(), name: z.string().optional(), config: setVariableConfigSchema }),
   z.object({ type: z.literal('condition'), label: z.string(), name: z.string().optional(), config: conditionConfigSchema }),
   z.object({ type: z.literal('filter'), label: z.string(), name: z.string().optional(), config: filterConfigSchema }),
   z.object({ type: z.literal('transform'), label: z.string(), name: z.string().optional(), config: transformConfigSchema }),
