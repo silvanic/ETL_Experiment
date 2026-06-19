@@ -87,7 +87,7 @@ function translatedNodeType(nodeType: string): string {
 				<details open>
 					<summary class="group-summary">
 						<span v-if="group.nodeName" class="group-name">{{ group.nodeName }}</span>
-						<span class="group-type">({{ translatedNodeType(group.nodeType) }})</span>
+						<span v-if="group.nodeName!==translatedNodeType(group.nodeType)" class="group-type">({{ translatedNodeType(group.nodeType) }})</span>
 						<code class="group-id">{{ group.nodeId.slice(0, 8) }}</code>
 						<Tag
 							:value="String(group.logs.length)"

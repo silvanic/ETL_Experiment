@@ -30,17 +30,18 @@ const { t } = useI18n()
 const selected = computed(() => store.selectedNode)
 const selectedData = computed(() => selected.value?.data)
 const selectedType = computed(() => selectedData.value?.type)
-const canEditNodeName = computed(() => selectedType.value !== 'start' && selectedType.value !== 'output')
+const canEditNodeName = computed(() => selectedType.value !== 'start')
 const selectedLabel = computed(() => {
   if (!selectedData.value) {
     return ''
   }
 
-  if (selectedData.value.type === 'start' || selectedData.value.type === 'output') {
+  const name = selectedData.value.name?.trim() || selectedData.value.label
+
+  if (selectedData.value.type === 'start' || selectedData.value.label === name) {
     return selectedData.value.label
   }
 
-  const name = selectedData.value.name?.trim() || selectedData.value.label
   return `${name} (${selectedData.value.label})`
 })
 
@@ -219,9 +220,13 @@ const unresolvedTransformVariables = computed(() => {
     return []
   }
 
-  const unresolvedInSource = findUnresolvedVariables(transformConfig.value.sourcePath, variableMap.value)
+  const unresolvedInSource = transformConfig.value.mode === 'pickPath'
+    ? findUnresolvedVariables(transformConfig.value.sourcePath, variableMap.value)
+    : []
   const unresolvedInTarget = findUnresolvedVariables(transformConfig.value.targetPath, variableMap.value)
-  const unresolvedInLiteral = findUnresolvedVariables(transformConfig.value.literalValue, variableMap.value)
+  const unresolvedInLiteral = transformConfig.value.mode === 'assignLiteral'
+    ? findUnresolvedVariables(transformConfig.value.literalValue, variableMap.value)
+    : []
 
   return Array.from(new Set([...unresolvedInSource, ...unresolvedInTarget, ...unresolvedInLiteral]))
 })
@@ -362,7 +367,7 @@ function patchConfig(partial: Record<string, unknown>): void {
 
 function patchNodeName(value: string | number | undefined): void {
   const node = selected.value
-  if (!node || node.data.type === 'start' || node.data.type === 'output') {
+  if (!node || node.data.type === 'start') {
     return
   }
 
@@ -375,148 +380,62 @@ function completeVariables(event: { query: string }): void {
   const query = rawQuery.toLowerCase()
 
   const candidates = Array.from(new Set([...variableTokens.value, ...outputPathSuggestions.value]))
-  variableSuggestions.value = candidates.filter((candidate) => candidate.toLowerCase().includes(query))
-  variableSuggestions.value = candidates;
+  variableSuggestions.value = query
+    ? candidates.filter((candidate) => candidate.toLowerCase().includes(query))
+    : candidates
 }
 
 function openSuggestionMenu(): void {
   variableSuggestions.value = Array.from(new Set([...variableTokens.value, ...outputPathSuggestions.value]))
 }
 
+const fieldConfigKeyByFieldKey: Record<string, string> = {
+  'api.url': 'url',
+  'api.outputPath': 'outputPath',
+  'api.headersRaw': 'headersRaw',
+  'api.bodyRaw': 'bodyRaw',
+  'condition.leftPath': 'leftPath',
+  'condition.rightValue': 'rightValue',
+  'filter.sourcePath': 'sourcePath',
+  'filter.itemPath': 'itemPath',
+  'filter.rightValue': 'rightValue',
+  'filter.outputPath': 'outputPath',
+  'filter.outputPathRejected': 'outputPathRejected',
+  'transform.sourcePath': 'sourcePath',
+  'transform.targetPath': 'targetPath',
+  'transform.literalValue': 'literalValue',
+  'output.outputPath': 'outputPath',
+}
+
+const fieldValueReaderByFieldKey: Record<string, () => string> = {
+  'api.url': () => apiConfig.value?.url ?? '',
+  'api.outputPath': () => apiConfig.value?.outputPath ?? '',
+  'api.bodyRaw': () => apiConfig.value?.bodyRaw ?? '',
+  'condition.leftPath': () => conditionConfig.value?.leftPath ?? '',
+  'condition.rightValue': () => conditionConfig.value?.rightValue ?? '',
+  'filter.sourcePath': () => filterConfig.value?.sourcePath ?? '',
+  'filter.itemPath': () => filterConfig.value?.itemPath ?? '',
+  'filter.rightValue': () => filterConfig.value?.rightValue ?? '',
+  'filter.outputPath': () => filterConfig.value?.outputPath ?? '',
+  'filter.outputPathRejected': () => filterConfig.value?.outputPathRejected ?? '',
+  'transform.sourcePath': () => transformConfig.value?.sourcePath ?? '',
+  'transform.targetPath': () => transformConfig.value?.targetPath ?? '',
+  'transform.literalValue': () => transformConfig.value?.literalValue ?? '',
+  'output.outputPath': () => outputConfig.value?.outputPath ?? '',
+}
+
 function patchFieldValue(fieldKey: string, value: string): void {
-  if (fieldKey === 'api.url') {
-    patchConfig({ url: value })
+  const configKey = fieldConfigKeyByFieldKey[fieldKey]
+  if (!configKey) {
     return
   }
 
-  if (fieldKey === 'api.outputPath') {
-    patchConfig({ outputPath: value })
-    return
-  }
-
-  if (fieldKey === 'api.headersRaw') {
-    patchConfig({ headersRaw: value })
-    return
-  }
-
-  if (fieldKey === 'api.bodyRaw') {
-    patchConfig({ bodyRaw: value })
-    return
-  }
-
-  if (fieldKey === 'condition.leftPath') {
-    patchConfig({ leftPath: value })
-    return
-  }
-
-  if (fieldKey === 'condition.rightValue') {
-    patchConfig({ rightValue: value })
-    return
-  }
-
-  if (fieldKey === 'filter.sourcePath') {
-    patchConfig({ sourcePath: value })
-    return
-  }
-
-  if (fieldKey === 'filter.itemPath') {
-    patchConfig({ itemPath: value })
-    return
-  }
-
-  if (fieldKey === 'filter.rightValue') {
-    patchConfig({ rightValue: value })
-    return
-  }
-
-  if (fieldKey === 'filter.outputPath') {
-    patchConfig({ outputPath: value })
-    return
-  }
-
-  if (fieldKey === 'filter.outputPathRejected') {
-    patchConfig({ outputPathRejected: value })
-    return
-  }
-
-  if (fieldKey === 'transform.sourcePath') {
-    patchConfig({ sourcePath: value })
-    return
-  }
-
-  if (fieldKey === 'transform.targetPath') {
-    patchConfig({ targetPath: value })
-    return
-  }
-
-  if (fieldKey === 'transform.literalValue') {
-    patchConfig({ literalValue: value })
-    return
-  }
-
-  if (fieldKey === 'output.outputPath') {
-    patchConfig({ outputPath: value })
-  }
+  patchConfig({ [configKey]: value })
 }
 
 function readFieldValue(fieldKey: string): string {
-  if (fieldKey === 'api.url') {
-    return apiConfig.value?.url ?? ''
-  }
-
-  if (fieldKey === 'api.outputPath') {
-    return apiConfig.value?.outputPath ?? ''
-  }
-
-  if (fieldKey === 'api.bodyRaw') {
-    return apiConfig.value?.bodyRaw ?? ''
-  }
-
-  if (fieldKey === 'condition.leftPath') {
-    return conditionConfig.value?.leftPath ?? ''
-  }
-
-  if (fieldKey === 'condition.rightValue') {
-    return conditionConfig.value?.rightValue ?? ''
-  }
-
-  if (fieldKey === 'filter.sourcePath') {
-    return filterConfig.value?.sourcePath ?? ''
-  }
-
-  if (fieldKey === 'filter.itemPath') {
-    return filterConfig.value?.itemPath ?? ''
-  }
-
-  if (fieldKey === 'filter.rightValue') {
-    return filterConfig.value?.rightValue ?? ''
-  }
-
-  if (fieldKey === 'filter.outputPath') {
-    return filterConfig.value?.outputPath ?? ''
-  }
-
-  if (fieldKey === 'filter.outputPathRejected') {
-    return filterConfig.value?.outputPathRejected ?? ''
-  }
-
-  if (fieldKey === 'transform.sourcePath') {
-    return transformConfig.value?.sourcePath ?? ''
-  }
-
-  if (fieldKey === 'transform.targetPath') {
-    return transformConfig.value?.targetPath ?? ''
-  }
-
-  if (fieldKey === 'transform.literalValue') {
-    return transformConfig.value?.literalValue ?? ''
-  }
-
-  if (fieldKey === 'output.outputPath') {
-    return outputConfig.value?.outputPath ?? ''
-  }
-
-  return ''
+  const reader = fieldValueReaderByFieldKey[fieldKey]
+  return reader ? reader() : ''
 }
 
 function captureCursorPosition(event: Event): void {
@@ -584,13 +503,18 @@ function isVariableTokenInput(value: string | undefined): boolean {
   return String(value ?? '').trim().startsWith('#')
 }
 
+function extractVariableNameFromToken(value: string): string {
+  const match = value.trim().match(/^#([a-zA-Z][a-zA-Z0-9_-]*)/)
+  return match?.[1] ?? ''
+}
+
 function variableTokenHint(value: string | undefined): string {
   const rawValue = String(value ?? '').trim()
   if (!rawValue.startsWith('#')) {
     return ''
   }
 
-  const variableName = rawValue.slice(1)
+  const variableName = extractVariableNameFromToken(rawValue)
   if (!variableName) {
     return t('inspector.messages.variableTokenInvalid')
   }
@@ -1161,7 +1085,7 @@ function openApiResultDialog(): void {
             @update:model-value="patchConfig({ mode: String($event) })"
           />
         </label>
-        <label>
+        <label v-if="transformConfig.mode === 'pickPath'">
           {{ t('inspector.fields.sourcePath') }}
           <AutoComplete
             input-id="transform.sourcePath"
@@ -1202,7 +1126,7 @@ function openApiResultDialog(): void {
             {{ t('inspector.hints.targetPathWildcard') }}
           </p>
         </label>
-        <label>
+        <label v-if="transformConfig.mode === 'assignLiteral'">
           {{ t('inspector.fields.literalValue') }}
           <AutoComplete
             input-id="transform.literalValue"

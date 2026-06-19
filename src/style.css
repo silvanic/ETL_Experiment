@@ -5,7 +5,10 @@
   --panel-soft: #f9fbfd;
   --text: #16202b;
   --text-soft: #4a6077;
+  --text-soft-edge: #9ca3af;
   --border: #d6dee6;
+  --border-node: #d6dee6;
+  --border-edge: white;
   --accent: #136f63;
   --accent-soft: #d8f3ee;
   --danger: #b63b3b;
@@ -33,13 +36,15 @@
   --panel-soft: white;
   --text: #e4e7eb;
   --text-soft: #9ca3af;
+  --text-soft-edge: rgba(208, 208, 208, 0.89);
   --border: #3a4557;
+  --border-node: #a9aaace9;
+  --border-edge: white;
   --accent: #4fb8a5;
   --accent-soft: rgba(79, 184, 165, 0.15);
   --code-bg: #101827;
   --code-border: #2f3a4d;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-
   background: radial-gradient(circle at 20% 0%, #141a27 0%, #0f1419 50%, #0d111a 100%);
 }
 
@@ -66,5 +71,5 @@ select {
 
 .vue-flow__node {
   background-color: var(--panel) !important;
-  border: 1px solid var(--border) !important;
+  border: 1px solid var(--border-node) !important;
 }

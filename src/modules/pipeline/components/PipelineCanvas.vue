@@ -192,6 +192,7 @@ watch(nodesInitialized, (isInitialized) => {
       :fit-view-on-init="true"
       :delete-key-code="null"
       :class="['canvas', 'dark']"
+      :snap-to-grid="true"      
       @nodes-change="onNodesChange"
       @edges-change="onEdgesChange"
       @connect="onConnect"
@@ -252,27 +253,6 @@ watch(nodesInitialized, (isInitialized) => {
   height: 100%;
   min-height: 420px;
   background: linear-gradient(180deg, #141a27 0%, #0f1419 100%);
-}
-
-.etl-node {
-  min-width: 180px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--text);
-  padding: 0.6rem 0.7rem;
-  box-shadow: var(--shadow);
-}
-
-.etl-node-default {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.etl-node-fixed {
-  min-width: 140px;
-  text-align: center;
-  font-weight: 700;
 }
 
 .etl-node-label {

@@ -74,6 +74,20 @@ function nodeLabel(type: NodeType): string {
   return t('defaults.nodeLabel.output')
 }
 
+const maxOutgoingConnectionsByNodeType: Record<NodeType, number> = {
+  start: 1,
+  api: 1,
+  setVariable: 1,
+  condition: 2,
+  filter: 2,
+  transform: 1,
+  output: 1,
+}
+
+function getMaxOutgoingConnections(type: NodeType): number {
+  return maxOutgoingConnectionsByNodeType[type]
+}
+
 function isFiniteCoordinate(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
@@ -298,7 +312,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     const trimmedName = name.trim()
 
     nodes.value = nodes.value.map((node) => {
-      if (node.id !== nodeId || node.data.type === 'start' || node.data.type === 'output') {
+      if (node.id !== nodeId || node.data.type === 'start') {
         return node
       }
 
@@ -362,16 +376,34 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     }
 
     const sourceNode = nodes.value.find((node) => node.id === connection.source)
+    if (!sourceNode) {
+      return
+    }
+
+    const sourceEdges = edges.value.filter((edge) => edge.source === sourceNode.id)
+    const maxOutgoingConnections = getMaxOutgoingConnections(sourceNode.data.type)
+    if (sourceEdges.length >= maxOutgoingConnections) {
+      const sourceName = sourceNode.data.name?.trim() || sourceNode.data.label
+      toast.add({
+        severity: 'warn',
+        summary: t('pipelineEditor.toast.maxOutgoingConnectionsReached'),
+        detail: t('pipelineEditor.toast.maxOutgoingConnectionsReachedDetail', {
+          name: sourceName,
+          max: maxOutgoingConnections,
+        }),
+        life: 4500,
+      })
+      return
+    }
+
     let branch: ConditionBranch | FilterBranch | undefined
 
     if (sourceNode?.data.type === 'condition') {
-      const sourceEdges = edges.value.filter((edge) => edge.source === sourceNode.id)
       const hasTrue = sourceEdges.some((edge) => edge.data?.branch === 'true')
       branch = hasTrue ? 'false' : 'true'
     }
 
     if (sourceNode?.data.type === 'filter') {
-      const sourceEdges = edges.value.filter((edge) => edge.source === sourceNode.id)
       const hasFiltered = sourceEdges.some((edge) => edge.data?.branch === 'filtered')
       branch = hasFiltered ? 'rejected' : 'filtered'
     }

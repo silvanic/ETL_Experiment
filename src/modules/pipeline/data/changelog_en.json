@@ -1,4 +1,30 @@
 {
+  "v 0.0.5": {
+    "date": "June 19, 2026",
+    "sections": [
+      {
+        "title": "Output Node",
+        "features": [
+          "The Output node can now be renamed like other nodes",
+          "Used in the display with the format \"Custom Name (Output)\""
+        ]
+      },
+      {
+        "title": "Execution Console",
+        "features": [
+          "Console messages were refined to be clearer and easier to read",
+          "Main display was streamlined to show only essentials, with richer context available in details"
+        ]
+      },
+      {
+        "title": "Node Visualization",
+        "features": [
+          "Visual improvements were made to node rendering for clearer pipeline readability",
+          "Canvas readability was improved to make flow elements easier to distinguish"
+        ]
+      }
+    ]
+  },
   "v 0.0.4": {
     "date": "June 18, 2026",
     "sections": [

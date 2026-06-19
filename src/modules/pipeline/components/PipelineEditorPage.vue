@@ -126,7 +126,10 @@ const menuItems = computed<MenuItem[]>(() => [
       {
         label: t('pipelineEditor.menu.newPipeline'),
         icon: 'pi pi-file',
-        command: () => store.resetPipeline()
+        command: () => {
+          store.resetPipeline();
+          openRenameDialog();
+        }
       },
       {
         label: t('pipelineEditor.menu.save'),

@@ -30,8 +30,8 @@ function createLog(
   }
 }
 
-const TRACED_TYPES_IN = new Set<string>(['condition', 'filter', 'transform'])
-const TRACED_TYPES_OUT = new Set<string>(['api', 'condition', 'filter', 'transform'])
+const TRACED_TYPES_IN = new Set<string>(['filter'])
+const TRACED_TYPES_OUT = new Set<string>(['api', 'filter'])
 
 function snapshotData(data: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(data).filter(([key]) => !key.startsWith('__')))

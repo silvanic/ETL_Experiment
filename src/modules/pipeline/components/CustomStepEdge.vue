@@ -13,6 +13,17 @@ const props = defineProps<EdgeProps>()
 
 const store = usePipelineEditorStore()
 const isHovered = ref(false)
+const edgeLabel = computed(() => {
+  if (typeof props.label === 'string') {
+    return props.label.trim()
+  }
+
+  if (typeof props.label === 'number') {
+    return String(props.label)
+  }
+
+  return ''
+})
 
 const path = computed(() =>
   getSmoothStepPath({
@@ -47,9 +58,16 @@ function deleteEdge(): void {
   />
   <EdgeLabelRenderer>
     <div
+      v-if="edgeLabel"
+      class="nodrag nopan edge-label"
+      :style="{ transform: `translate(-50%, -50%) translate(${path[1]}px, ${path[2]}px)` }"
+    >
+      {{ edgeLabel }}
+    </div>
+    <div
       v-if="isHovered || selected"
       class="nodrag nopan edge-delete-wrapper"
-      :style="{ transform: `translate(-50%, -50%) translate(${path[1]}px, ${path[2]}px)` }"
+      :style="{ transform: `translate(-50%, -50%) translate(${path[1]}px, ${path[2] + 20}px)` }"
       @mouseenter="isHovered = true"
       @mouseleave="isHovered = false"
     >
@@ -65,6 +83,19 @@ function deleteEdge(): void {
 </template>
 
 <style scoped>
+.edge-label {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+  background: rgba(15, 20, 25, 0.9);
+  border: 1px solid var(--border-edge);
+  color: var(--text-soft-edge);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-transform: uppercase;
+  padding: 0.3rem;
+}
+
 .edge-delete-wrapper {
   position: absolute;
   pointer-events: all;

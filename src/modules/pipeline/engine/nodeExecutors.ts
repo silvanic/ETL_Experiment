@@ -335,7 +335,7 @@ const apiExecutor: NodeExecutor = async (node, context) => {
 
   // Create an output object showing only what was just stored
   const dataOut: Record<string, unknown> = {}
-  setByPath(dataOut, resolvedOutputPath, payload)
+  dataOut[config.outputPath] = {...payload};
 
   return {
     message: t('engine.api.completed', {
@@ -455,12 +455,12 @@ const transformExecutor: NodeExecutor = async (node, context) => {
   }
 
   const config = node.data.config as TransformNodeConfig
-  const resolvedSourcePath = resolvePathValue(config.sourcePath, context)
   const resolvedTargetPath = resolvePathValue(config.targetPath, context)
   const resolvedLiteralValue = resolveConfigValue(config.literalValue, context)
   const previousTargetValue = getByPath(context.data, resolvedTargetPath)
   const targetExistedBefore = previousTargetValue !== undefined
   if (config.mode === 'pickPath') {
+    const resolvedSourcePath = resolvePathValue(config.sourcePath, context)
     const sourceValue = getByPath(context.data, resolvedSourcePath)
     const sourceFound = sourceValue !== undefined
     setByPath(context.data, resolvedTargetPath, sourceValue)
@@ -472,17 +472,21 @@ const transformExecutor: NodeExecutor = async (node, context) => {
     setByPath(dataOut, resolvedTargetPath, sourceValue)
 
     return {
-      message: t('engine.transform.result', {
-        mode: config.mode,
-        targetPath: resolvedTargetPath,
-        status: sourceFound
-          ? t('engine.transform.status.applied')
-          : t('engine.transform.status.sourceMissing'),
-      }),
+      message: sourceFound
+        ? t('engine.transform.pickPathApplied', {
+            targetPath: resolvedTargetPath,
+            sourcePath: resolvedSourcePath,
+          })
+        : t('engine.transform.pickPathSourceMissing', {
+            targetPath: resolvedTargetPath,
+            sourcePath: resolvedSourcePath,
+          }),
       dataOut,
       details: {
         mode: config.mode,
         sourcePath: resolvedSourcePath,
+        sourcePathValue: sourceValue,
+        sourcePathValuePreview: getValuePreview(sourceValue),
         targetPath: resolvedTargetPath,
         sourceFound,
         targetExistedBefore,
@@ -502,15 +506,17 @@ const transformExecutor: NodeExecutor = async (node, context) => {
   setByPath(dataOut, resolvedTargetPath, resolvedLiteralValue)
 
   return {
-    message: t('engine.transform.result', {
-      mode: config.mode,
+    message: t('engine.transform.literalApplied', {
       targetPath: resolvedTargetPath,
-      status: t('engine.transform.status.applied'),
     }),
     dataOut,
     details: {
       mode: config.mode,
-      sourcePath: resolvedSourcePath,
+      sourcePath: config.sourcePath,
+      previousValue: previousTargetValue,
+      previousValuePreview: getValuePreview(previousTargetValue),
+      literalValue: resolvedLiteralValue,
+      literalValuePreview: getValuePreview(resolvedLiteralValue),
       targetPath: resolvedTargetPath,
       targetExistedBefore,
       valueTypeIn: getValueType(resolvedLiteralValue),

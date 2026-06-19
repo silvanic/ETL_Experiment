@@ -221,6 +221,22 @@ const helpExample2Steps = computed((): HelpStep[] => [
                   <span class="help-example-tag">{{ t('pipelineEditor.help.exampleLabel') }}</span>
                   <code class="help-example-code">{{ t(`pipelineEditor.help.nodes.${nodeKey}.example`) }}</code>
                 </div>
+
+                <div v-if="nodeKey === 'transform'" class="help-transform-modes">
+                  <span class="help-example-tag">{{ t('pipelineEditor.help.nodes.transform.modeExamples.title') }}</span>
+                  <table class="help-node-fields-table">
+                    <tbody>
+                      <tr>
+                        <th>{{ t('inspector.options.transformMode.pickPath') }}</th>
+                        <td>{{ t('pipelineEditor.help.nodes.transform.modeExamples.pickPath') }}</td>
+                      </tr>
+                      <tr>
+                        <th>{{ t('inspector.options.transformMode.assignLiteral') }}</th>
+                        <td>{{ t('pipelineEditor.help.nodes.transform.modeExamples.assignLiteral') }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </TabPanel>
           </TabPanels>
@@ -434,6 +450,11 @@ const helpExample2Steps = computed((): HelpStep[] => [
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+}
+
+.help-transform-modes {
+  display: grid;
+  gap: 0.35rem;
 }
 
 .help-example-tag {

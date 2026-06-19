@@ -28,15 +28,22 @@
 /* Vue Flow node text color */
 .vue-flow__node {
   color: var(--text);
+  transition:
+    box-shadow 140ms ease,
+    transform 140ms ease;
 }
 
 /* Vue Flow selected node styling */
 .vue-flow__node.selected {
-  box-shadow: 0 0 0 2px var(--accent-soft);
+  box-shadow:
+    0 0 0 3px var(--accent),
+    0 0 0 7px var(--accent-soft);
+  transform: translateY(-1px);
 }
 
 .vue-flow__node.selected > * {
   border-color: var(--accent) !important;
+  border-width: 2px;
 }
 
 /* Vue Flow edge label styling */
@@ -63,7 +70,7 @@
 }
 
 .vue-flow__controls button:hover {
-  background: var(--p-blue-300);
+  background: var(--vf-controls-btn-bg-hover);
 }
 
 /* Vue Flow background styling */

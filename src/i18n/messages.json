@@ -65,7 +65,9 @@
         "executionError": "Erreur lors de l'exécution",
         "executionErrorDetail": "Une erreur s'est produite lors de l'exécution du pipeline.",
         "startNodeAlreadyExists": "Nœud Départ déjà présent",
-        "startNodeAlreadyExistsDetail": "Un seul nœud Départ est autorisé dans le pipeline."
+        "startNodeAlreadyExistsDetail": "Un seul nœud Départ est autorisé dans le pipeline.",
+        "maxOutgoingConnectionsReached": "Limite de connexions atteinte",
+        "maxOutgoingConnectionsReachedDetail": "Le nœud \"{name}\" autorise au maximum {max} connexion(s) sortante(s)."
       },
       "storage": {
         "save": "Sauvegarder",
@@ -153,7 +155,7 @@
           },
           "condition": {
             "title": "Condition",
-            "desc": "Évalue une expression logique sur les données du pipeline. Le chemin gauche accepte le wildcard * pour parcourir un tableau (ex: $.users.*.age). Selon le résultat, le flux est dirigé vers la branche « vrai » ou « faux ».",
+            "desc": "Évalue une expression logique sur une valeur unique (objet/champ) des données du pipeline. Pour filtrer un tableau entier, utilisez le nœud Filtre. Le chemin gauche accepte le wildcard * pour parcourir un tableau (ex: $.users.*.age). Selon le résultat, le flux est dirigé vers la branche « vrai » ou « faux ».",
             "example": "Chemin gauche : $.users.*.age | Opérateur : supérieur à | Agrégation : Au moins un | Valeur : 18",
             "fields": {
               "leftPath": "Chemin JSONPath vers la valeur du pipeline à évaluer (ex : $.user.age, $.item.status). Utilisez * comme segment pour cibler tous les éléments d'un tableau (ex : $.users.*.age).",
@@ -165,7 +167,7 @@
           },
           "filter": {
             "title": "Filtre",
-            "desc": "Filtre les éléments d'un tableau selon une condition. Les éléments qui respectent la condition sont écrits dans le chemin de sortie (filtrés), les autres dans le chemin des rejetés. Les deux branches s'exécutent en parallèle.",
+            "desc": "Filtre les éléments d'un tableau selon une condition. Pour une comparaison simple sur un objet/une valeur unique, utilisez plutôt le nœud Condition. Les éléments qui respectent la condition sont écrits dans le chemin de sortie (filtrés), les autres dans le chemin des rejetés. Les deux branches s'exécutent en parallèle.",
             "example": "Source : api.result | Chemin élément : age | Opérateur : supérieur à | Valeur : 18 | Sortie : result.adults | Rejetés : result.minors",
             "fields": {
               "sourcePath": "Chemin JSONPath vers le tableau à filtrer dans les données du pipeline (ex : api.result).",
@@ -181,6 +183,11 @@
             "title": "Transformation",
             "desc": "Modifie ou réorganise les données. Mode « Extraire » : copie une valeur d'un chemin vers un autre. Mode « Valeur fixe » : assigne directement une constante. Le wildcard [*] permet d'appliquer la transformation sur chaque objet d'un tableau (ex. $.users[*].active).",
             "example": "Mode : Valeur fixe | Valeur : true | Chemin cible : $.users[*].active (active tous les utilisateurs de la liste)",
+            "modeExamples": {
+              "title": "Quand utiliser chaque mode",
+              "pickPath": "Extraire : lire une valeur existante (Chemin source) et la copier dans un Chemin cible. Exemple : $.todo.title -> $.result.",
+              "assignLiteral": "Valeur fixe : ignorer Chemin source et écrire directement une constante dans le Chemin cible. Exemple : \"Tâche non terminée\" -> $.result."
+            },
             "fields": {
               "mode": "Extraire : copie la valeur d'un chemin source vers un chemin cible. Valeur fixe : assigne directement une constante.",
               "sourcePath": "(Mode Extraire uniquement) Chemin JSONPath de la valeur à lire dans les données du pipeline.",
@@ -225,7 +232,7 @@
         },
         "condition": {
           "title": "Condition",
-          "subtitle": "Branche vrai / faux"
+          "subtitle": "Objet/valeur unique"
         },
         "filter": {
           "title": "Filtre",
@@ -393,6 +400,9 @@
       },
       "transform": {
         "result": "Transformation ({mode}) vers {targetPath}: {status}.",
+        "pickPathApplied": "{targetPath} a été valorisé depuis {sourcePath}.",
+        "pickPathSourceMissing": "{targetPath} a été valorisé avec undefined car {sourcePath} est introuvable.",
+        "literalApplied": "{targetPath} a été valorisé avec une valeur fixe.",
         "status": {
           "applied": "appliquée",
           "sourceMissing": "source introuvable (valeur undefined propagée)"
@@ -484,7 +494,9 @@
         "executionError": "Execution error",
         "executionErrorDetail": "An error occurred while executing the pipeline.",
         "startNodeAlreadyExists": "Start node already exists",
-        "startNodeAlreadyExistsDetail": "Only one Start node is allowed in the pipeline."
+        "startNodeAlreadyExistsDetail": "Only one Start node is allowed in the pipeline.",
+        "maxOutgoingConnectionsReached": "Connection limit reached",
+        "maxOutgoingConnectionsReachedDetail": "Node \"{name}\" allows a maximum of {max} outgoing connection(s)."
       },
       "storage": {
         "save": "Save",
@@ -572,7 +584,7 @@
           },
           "condition": {
             "title": "Condition",
-            "desc": "Evaluates a logical expression on pipeline data. The left path supports wildcard * to iterate over arrays (e.g. $.users.*.age). Routes the flow to the 'true' or 'false' branch based on the result.",
+            "desc": "Evaluates a logical expression on a single value (object/field) in pipeline data. To filter a full array, use the Filter node instead. The left path supports wildcard * to iterate over arrays (e.g. $.users.*.age). Routes the flow to the 'true' or 'false' branch based on the result.",
             "example": "Left path: $.users.*.age | Operator: greater than | Aggregation: Any | Value: 18",
             "fields": {
               "leftPath": "JSONPath to the pipeline value to evaluate (e.g. $.user.age, $.item.status). Use * as a full segment to target all array items (e.g. $.users.*.age).",
@@ -584,7 +596,7 @@
           },
           "filter": {
             "title": "Filter",
-            "desc": "Filters items from an array based on a condition. Items matching the condition are written to the output path (filtered), others to the rejected path. Both branches execute in parallel.",
+            "desc": "Filters items from an array based on a condition. For a simple comparison on a single object/value, use the Condition node instead. Items matching the condition are written to the output path (filtered), others to the rejected path. Both branches execute in parallel.",
             "example": "Source: api.result | Item path: age | Operator: greater than | Value: 18 | Output: result.adults | Rejected: result.minors",
             "fields": {
               "sourcePath": "JSONPath to the array to filter in the pipeline data (e.g. api.result).",
@@ -600,6 +612,11 @@
             "title": "Transform",
             "desc": "Modifies or reorganizes data. 'Pick path' mode: copies a value from one path to another. 'Literal' mode: assigns a constant directly. The [*] wildcard applies the transformation to every object in an array (e.g. $.users[*].active).",
             "example": "Mode: Assign literal | Value: true | Target path: $.users[*].active (activates every user in the list)",
+            "modeExamples": {
+              "title": "When to use each mode",
+              "pickPath": "Pick path: read an existing value (Source path) and copy it to a Target path. Example: $.todo.title -> $.result.",
+              "assignLiteral": "Assign literal: ignore Source path and write a constant directly to the Target path. Example: \"Task not completed\" -> $.result."
+            },
             "fields": {
               "mode": "Pick path: copies a value from a source path to a target path. Assign literal: directly assigns a constant.",
               "sourcePath": "(Pick path mode only) JSONPath of the value to read from the pipeline data.",
@@ -644,7 +661,7 @@
         },
         "condition": {
           "title": "Condition",
-          "subtitle": "True / false branch"
+          "subtitle": "Single object/value"
         },
         "filter": {
           "title": "Filter",
@@ -810,6 +827,9 @@
       },
       "transform": {
         "result": "Transform ({mode}) to {targetPath}: {status}.",
+        "pickPathApplied": "{targetPath} was assigned from {sourcePath}.",
+        "pickPathSourceMissing": "{targetPath} was assigned undefined because {sourcePath} was not found.",
+        "literalApplied": "{targetPath} was assigned with a fixed value.",
         "status": {
           "applied": "applied",
           "sourceMissing": "source path not found (undefined propagated)"

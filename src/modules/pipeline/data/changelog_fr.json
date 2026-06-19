@@ -1,4 +1,30 @@
 {
+  "v 0.0.5": {
+    "date": "19 juin 2026",
+    "sections": [
+      {
+        "title": "Nœud Sortie",
+        "features": [
+          "Le nœud Sortie peut maintenant être renommé comme les autres nœuds",
+          "Utilisé dans l'affichage avec le format \"Nom personnalisé (Sortie)\""
+        ]
+      },
+      {
+        "title": "Console d'exécution",
+        "features": [
+          "Messages de console retravaillés pour être plus explicites et plus lisibles",
+          "Affichage principal simplifié pour ne montrer que l'essentiel, avec plus de contexte disponible dans les détails"
+        ]
+      },
+      {
+        "title": "Visualisation des nœuds",
+        "features": [
+          "Améliorations visuelles apportées au rendu des nœuds pour une lecture plus claire du pipeline",
+          "Lisibilité renforcée dans le canvas pour distinguer plus facilement les éléments du flux"
+        ]
+      }
+    ]
+  },
   "v 0.0.4": {
     "date": "18 juin 2026",
     "sections": [
