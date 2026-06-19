@@ -11,6 +11,7 @@
   --border-edge: white;
   --accent: #136f63;
   --accent-soft: #d8f3ee;
+  --accent-soft-controls: #d8f3ee;
   --danger: #b63b3b;
   --code-bg: #eef3f8;
   --code-border: #cfd9e4;
@@ -42,6 +43,7 @@
   --border-edge: white;
   --accent: #4fb8a5;
   --accent-soft: rgba(79, 184, 165, 0.15);
+  --accent-soft-controls: rgba(79, 184, 165, 0.891);
   --code-bg: #101827;
   --code-border: #2f3a4d;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);

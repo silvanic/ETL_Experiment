@@ -22,7 +22,7 @@
   --vf-controls-border: var(--border);
   --vf-controls-btn-bg: var(--panel-soft);
   --vf-controls-btn-color: var(--text);
-  --vf-controls-btn-bg-hover: var(--accent-soft);
+  --vf-controls-btn-bg-hover: var(--accent-soft-controls);
 }
 
 /* Vue Flow node text color */
