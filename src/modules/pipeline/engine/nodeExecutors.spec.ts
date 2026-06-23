@@ -5,6 +5,7 @@ import type {
   ConditionNodeConfig,
   ExecutionContext,
   FilterNodeConfig,
+  MapNodeConfig,
   OutputNodeConfig,
   PipelineNode,
   SetVariableNodeConfig,
@@ -86,6 +87,27 @@ function createSetVariableNode(overrides: Partial<SetVariableNodeConfig> = {}): 
             extractPath: 'api.result.token',
             variableName: 'authToken',
           },
+        ],
+        ...overrides,
+      },
+    },
+  }
+}
+
+function createMapNode(overrides: Partial<MapNodeConfig> = {}): PipelineNode<'map'> {
+  return {
+    id: 'map-node',
+    type: 'default',
+    position: { x: 0, y: 0 },
+    data: {
+      type: 'map',
+      label: 'Map',
+      config: {
+        sourcePath: 'users',
+        outputPath: 'result.usersSlim',
+        mappings: [
+          { targetField: 'id', literalValue: '{id}', fallbackValue: '' },
+          { targetField: 'profile.name', literalValue: '{name}', fallbackValue: '' },
         ],
         ...overrides,
       },
@@ -386,6 +408,168 @@ describe('api executor', () => {
     const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(requestInit.method).toBe('POST')
     expect(requestInit.body).toEqual('{"authorization":"Bearer abc-123"}')
+  })
+})
+
+describe('map executor', () => {
+  it('maps an array from sourcePath to outputPath with nested target fields', async () => {
+    const context: ExecutionContext = {
+      data: {
+        users: [
+          { id: 1, name: 'Ada', email: 'ada@example.test' },
+          { id: 2, name: 'Linus', email: 'linus@example.test' },
+        ],
+      },
+      logs: [],
+    }
+
+    const node = createMapNode({
+      mappings: [
+        { targetField: 'id', literalValue: '{id}', fallbackValue: '' },
+        { targetField: 'profile.name', literalValue: '{name}', fallbackValue: '' },
+      ],
+    })
+
+    const result = await executorByType.map(node, context)
+
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        result: {
+          usersSlim: [
+            { id: 1, profile: { name: 'Ada' } },
+            { id: 2, profile: { name: 'Linus' } },
+          ],
+        },
+      }),
+    )
+
+    expect(result.message).toContain('result.usersSlim')
+    expect(result.details).toEqual({
+      sourcePath: 'users',
+      outputPath: 'result.usersSlim',
+      mappingsCount: 2,
+      inputCount: 2,
+      outputCount: 2,
+    })
+  })
+
+  it('supports literal values in mapping rows', async () => {
+    const context: ExecutionContext = {
+      data: {
+        users: [{ id: 1, name: 'Ada' }],
+      },
+      logs: [],
+    }
+
+    const node = createMapNode({
+      mappings: [
+        { targetField: 'id', literalValue: '{id}', fallbackValue: '' },
+        { targetField: 'meta.source', literalValue: 'manual', fallbackValue: '' },
+      ],
+    })
+
+    await executorByType.map(node, context)
+
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        result: {
+          usersSlim: [
+            { id: 1, meta: { source: 'manual' } },
+          ],
+        },
+      }),
+    )
+  })
+
+  it('uses fallback value when path is missing', async () => {
+    const context: ExecutionContext = {
+      data: {
+        users: [{ id: 1 }],
+      },
+      logs: [],
+    }
+
+    const node = createMapNode({
+      mappings: [
+        { targetField: 'name', literalValue: '{name}', fallbackValue: 'N/A' },
+      ],
+    })
+
+    await executorByType.map(node, context)
+
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        result: {
+          usersSlim: [
+            { name: 'N/A' },
+          ],
+        },
+      }),
+    )
+  })
+
+  it('resolves global variables in literalValue without templates', async () => {
+    const context: ExecutionContext = {
+      data: {
+        users: [{ id: 1 }],
+        __variables: {
+          env: 'prod',
+        },
+      },
+      logs: [],
+    }
+
+    const node = createMapNode({
+      mappings: [
+        { targetField: 'meta.environment', literalValue: '#env', fallbackValue: '' },
+      ],
+    })
+
+    await executorByType.map(node, context)
+
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        result: {
+          usersSlim: [
+            { meta: { environment: 'prod' } },
+          ],
+        },
+      }),
+    )
+  })
+
+  it('resolves global variables in mixed template literalValue', async () => {
+    const context: ExecutionContext = {
+      data: {
+        users: [{ firstName: 'Ada', lastName: 'Lovelace' }],
+        __variables: {
+          env: 'prod',
+        },
+      },
+      logs: [],
+    }
+
+    const node = createMapNode({
+      mappings: [
+        {
+          targetField: 'label',
+          literalValue: 'User: {firstName} {lastName} (env=#env)',
+          fallbackValue: '',
+        },
+      ],
+    })
+
+    await executorByType.map(node, context)
+
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        result: {
+          usersSlim: [
+            { label: 'User: Ada Lovelace (env=prod)' },
+          ],
+        },
+      }),
+    )
   })
 })
 

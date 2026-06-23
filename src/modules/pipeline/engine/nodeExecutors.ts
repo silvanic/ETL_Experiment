@@ -9,6 +9,7 @@ import type {
   ConditionNodeConfig,
   ExecutionContext,
   FilterNodeConfig,
+  MapNodeConfig,
   NodeType,
   OutputNodeConfig,
   PipelineNode,
@@ -526,6 +527,117 @@ const transformExecutor: NodeExecutor = async (node, context) => {
   }
 }
 
+/**
+ * Résout une template de mapping en interpolant les chemins {path.to.field}
+ * Si la template ne contient que {chemin} (sans texte statique), retourne la valeur résolue telle quelle
+ * Sinon, interpole et retourne une string
+ * Si un chemin est introuvable et qu'un fallback est défini, utilise le fallback
+ */
+function resolveMappingTemplate(
+  template: string,
+  item: unknown,
+  fallbackValue: string | undefined,
+  context: ExecutionContext,
+): unknown {
+  const regex = /\{([^}]+)\}/g
+  let hasUnresolvedPath = false
+  const matches = Array.from(template.matchAll(regex))
+
+  const resolveTemplateToken = (token: string): unknown => {
+    // Les tokens avec # sont résolus comme variables globales du pipeline.
+    if (token.includes('#')) {
+      return resolveConfigValue(token, context)
+    }
+
+    return getByPath(item, token)
+  }
+
+  if (matches.length === 0) {
+    return resolveConfigValue(template, context)
+  }
+
+  // Si la template est juste {chemin} (sans texte statique autour)
+  if (matches.length === 1 && matches[0][0] === template) {
+    const pathPattern = matches[0][1].trim()
+    const value = resolveTemplateToken(pathPattern)
+
+    if (value === undefined || value === null) {
+      return fallbackValue !== undefined ? resolveConfigValue(fallbackValue, context) : undefined
+    }
+
+    return value
+  }
+
+  // Sinon, c'est une concaténation: interpoler et retourner une string
+  const result = template.replace(regex, (match, pathPattern) => {
+    const value = resolveTemplateToken(pathPattern.trim())
+
+    if (value === undefined || value === null) {
+      hasUnresolvedPath = true
+      return match
+    }
+
+    return String(value)
+  })
+
+  // Si un chemin n'a pas pu être résolu et qu'on a un fallback, l'utiliser
+  if (hasUnresolvedPath && fallbackValue !== undefined) {
+    return resolveConfigValue(fallbackValue, context)
+  }
+
+  return resolveConfigValue(result, context)
+}
+
+const mapExecutor: NodeExecutor = async (node, context) => {
+  if (node.data?.type !== 'map') {
+    return {}
+  }
+
+  const config = node.data.config as MapNodeConfig
+  const resolvedSourcePath = resolvePathValue(config.sourcePath, context)
+  const resolvedOutputPath = resolvePathValue(config.outputPath, context)
+  const sourceValue = getByPath(context.data, resolvedSourcePath)
+  const sourceItems = Array.isArray(sourceValue) ? sourceValue : []
+
+  const mappedItems = sourceItems.map((item) => {
+    const mappedItem: Record<string, unknown> = {}
+
+    for (const mapping of config.mappings) {
+      const value = resolveMappingTemplate(
+        mapping.literalValue ?? '',
+        item,
+        mapping.fallbackValue,
+        context,
+      )
+
+      setByPath(mappedItem, mapping.targetField, value)
+    }
+
+    return mappedItem
+  })
+
+  setByPath(context.data, resolvedOutputPath, mappedItems)
+
+  const dataOut: Record<string, unknown> = {}
+  setByPath(dataOut, resolvedOutputPath, mappedItems)
+
+  return {
+    message: t('engine.map.result', {
+      sourcePath: resolvedSourcePath,
+      outputPath: resolvedOutputPath,
+      count: mappedItems.length,
+    }),
+    dataOut,
+    details: {
+      sourcePath: resolvedSourcePath,
+      outputPath: resolvedOutputPath,
+      mappingsCount: config.mappings.length,
+      inputCount: sourceItems.length,
+      outputCount: mappedItems.length,
+    },
+  }
+}
+
 const outputExecutor: NodeExecutor = async (node, context) => {
   if (node.data?.type !== 'output') {
     return {}
@@ -631,5 +743,6 @@ export const executorByType: Record<NodeType, NodeExecutor> = {
   condition: conditionExecutor,
   filter: filterExecutor,
   transform: transformExecutor,
+  map: mapExecutor,
   output: outputExecutor
 }

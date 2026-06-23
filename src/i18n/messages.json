@@ -15,6 +15,8 @@
       "menu": {
         "actions": "Menu",
         "export": "Exporter",
+        "file": "Fichier",
+        "help": "Aide",
         "import": "Importer",
         "load": "Charger",
         "newPipeline": "Nouveau pipeline",
@@ -30,20 +32,39 @@
         "variables": "Variables"
       },
       "language": {
-        "currentFr": "Langue : Français",
-        "currentEn": "Langue : Anglais",
         "switchToFr": "Passer au français",
         "switchToEn": "Passer à l'anglais"
       },
-      "renameDialog": {
+      "pipelineNameDialog": {
         "open": "Renommer le pipeline",
-        "title": "Renommer le pipeline",
+        "renameTitle": "Renommer le pipeline",
         "nameLabel": "Nom du pipeline",
-        "save": "Enregistrer",
+        "renameConfirm": "Enregistrer",
+        "cancel": "Annuler"
+      },
+      "createDialog": {
+        "title": "Créer un pipeline",
+        "intro": "Choisissez un point de départ: pipeline vide ou modèle prêt à l'emploi.",
+        "nameLabel": "Nom du pipeline",
+        "emptyTitle": "Pipeline vide",
+        "emptyDescription": "Commencer avec uniquement un nœud Départ.",
+        "selectChoice": "Sélectionner",
+        "createConfirm": "Créer",
         "cancel": "Annuler"
       },
       "settings": {
-        "autoOpenConsoleOnRunEnd": "Ouvrir automatiquement l'onglet Console à la fin d'une exécution"
+        "autoOpenConsoleOnRunEnd": "Ouvrir automatiquement l'onglet Console à la fin d'une exécution",
+        "autoSaveEnabled": "Activer la sauvegarde automatique",
+        "autoSaveStatusEnabled": "Sauvegarde auto activée",
+        "confirmDeleteNode": "Demander confirmation avant suppression d'un nœud",
+        "autoFitOnOpen": "Auto-fit du pipeline à l'ouverture",
+        "reopenLastPipelineOnLaunch": "Réouvrir automatiquement le dernier pipeline au lancement",
+        "resetPreferences": "Réinitialiser les préférences utilisateur",
+        "autoSaveBadgeOn": "Auto-save ON",
+        "autoSaveBadgeOff": "Auto-save OFF",
+        "autoSaveDisabled": "Désactiver la sauvegarde automatique",
+        "autoSaveStatusDisabled": "Sauvegarde auto désactivée",
+        "variablesMoved": "La gestion des variables se fait depuis l'onglet Variables."
       },
       "variables": {
         "description": "Ajoute des variables globales du pipeline (nom + valeur).",
@@ -70,8 +91,6 @@
         "maxOutgoingConnectionsReachedDetail": "Le nœud \"{name}\" autorise au maximum {max} connexion(s) sortante(s)."
       },
       "storage": {
-        "save": "Sauvegarder",
-        "load": "Charger",
         "empty": "Aucun projet sauvegardé pour le moment.",
         "savedListLabel": "Liste des projets sauvegardés",
         "loadDialogTitle": "Charger un projet",
@@ -102,6 +121,30 @@
         "menuLabel": "Nouveauté",
         "title": "Historique des dernières versions",
         "intro": "Retrouvez ici les évolutions récentes de l'éditeur de pipeline."
+      },
+      "templates": {
+        "tabSaved": "Mes projets",
+        "tabTemplates": "Modèles",
+        "intro": "Démarrez rapidement avec un pipeline pré-configuré. Il sera dupliqué dans votre espace de travail.",
+        "use": "Utiliser",
+        "loadSuccess": "Modèle chargé",
+        "loadSuccessDetail": "Le modèle \"{name}\" a été chargé. Vous pouvez le modifier librement.",
+        "helloApi": {
+          "name": "Hello API",
+          "description": "Appel HTTP minimal : récupère une tâche depuis jsonplaceholder et affiche la réponse."
+        },
+        "fetchCondition": {
+          "name": "Fetch + Condition",
+          "description": "Récupère une tâche et branche selon son statut (terminée ou en cours)."
+        },
+        "filterMap": {
+          "name": "Filtrer et transformer une liste",
+          "description": "Récupère une liste de tâches, garde les terminées, puis extrait id et titre."
+        },
+        "variablesChaining": {
+          "name": "Variables & Chaînage API",
+          "description": "Extrait l'id d'un utilisateur, le stocke en variable, puis l'utilise dans un second appel API."
+        }
       },
       "help": {
         "menuLabel": "Aide",
@@ -195,6 +238,27 @@
               "literalValue": "(Mode Valeur fixe uniquement) La constante à assigner à la cible."
             }
           },
+          "map": {
+            "title": "Map",
+            "desc": "Transforme un tableau en appliquant une série de mappings à chaque élément. Utilise une syntaxe template {chemin} pour extraire et concaténer des valeurs, ou assigne des constantes. Les chemins introuvables peuvent utiliser une valeur de secours.",
+            "example": "Source : api.users | Cible sortie : result.transformed | Mapping : id={id}, fullName=Name: {firstName} {lastName}, status=active",
+            "templateExamples": {
+              "title": "Syntaxe des templates",
+              "singlePath": "{id}",
+              "singlePathDesc": "Chemin unique : retourne la valeur brute (nombre, boolean, etc.). Exemple : {id} avec id:123 retourne 123.",
+              "concatenation": "Name: {firstName} {lastName}",
+              "concatenationDesc": "Concaténation : combine du texte statique et des chemins. Résultat en string. Exemple : Name: John Doe.",
+              "staticValue": "active",
+              "staticValueDesc": "Valeur statique : pas de {}, assigne la chaîne brute directement."
+            },
+            "fields": {
+              "sourcePath": "Chemin JSONPath vers le tableau à transformer dans les données du pipeline (ex : api.users).",
+              "outputPath": "Chemin JSONPath où stocker le tableau transformé (ex : result.mapped).",
+              "targetField": "Chemin de destination du champ dans chaque objet mappé (ex : user.id, profile.fullName). Accepte les chemins imbriqués.",
+              "literalValue": "Template ou valeur à assigner. Utilisez {chemin} pour extraire une valeur de l'élément source. Exemple : {id}, Name: {firstName} {lastName}, ou active (valeur statique).",
+              "fallbackValue": "Valeur de secours si un chemin du template est introuvable. Utilisée seulement si au moins un chemin manque."
+            }
+          },
           "output": {
             "title": "Sortie",
             "desc": "Nœud terminal du pipeline. Expose la valeur finale via le chemin configuré dans la console d'exécution.",
@@ -242,6 +306,10 @@
           "title": "Transformation",
           "subtitle": "Correspondance ou valeur fixe"
         },
+        "map": {
+          "title": "Map",
+          "subtitle": "Transformer chaque element"
+        },
         "output": {
           "title": "Sortie",
           "subtitle": "Résultat final"
@@ -281,17 +349,21 @@
         "mode": "Mode",
         "sourcePath": "Chemin source",
         "targetPath": "Chemin cible",
+        "targetField": "Champ cible",
         "literalValue": "Valeur littérale",
+        "fallbackValue": "Valeur de secours",
         "extractions": "Extractions"
       },
       "hints": {
-        "targetPathWildcard": "Astuce : utilisez [*] pour modifier chaque élément d'un tableau (ex. $.users[*].active)."
+        "targetPathWildcard": "Astuce : utilisez [*] pour modifier chaque élément d'un tableau (ex. $.users[*].active).",
+        "templateSyntax": "Utilisez {chemin} pour insérer une valeur, ex. Name: {firstName} {lastName}"
       },
       "buttons": {
         "testApi": "Tester l'API",
         "showResult": "Afficher le résultat",
         "addHeader": "Ajouter un en-tête",
-        "addExtraction": "Ajouter une extraction"
+        "addExtraction": "Ajouter une extraction",
+        "addMapping": "Ajouter un mapping"
       },
       "messages": {
         "noApiResult": "Aucun résultat disponible.",
@@ -368,6 +440,7 @@
         "condition": "Condition",
         "filter": "Filtre",
         "transform": "Transformation",
+        "map": "Map",
         "output": "Sortie"
       },
       "edge": {
@@ -408,6 +481,9 @@
           "sourceMissing": "source introuvable (valeur undefined propagée)"
         }
       },
+      "map": {
+        "result": "Map: {sourcePath} -> {outputPath} ({count} element(s) produits)."
+      },
       "output": {
         "resolved": "Sortie résolue depuis le chemin \"{path}\"."
       },
@@ -444,6 +520,8 @@
       "menu": {
         "actions": "Menu",
         "export": "Export",
+        "file": "File",
+        "help": "Help",
         "import": "Import",
         "load": "Load",
         "newPipeline": "New pipeline",
@@ -459,20 +537,39 @@
         "variables": "Variables"
       },
       "language": {
-        "currentFr": "Langue: Francais",
-        "currentEn": "Language: English",
         "switchToFr": "Switch to French",
-        "switchToEn": "Passer en anglais"
+        "switchToEn": "Switch to English"
       },
-      "renameDialog": {
+      "pipelineNameDialog": {
         "open": "Rename pipeline",
-        "title": "Rename pipeline",
+        "renameTitle": "Rename pipeline",
         "nameLabel": "Pipeline name",
-        "save": "Save",
+        "renameConfirm": "Save",
+        "cancel": "Cancel"
+      },
+      "createDialog": {
+        "title": "Create a pipeline",
+        "intro": "Choose a starting point: empty pipeline or ready-made template.",
+        "nameLabel": "Pipeline name",
+        "emptyTitle": "Empty pipeline",
+        "emptyDescription": "Start with only a Start node.",
+        "selectChoice": "Select",
+        "createConfirm": "Create",
         "cancel": "Cancel"
       },
       "settings": {
-        "autoOpenConsoleOnRunEnd": "Automatically open the Console tab when execution ends"
+        "autoOpenConsoleOnRunEnd": "Automatically open the Console tab when execution ends",
+        "autoSaveEnabled": "Enable automatic save",
+        "autoSaveStatusEnabled": "Auto-save enabled",
+        "confirmDeleteNode": "Ask confirmation before deleting a node",
+        "autoFitOnOpen": "Auto-fit pipeline on open",
+        "reopenLastPipelineOnLaunch": "Automatically reopen last pipeline on launch",
+        "resetPreferences": "Reset user preferences",
+        "autoSaveBadgeOn": "Auto-save ON",
+        "autoSaveBadgeOff": "Auto-save OFF",
+        "autoSaveDisabled": "Disable automatic save",
+        "autoSaveStatusDisabled": "Auto-save disabled",
+        "variablesMoved": "Variable management is available from the Variables tab."
       },
       "variables": {
         "description": "Add global pipeline variables (name + value).",
@@ -499,8 +596,6 @@
         "maxOutgoingConnectionsReachedDetail": "Node \"{name}\" allows a maximum of {max} outgoing connection(s)."
       },
       "storage": {
-        "save": "Save",
-        "load": "Load",
         "empty": "No saved project found yet.",
         "savedListLabel": "Saved projects list",
         "loadDialogTitle": "Load a project",
@@ -531,6 +626,30 @@
         "menuLabel": "What's New",
         "title": "Recent version history",
         "intro": "Find the latest updates to the pipeline editor here."
+      },
+      "templates": {
+        "tabSaved": "My projects",
+        "tabTemplates": "Templates",
+        "intro": "Start quickly with a pre-configured pipeline. It will be duplicated into your workspace.",
+        "use": "Use",
+        "loadSuccess": "Template loaded",
+        "loadSuccessDetail": "Template \"{name}\" was loaded. You can edit it freely.",
+        "helloApi": {
+          "name": "Hello API",
+          "description": "Minimal HTTP call: fetches a task from jsonplaceholder and displays the response."
+        },
+        "fetchCondition": {
+          "name": "Fetch + Condition",
+          "description": "Fetches a task and branches based on its status (completed or pending)."
+        },
+        "filterMap": {
+          "name": "Filter and transform a list",
+          "description": "Fetches a list of tasks, keeps the completed ones, then extracts id and title."
+        },
+        "variablesChaining": {
+          "name": "Variables & API Chaining",
+          "description": "Extracts a user id, stores it as a variable, then uses it in a second API call."
+        }
       },
       "help": {
         "menuLabel": "Help",
@@ -624,6 +743,27 @@
               "literalValue": "(Assign literal mode only) The constant value to assign to the target."
             }
           },
+          "map": {
+            "title": "Map",
+            "desc": "Transforms an array by applying a series of mappings to each item. Uses template syntax {path} to extract and concatenate values, or assigns constants. Missing paths can use a fallback value.",
+            "example": "Source: api.users | Output target: result.transformed | Mapping: id={id}, fullName=Name: {firstName} {lastName}, status=active",
+            "templateExamples": {
+              "title": "Template syntax",
+              "singlePath": "{id}",
+              "singlePathDesc": "Single path: returns the raw value (number, boolean, etc.). Example: {id} with id:123 returns 123.",
+              "concatenation": "Name: {firstName} {lastName}",
+              "concatenationDesc": "Concatenation: combines static text and paths. Result is a string. Example: Name: John Doe.",
+              "staticValue": "active",
+              "staticValueDesc": "Static value: no {}, assigns the raw string directly."
+            },
+            "fields": {
+              "sourcePath": "JSONPath to the array to transform in pipeline data (e.g. api.users).",
+              "outputPath": "JSONPath where the transformed array will be stored (e.g. result.mapped).",
+              "targetField": "Destination path for the field in each mapped object (e.g. user.id, profile.fullName). Supports nested paths.",
+              "literalValue": "Template or value to assign. Use {path} to extract a value from the source item. Example: {id}, Name: {firstName} {lastName}, or active (static value).",
+              "fallbackValue": "Fallback value if a path in the template is missing. Used only if at least one path is not found."
+            }
+          },
           "output": {
             "title": "Output",
             "desc": "Terminal node. Exposes the final value via the configured path in the execution console.",
@@ -671,6 +811,10 @@
           "title": "Transform",
           "subtitle": "Mapping or fixed value"
         },
+        "map": {
+          "title": "Map",
+          "subtitle": "Transform each item"
+        },
         "output": {
           "title": "Output",
           "subtitle": "Final result"
@@ -708,17 +852,21 @@
         "mode": "Mode",
         "sourcePath": "Source path",
         "targetPath": "Target path",
+        "targetField": "Target field",
         "literalValue": "Literal value",
+        "fallbackValue": "Fallback value",
         "extractions": "Extractions"
       },
       "hints": {
-        "targetPathWildcard": "Tip: use [*] to modify every element in an array (e.g. $.users[*].active)."
+        "targetPathWildcard": "Tip: use [*] to modify every element in an array (e.g. $.users[*].active).",
+        "templateSyntax": "Use {path} to insert a value, e.g. Name: {firstName} {lastName}"
       },
       "buttons": {
         "testApi": "Test API",
         "showResult": "Show result",
         "addHeader": "Add header",
-        "addExtraction": "Add extraction"
+        "addExtraction": "Add extraction",
+        "addMapping": "Add mapping"
       },
       "messages": {
         "noApiResult": "No result available.",
@@ -795,6 +943,7 @@
         "condition": "Condition",
         "filter": "Filter",
         "transform": "Transform",
+        "map": "Map",
         "output": "Output"
       },
       "edge": {
@@ -834,6 +983,9 @@
           "applied": "applied",
           "sourceMissing": "source path not found (undefined propagated)"
         }
+      },
+      "map": {
+        "result": "Map: {sourcePath} -> {outputPath} ({count} produced item(s))."
       },
       "output": {
         "resolved": "Output resolved from path \"{path}\"."

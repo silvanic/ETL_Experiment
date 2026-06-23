@@ -43,7 +43,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const helpNodeKeys = ['start', 'api', 'setVariable', 'condition', 'filter', 'transform', 'output'] as const
+const helpNodeKeys = ['start', 'api', 'setVariable', 'condition', 'filter', 'transform', 'map', 'output'] as const
 
 const helpNodeFieldDefs: Record<typeof helpNodeKeys[number], HelpFieldDef[]> = {
   start: [],
@@ -80,6 +80,13 @@ const helpNodeFieldDefs: Record<typeof helpNodeKeys[number], HelpFieldDef[]> = {
     { labelKey: 'inspector.fields.sourcePath', descKey: 'pipelineEditor.help.nodes.transform.fields.sourcePath' },
     { labelKey: 'inspector.fields.targetPath', descKey: 'pipelineEditor.help.nodes.transform.fields.targetPath' },
     { labelKey: 'inspector.fields.literalValue', descKey: 'pipelineEditor.help.nodes.transform.fields.literalValue' },
+  ],
+  map: [
+    { labelKey: 'inspector.fields.sourcePath', descKey: 'pipelineEditor.help.nodes.map.fields.sourcePath' },
+    { labelKey: 'inspector.fields.outputPath', descKey: 'pipelineEditor.help.nodes.map.fields.outputPath' },
+    { labelKey: 'inspector.fields.targetField', descKey: 'pipelineEditor.help.nodes.map.fields.targetField' },
+    { labelKey: 'inspector.fields.literalValue', descKey: 'pipelineEditor.help.nodes.map.fields.literalValue' },
+    { labelKey: 'inspector.fields.fallbackValue', descKey: 'pipelineEditor.help.nodes.map.fields.fallbackValue' },
   ],
   output: [
     { labelKey: 'inspector.fields.outputPath', descKey: 'pipelineEditor.help.nodes.output.fields.outputPath' },
@@ -233,6 +240,26 @@ const helpExample2Steps = computed((): HelpStep[] => [
                       <tr>
                         <th>{{ t('inspector.options.transformMode.assignLiteral') }}</th>
                         <td>{{ t('pipelineEditor.help.nodes.transform.modeExamples.assignLiteral') }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div v-if="nodeKey === 'map'" class="help-map-templates">
+                  <span class="help-example-tag">{{ t('pipelineEditor.help.nodes.map.templateExamples.title') }}</span>
+                  <table class="help-node-fields-table">
+                    <tbody>
+                      <tr>
+                        <th>{{ t('pipelineEditor.help.nodes.map.templateExamples.singlePath') }}</th>
+                        <td>{{ t('pipelineEditor.help.nodes.map.templateExamples.singlePathDesc') }}</td>
+                      </tr>
+                      <tr>
+                        <th>{{ t('pipelineEditor.help.nodes.map.templateExamples.concatenation') }}</th>
+                        <td>{{ t('pipelineEditor.help.nodes.map.templateExamples.concatenationDesc') }}</td>
+                      </tr>
+                      <tr>
+                        <th>{{ t('pipelineEditor.help.nodes.map.templateExamples.staticValue') }}</th>
+                        <td>{{ t('pipelineEditor.help.nodes.map.templateExamples.staticValueDesc') }}</td>
                       </tr>
                     </tbody>
                   </table>

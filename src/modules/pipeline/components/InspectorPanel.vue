@@ -17,6 +17,7 @@ import type {
   ApiNodeConfig,
   ConditionNodeConfig,
   FilterNodeConfig,
+  MapNodeConfig,
   OutputNodeConfig,
   SetVariableNodeConfig,
   TransformNodeConfig,
@@ -71,6 +72,10 @@ const filterConfig = computed(() =>
 
 const transformConfig = computed(() =>
   selectedType.value === 'transform' ? (selectedData.value?.config as TransformNodeConfig) : null,
+)
+
+const mapConfig = computed(() =>
+  selectedType.value === 'map' ? (selectedData.value?.config as MapNodeConfig) : null,
 )
 
 const outputConfig = computed(() =>
@@ -229,6 +234,22 @@ const unresolvedTransformVariables = computed(() => {
     : []
 
   return Array.from(new Set([...unresolvedInSource, ...unresolvedInTarget, ...unresolvedInLiteral]))
+})
+
+const unresolvedMapVariables = computed(() => {
+  if (!mapConfig.value) {
+    return []
+  }
+
+  const unresolvedInSource = findUnresolvedVariables(mapConfig.value.sourcePath, variableMap.value)
+  const unresolvedInOutput = findUnresolvedVariables(mapConfig.value.outputPath, variableMap.value)
+  const unresolvedInMappings = mapConfig.value.mappings.flatMap((mapping) => [
+    ...findUnresolvedVariables(mapping.targetField, variableMap.value),
+    ...findUnresolvedVariables(mapping.literalValue, variableMap.value),
+    ...findUnresolvedVariables(mapping.fallbackValue ?? '', variableMap.value),
+  ])
+
+  return Array.from(new Set([...unresolvedInSource, ...unresolvedInOutput, ...unresolvedInMappings]))
 })
 
 const unresolvedOutputVariables = computed(() => {
@@ -404,6 +425,8 @@ const fieldConfigKeyByFieldKey: Record<string, string> = {
   'transform.sourcePath': 'sourcePath',
   'transform.targetPath': 'targetPath',
   'transform.literalValue': 'literalValue',
+  'map.sourcePath': 'sourcePath',
+  'map.outputPath': 'outputPath',
   'output.outputPath': 'outputPath',
 }
 
@@ -421,6 +444,8 @@ const fieldValueReaderByFieldKey: Record<string, () => string> = {
   'transform.sourcePath': () => transformConfig.value?.sourcePath ?? '',
   'transform.targetPath': () => transformConfig.value?.targetPath ?? '',
   'transform.literalValue': () => transformConfig.value?.literalValue ?? '',
+  'map.sourcePath': () => mapConfig.value?.sourcePath ?? '',
+  'map.outputPath': () => mapConfig.value?.outputPath ?? '',
   'output.outputPath': () => outputConfig.value?.outputPath ?? '',
 }
 
@@ -1147,6 +1172,118 @@ function openApiResultDialog(): void {
         </label>
       </template>
 
+      <template v-if="selectedType === 'map' && mapConfig">
+        <Message
+          v-if="unresolvedMapVariables.length > 0"
+          severity="warn"
+          :closable="false"
+        >
+          {{ t('inspector.warnings.unresolvedVariables') }}: {{ unresolvedMapVariables.join(', ') }}
+        </Message>
+        <label>
+          {{ t('inspector.fields.sourcePath') }}
+          <AutoComplete
+            input-id="map.sourcePath"
+            :model-value="mapConfig.sourcePath"
+            :suggestions="variableSuggestions"
+            dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
+            @complete="completeVariables"
+            @item-select="handleSuggestionSelect('map.sourcePath', $event)"
+            @update:model-value="patchConfig({ sourcePath: String($event) })"
+          />
+          <p v-if="isVariableTokenInput(mapConfig.sourcePath)" class="hint">
+            {{ variableTokenHint(mapConfig.sourcePath) }}
+          </p>
+        </label>
+        <label>
+          {{ t('inspector.fields.outputPath') }}
+          <AutoComplete
+            input-id="map.outputPath"
+            :model-value="mapConfig.outputPath"
+            :suggestions="variableSuggestions"
+            dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
+            @complete="completeVariables"
+            @item-select="handleSuggestionSelect('map.outputPath', $event)"
+            @update:model-value="patchConfig({ outputPath: String($event) })"
+          />
+          <p v-if="isVariableTokenInput(mapConfig.outputPath)" class="hint">
+            {{ variableTokenHint(mapConfig.outputPath) }}
+          </p>
+        </label>
+        <div class="extractions-section">
+          <div class="extractions-header">
+            <Button
+              size="small"
+              :label="t('inspector.buttons.addMapping')"
+              icon="pi pi-plus"
+              @click="patchConfig({ mappings: [...(mapConfig.mappings || []), { targetField: '', literalValue: '', fallbackValue: '' }] })"
+            />
+          </div>
+          <DataTable
+            :value="mapConfig.mappings || []"
+            size="small"
+            responsive-layout="scroll"
+            :rows="10"
+          >
+            <Column :header="t('inspector.fields.targetField')" style="width: 30%">
+              <template #body="slotProps">
+                <InputText
+                  :model-value="slotProps.data.targetField"
+                  @update:model-value="slotProps.data.targetField = $event; patchConfig({ mappings: mapConfig.mappings })"
+                  placeholder="ex: profile.name"
+                />
+              </template>
+            </Column>
+            <Column style="width: 50%">
+              <template #header>
+                <div class="map-template-header">
+                  <span>{{ t('inspector.fields.literalValue') }}</span>
+                  <p class="hint hint--info">
+                    {{ t('inspector.hints.templateSyntax') }}
+                  </p>
+                </div>
+              </template>
+              <template #body="slotProps">
+                <InputText
+                  :model-value="slotProps.data.literalValue"
+                  @update:model-value="slotProps.data.literalValue = $event; patchConfig({ mappings: mapConfig.mappings })"
+                  placeholder="ex: Name: {firstName} {lastName}"
+                  class="w-full"
+                />
+              </template>
+            </Column>
+            <Column :header="t('inspector.fields.fallbackValue')" style="width: 14%">
+              <template #body="slotProps">
+                <InputText
+                  :model-value="slotProps.data.fallbackValue"
+                  @update:model-value="slotProps.data.fallbackValue = $event; patchConfig({ mappings: mapConfig.mappings })"
+                  placeholder="ex: N/A"
+                />
+              </template>
+            </Column>
+            <Column style="width: 6%">
+              <template #body="slotProps">
+                <Button
+                  size="small"
+                  icon="pi pi-trash"
+                  severity="danger"
+                  text
+                  @click="patchConfig({ mappings: mapConfig.mappings.filter((_, i) => i !== slotProps.index) })"
+                />
+              </template>
+            </Column>
+          </DataTable>
+        </div>
+      </template>
+
       <template v-if="selectedType === 'output' && outputConfig">
         <Message
           v-if="outputPathValidation"
@@ -1298,6 +1435,11 @@ label {
   color: var(--text-soft);
   font-style: normal;
   font-size: 0.78rem;
+}
+
+.map-template-header {
+  display: grid;
+  gap: 0.2rem;
 }
 
 .api-result {

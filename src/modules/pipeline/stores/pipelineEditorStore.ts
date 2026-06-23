@@ -13,6 +13,7 @@ import {
   type SavedPipelineSummary,
 } from '@/modules/pipeline/services/pipelineStorage'
 import { t } from '@/i18n'
+import type { PipelineDefinition as PipelineDefinitionType } from '@/modules/pipeline/domain/types'
 import type {
   ConditionBranch,
   FilterBranch,
@@ -67,6 +68,10 @@ function nodeLabel(type: NodeType): string {
     return t('defaults.nodeLabel.transform')
   }
 
+  if (type === 'map') {
+    return t('defaults.nodeLabel.map')
+  }
+
   if (type === 'setVariable') {
     return t('defaults.nodeLabel.setVariable')
   }
@@ -81,6 +86,7 @@ const maxOutgoingConnectionsByNodeType: Record<NodeType, number> = {
   condition: 2,
   filter: 2,
   transform: 1,
+  map: 1,
   output: 1,
 }
 
@@ -102,6 +108,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   const isRunning = ref(false)
   const logs = ref<ExecutionLog[]>([])
   const runHistory = ref<ExecutionRun[]>([])
+  const autoSaveEnabled = ref(true)
 
   const nodes = computed({
     get: () => pipeline.value.nodes,
@@ -499,9 +506,36 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     }
   }
 
+  function loadFromTemplate(template: PipelineDefinitionType): void {
+    pipeline.value = {
+      ...structuredClone(template),
+      id: crypto.randomUUID(),
+      updatedAt: new Date().toISOString(),
+    }
+    selectedNodeId.value = null
+    logs.value = []
+    runHistory.value = []
+    relocalizePipelineLabels()
+
+    toast.add({
+      severity: 'success',
+      summary: t('pipelineEditor.templates.loadSuccess'),
+      detail: t('pipelineEditor.templates.loadSuccessDetail', { name: pipeline.value.name }),
+      life: 3000,
+    })
+  }
+
+  function setAutoSaveEnabled(enabled: boolean): void {
+    autoSaveEnabled.value = enabled
+  }
+
   watch(
     pipeline,
     (value) => {
+      if (!autoSaveEnabled.value) {
+        return
+      }
+
       savePipeline(value)
       refreshSavedPipelines()
     },
@@ -540,5 +574,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     updateVariable,
     removeVariable,
     runCurrentPipeline,
+    loadFromTemplate,
+    setAutoSaveEnabled,
   }
 })

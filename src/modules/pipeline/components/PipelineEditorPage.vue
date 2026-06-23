@@ -7,6 +7,8 @@ import RunConsole from '@/modules/pipeline/components/RunConsole.vue'
 import PipelineSettingsDialog from '@/modules/pipeline/components/dialogs/DialogPipelineSettings.vue'
 import PipelineHelpDialog from '@/modules/pipeline/components/dialogs/DialogPipelineHelp.vue'
 import PipelineLoadDialog from '@/modules/pipeline/components/dialogs/DialogPipelineLoad.vue'
+import AutoSaveIcon from '@/modules/pipeline/components/AutoSaveIcon.vue'
+import { pipelineTemplates } from '@/modules/pipeline/data/templates'
 import PipelineRunDialog from '@/modules/pipeline/components/dialogs/DialogPipelineRun.vue'
 import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditorStore'
 import { setLocale, type AppLocale } from '@/i18n'
@@ -36,19 +38,30 @@ const showSettingsDialog = ref(false)
 const showHelpDialog = ref(false)
 const showRunDialog = ref(false)
 const showLoadDialog = ref(false)
+const showCreateDialog = ref(false)
 const showRenameDialog = ref(false)
 const showWhatsNewDialog = ref(false)
 const importFileInput = ref<HTMLInputElement | null>(null)
 const selectedRunId = ref<string | null>(null)
 const selectedSavedPipelineId = ref<string | null>(null)
 const draftPipelineName = ref('')
+const createPipelineName = ref('')
+const selectedCreateSource = ref<'empty' | string>('empty')
 const newTabVariableName = ref('')
 const newTabVariableValue = ref('')
 const tabVariableError = ref<string | null>(null)
 const selectedTabVariableId = ref<string | null>(null)
 const isAddingTabVariable = ref(false)
 const autoOpenConsoleOnRunEndStorageKey = 'pipeline.editor.autoOpenConsoleOnRunEnd'
+const autoSaveEnabledStorageKey = 'pipeline.editor.autoSaveEnabled'
+const confirmDeleteNodeStorageKey = 'pipeline.editor.confirmDeleteNode'
+const autoFitOnOpenStorageKey = 'pipeline.editor.autoFitOnOpen'
+const reopenLastPipelineOnLaunchStorageKey = 'pipeline.editor.reopenLastPipelineOnLaunch'
 const autoOpenConsoleOnRunEnd = ref(localStorage.getItem(autoOpenConsoleOnRunEndStorageKey) === 'true' || true)
+const autoSaveEnabled = ref(localStorage.getItem(autoSaveEnabledStorageKey) !== 'false')
+const confirmDeleteNode = ref(localStorage.getItem(confirmDeleteNodeStorageKey) !== 'false')
+const autoFitOnOpen = ref(localStorage.getItem(autoFitOnOpenStorageKey) !== 'false')
+const reopenLastPipelineOnLaunch = ref(localStorage.getItem(reopenLastPipelineOnLaunchStorageKey) !== 'false')
 
 const inspectorWidthStorageKey = 'pipeline.editor.inspectorWidth'
 const inspectorMinWidth = 280
@@ -81,17 +94,13 @@ function startInspectorResize(event: MouseEvent): void {
 }
 const { t, locale } = useI18n()
 
-const languageLabel = computed(() =>
-  locale.value === 'fr'
-    ? t('pipelineEditor.language.currentFr')
-    : t('pipelineEditor.language.currentEn'),
-)
-
 const switchLanguageLabel = computed(() =>
   locale.value === 'fr'
     ? t('pipelineEditor.language.switchToEn')
     : t('pipelineEditor.language.switchToFr'),
 )
+
+const languageInitials = computed(() => locale.value === 'fr' ? 'FR' : 'EN')
 
 const releaseHistory = computed(() => {
   const changelog = locale.value === 'fr' ? changelogFr : changelogEn
@@ -105,41 +114,33 @@ const releaseHistory = computed(() => {
 
 const menuItems = computed<MenuItem[]>(() => [
   {
-    label: t('pipelineEditor.whatsNew.menuLabel'),
-    icon: 'pi pi-megaphone',
-    command: () => showWhatsNewDialog.value = true
+    icon: 'pi pi-play',
+    label: store.isRunning ? t('pipelineEditor.menu.running') : t('pipelineEditor.menu.runPipeline'),
+    command: () => store.runCurrentPipeline(),
+    disabled: store.isRunning,
+    class: 'run-primary-action'
   },
   {
-    label: t('pipelineEditor.help.menuLabel'),
-    icon: 'pi pi-question-circle',
-    command: () => showHelpDialog.value = true
+    icon: 'pi pi-save',
+    label: t('pipelineEditor.menu.save'),
+    command: () => saveCurrentPipeline(),
   },
   {
-    label: t('pipelineEditor.menu.actions'),
+    icon: 'pi pi-folder',
+    label: t('pipelineEditor.menu.file'),
     items: [
-      {
-        icon: 'pi pi-play',
-        label: store.isRunning ? t('pipelineEditor.menu.running') : t('pipelineEditor.menu.runPipeline'),
-        command: () => store.runCurrentPipeline(),
-        disabled: store.isRunning
-      },
       {
         label: t('pipelineEditor.menu.newPipeline'),
         icon: 'pi pi-file',
-        command: () => {
-          store.resetPipeline();
-          openRenameDialog();
-        }
-      },
-      {
-        label: t('pipelineEditor.menu.save'),
-        icon: 'pi pi-save',
-        command: () => saveCurrentPipeline(),
+        command: () => openCreateDialog(),
       },
       {
         label: t('pipelineEditor.menu.load'),
         icon: 'pi pi-folder-open',
         command: () => openLoadDialog(),
+      },
+      {
+        separator: true
       },
       {
         label: t('pipelineEditor.menu.export'),
@@ -151,24 +152,21 @@ const menuItems = computed<MenuItem[]>(() => [
         icon: 'pi pi-upload',
         command: () => triggerImportPipeline(),
       },
-      {
-        separator: true
-      },
-      {
-        label: t('pipelineEditor.menu.settings'),
-        icon: 'pi pi-cog',
-        command: () => showSettingsDialog.value = true
-      },
-      {
-        separator: true
-      },
+    ]
+  },
+  {
+    icon: 'pi pi-cog',
+    label: t('pipelineEditor.menu.settings'),
+    command: () => showSettingsDialog.value = true
+  },
+  {
+    icon: 'pi pi-question-circle',
+    label: t('pipelineEditor.menu.help'),
+    items: [
       {
         label: t('pipelineEditor.whatsNew.menuLabel'),
         icon: 'pi pi-megaphone',
         command: () => showWhatsNewDialog.value = true
-      },
-      {
-        separator: true
       },
       {
         label: t('pipelineEditor.help.menuLabel'),
@@ -280,6 +278,36 @@ function openRenameDialog(): void {
   showRenameDialog.value = true
 }
 
+function openCreateDialog(): void {
+  createPipelineName.value = t('defaults.pipelineName')
+  selectedCreateSource.value = 'empty'
+  showCreateDialog.value = true
+}
+
+function selectCreateSource(source: 'empty' | string): void {
+  selectedCreateSource.value = source
+}
+
+function confirmCreatePipeline(): void {
+  const nextName = createPipelineName.value.trim()
+  if (!nextName) {
+    return
+  }
+
+  if (selectedCreateSource.value === 'empty') {
+    store.resetPipeline()
+  } else {
+    const template = pipelineTemplates.find((item) => item.id === selectedCreateSource.value)
+    if (!template) {
+      return
+    }
+    store.loadFromTemplate(template.create())
+  }
+
+  store.renamePipeline(nextName)
+  showCreateDialog.value = false
+}
+
 function applyPipelineName(): void {
   const nextName = draftPipelineName.value.trim()
   if (!nextName) {
@@ -353,9 +381,52 @@ function loadSelectedPipeline(): void {
   }
 }
 
+function loadTemplate(templateId: string): void {
+  const tpl = pipelineTemplates.find((t) => t.id === templateId)
+  if (!tpl) {
+    return
+  }
+  store.loadFromTemplate(tpl.create())
+  showLoadDialog.value = false
+}
+
 watch(autoOpenConsoleOnRunEnd, (enabled) => {
   localStorage.setItem(autoOpenConsoleOnRunEndStorageKey, String(enabled))
 })
+
+watch(autoSaveEnabled, (enabled) => {
+  localStorage.setItem(autoSaveEnabledStorageKey, String(enabled))
+  store.setAutoSaveEnabled(enabled)
+})
+
+watch(confirmDeleteNode, (enabled) => {
+  localStorage.setItem(confirmDeleteNodeStorageKey, String(enabled))
+})
+
+watch(autoFitOnOpen, (enabled) => {
+  localStorage.setItem(autoFitOnOpenStorageKey, String(enabled))
+})
+
+watch(reopenLastPipelineOnLaunch, (enabled) => {
+  localStorage.setItem(reopenLastPipelineOnLaunchStorageKey, String(enabled))
+})
+
+function resetPreferences(): void {
+  const keys = [
+    autoOpenConsoleOnRunEndStorageKey,
+    autoSaveEnabledStorageKey,
+    confirmDeleteNodeStorageKey,
+    autoFitOnOpenStorageKey,
+    reopenLastPipelineOnLaunchStorageKey,
+    inspectorWidthStorageKey,
+  ]
+
+  for (const key of keys) {
+    localStorage.removeItem(key)
+  }
+
+  window.location.reload()
+}
 
 watch(
   () => store.isRunning,
@@ -367,6 +438,10 @@ watch(
 )
 
 store.relocalizePipelineLabels()
+store.setAutoSaveEnabled(autoSaveEnabled.value)
+if (!reopenLastPipelineOnLaunch.value) {
+  store.resetPipeline()
+}
 </script>
 
 <template>
@@ -391,45 +466,43 @@ store.relocalizePipelineLabels()
             severity="secondary"
             text
             rounded
-            :aria-label="t('pipelineEditor.renameDialog.open')"
-            v-tooltip.right="t('pipelineEditor.renameDialog.open')"
+            :aria-label="t('pipelineEditor.pipelineNameDialog.open')"
+            v-tooltip.right="t('pipelineEditor.pipelineNameDialog.open')"
             @click="openRenameDialog"
           />
+          <span class="title-separator" aria-hidden="true" />
+          <span
+            class="autosave-tooltip-trigger"
+            v-tooltip.right="autoSaveEnabled ? t('pipelineEditor.settings.autoSaveStatusEnabled') : t('pipelineEditor.settings.autoSaveStatusDisabled')"
+          >
+            <AutoSaveIcon :is-enabled="autoSaveEnabled" />
+          </span>
           <span class="title-separator" aria-hidden="true" />
         </div>
       </template>
       <template #end>
-        <div class="title-group title-group--inline">
-
-          <Button
-          :label="t('pipelineEditor.menu.runPipeline')"
-          icon="pi pi-play"
-          severity="primary"
-          outlined
-          @click="() => store.runCurrentPipeline()"
-          />
         <Button
-          :label="languageLabel"
-          :aria-label="switchLanguageLabel"
-          v-tooltip.right="switchLanguageLabel"
+          :label="languageInitials"
           icon="pi pi-language"
-          severity="primary"
-          outlined
+          severity="secondary"
+          text
+          rounded
+          :aria-label="switchLanguageLabel"
+          v-tooltip.left="switchLanguageLabel"
           @click="toggleLanguage"
-          />
-        </div>
+        />
       </template>
     </Menubar>
 
     <Dialog
       v-model:visible="showRenameDialog"
-      :header="t('pipelineEditor.renameDialog.title')"
+      :header="t('pipelineEditor.pipelineNameDialog.renameTitle')"
       :modal="true"
       style="width: min(520px, 92vw)"
     >
       <div class="rename-dialog-body">
         <label class="rename-label" for="pipeline-name-input">
-          {{ t('pipelineEditor.renameDialog.nameLabel') }}
+          {{ t('pipelineEditor.pipelineNameDialog.nameLabel') }}
         </label>
         <InputText
           id="pipeline-name-input"
@@ -441,14 +514,77 @@ store.relocalizePipelineLabels()
       </div>
       <template #footer>
         <Button
-          :label="t('pipelineEditor.renameDialog.cancel')"
+          :label="t('pipelineEditor.pipelineNameDialog.cancel')"
           text
           @click="showRenameDialog = false"
         />
         <Button
-          :label="t('pipelineEditor.renameDialog.save')"
+          :label="t('pipelineEditor.pipelineNameDialog.renameConfirm')"
           :disabled="draftPipelineName.trim().length === 0"
           @click="applyPipelineName"
+        />
+      </template>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="showCreateDialog"
+      :header="t('pipelineEditor.createDialog.title')"
+      :modal="true"
+      style="width: min(700px, 94vw)"
+    >
+      <section class="create-dialog">
+        <p class="create-dialog-intro">{{ t('pipelineEditor.createDialog.intro') }}</p>
+
+        <label class="rename-label" for="pipeline-create-name-input">
+          {{ t('pipelineEditor.createDialog.nameLabel') }}
+        </label>
+        <InputText
+          id="pipeline-create-name-input"
+          :model-value="createPipelineName"
+          autocomplete="off"
+          @update:model-value="createPipelineName = String($event)"
+          @keyup.enter="confirmCreatePipeline"
+        />
+
+        <button
+          type="button"
+          :class="['create-choice', 'create-choice--empty', { 'create-choice--selected': selectedCreateSource === 'empty' }]"
+          @click="selectCreateSource('empty')"
+        >
+          <div class="create-choice-content">
+            <strong>{{ t('pipelineEditor.createDialog.emptyTitle') }}</strong>
+            <span>{{ t('pipelineEditor.createDialog.emptyDescription') }}</span>
+          </div>
+          <span class="create-choice-action">{{ t('pipelineEditor.createDialog.selectChoice') }}</span>
+        </button>
+
+        <ul class="create-template-list">
+          <li v-for="template in pipelineTemplates" :key="template.id" class="create-template-item">
+            <button
+              type="button"
+              :class="['create-choice', { 'create-choice--selected': selectedCreateSource === template.id }]"
+              @click="selectCreateSource(template.id)"
+            >
+              <span class="create-template-icon" aria-hidden="true">{{ template.icon }}</span>
+              <div class="create-choice-content">
+                <strong>{{ t(template.nameKey) }}</strong>
+                <span>{{ t(template.descriptionKey) }}</span>
+              </div>
+              <span class="create-choice-action">{{ t('pipelineEditor.createDialog.selectChoice') }}</span>
+            </button>
+          </li>
+        </ul>
+      </section>
+      <template #footer>
+        <Button
+          :label="t('pipelineEditor.createDialog.cancel')"
+          text
+          @click="showCreateDialog = false"
+        />
+        <Button
+          :label="t('pipelineEditor.createDialog.createConfirm')"
+          :disabled="createPipelineName.trim().length === 0"
+          @click="confirmCreatePipeline"
         />
       </template>
     </Dialog>
@@ -456,11 +592,11 @@ store.relocalizePipelineLabels()
     <PipelineSettingsDialog
       v-model:visible="showSettingsDialog"
       v-model:auto-open-console-on-run-end="autoOpenConsoleOnRunEnd"
-      :variables="store.pipeline.variables"
-      @add-variable="addVariable"
-      @update-variable-name="updateVariableName"
-      @update-variable-value="updateVariableValue"
-      @remove-variable="removeVariable"
+      v-model:auto-save-enabled="autoSaveEnabled"
+      v-model:confirm-delete-node="confirmDeleteNode"
+      v-model:auto-fit-on-open="autoFitOnOpen"
+      v-model:reopen-last-pipeline-on-launch="reopenLastPipelineOnLaunch"
+      @reset-preferences="resetPreferences"
     />
 
     <PipelineHelpDialog
@@ -472,6 +608,7 @@ store.relocalizePipelineLabels()
       v-model:selected-saved-pipeline-id="selectedSavedPipelineId"
       :saved-pipelines="store.savedPipelines"
       @load-selected="loadSelectedPipeline"
+      @load-template="loadTemplate"
     />
 
     <PipelineRunDialog
@@ -533,7 +670,9 @@ store.relocalizePipelineLabels()
             :style="store.selectedNode ? { '--inspector-width': inspectorWidth + 'px' } : {}"
           >
             <NodePalette />
-            <PipelineCanvas />
+            <PipelineCanvas
+              :auto-fit-on-open="autoFitOnOpen"
+            />
             <div class="inspector-wrapper" :style="store.selectedNode ? { width: inspectorWidth + 'px' } : {}">
               <div class="inspector-resize-handle" @mousedown="startInspectorResize" />
               <InspectorPanel />
@@ -750,7 +889,7 @@ store.relocalizePipelineLabels()
 .title-group--inline {
   flex-direction: row;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.35rem;
 }
 
 .eyebrow {
@@ -769,6 +908,32 @@ store.relocalizePipelineLabels()
   opacity: 0.9;
 }
 
+.autosave-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+}
+
+.toolbar-menubar :deep(.run-primary-action .p-menubar-item-link) {
+  background: transparent !important;
+  color: var(--p-button-text-success-color) !important;
+  border: 1px solid var(--p-button-text-success-color) !important;
+  border-radius: 32px;
+  padding: 0.625rem 1rem !important;
+  font-weight: 400;
+}
+
+.toolbar-menubar :deep(.run-primary-action .p-menubar-item-link:hover) {
+  background: var(--p-button-outlined-success-active-background) !important;
+}
+
+.toolbar-menubar :deep(.run-primary-action .p-menubar-item-label) {
+  color: var(--p-button-text-success-color) !important;
+}
+
+.toolbar-menubar :deep(.run-primary-action .p-menubar-item-icon) {
+  color: var(--p-button-text-success-color) !important;
+}
+
 .pipeline-name-display {
   font-size: 0.86rem;
   font-weight: 600;
@@ -785,6 +950,8 @@ store.relocalizePipelineLabels()
   border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
 }
 
+
+
 .rename-dialog-body {
   display: flex;
   flex-direction: column;
@@ -794,6 +961,82 @@ store.relocalizePipelineLabels()
 .rename-label {
   font-size: 0.86rem;
   color: var(--text-soft);
+}
+
+.create-dialog {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.create-dialog-intro {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.create-template-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+  max-height: 44vh;
+  overflow: auto;
+}
+
+.create-template-item {
+  margin: 0;
+}
+
+.create-choice {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  padding: 0.7rem 0.85rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.create-choice:hover {
+  border-color: var(--primary-color, #0ea5e9);
+}
+
+.create-choice--selected {
+  border-color: var(--primary-color, #0ea5e9);
+  box-shadow: 0 0 0 1px var(--primary-color, #0ea5e9) inset;
+}
+
+.create-choice--empty {
+  background: color-mix(in srgb, var(--surface-card) 86%, var(--primary-color, #0ea5e9) 14%);
+}
+
+.create-choice-content {
+  flex: 1;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.create-choice-content span {
+  font-size: 0.82rem;
+  color: var(--text-soft);
+}
+
+.create-template-icon {
+  font-size: 1.45rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.create-choice-action {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .workspace-tabs {

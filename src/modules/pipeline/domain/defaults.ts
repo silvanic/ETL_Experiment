@@ -3,6 +3,7 @@ import type {
   ApiNodeConfig,
   ConditionNodeConfig,
   FilterNodeConfig,
+  MapNodeConfig,
   NodeConfigMap,
   NodeType,
   PipelineDefinition,
@@ -57,6 +58,23 @@ const defaultSetVariableConfig: SetVariableNodeConfig = {
   ],
 }
 
+const defaultMapConfig: MapNodeConfig = {
+  sourcePath: 'api.result',
+  outputPath: 'result.mapped',
+  mappings: [
+    {
+      targetField: 'id',
+      literalValue: '{id}',
+      fallbackValue: '0',
+    },
+    {
+      targetField: 'name',
+      literalValue: '{name}',
+      fallbackValue: 'N/A',
+    },
+  ],
+}
+
 const defaultByType: NodeConfigMap = {
   start: { note: '' },
   api: defaultApiConfig,
@@ -64,6 +82,7 @@ const defaultByType: NodeConfigMap = {
   condition: defaultConditionConfig,
   filter: defaultFilterConfig,
   transform: defaultTransformConfig,
+  map: defaultMapConfig,
   output: { outputPath: 'result' },
 }
 
@@ -79,6 +98,7 @@ export function createNode(type: NodeType, x: number, y: number): PipelineNode {
     condition: t('defaults.nodeLabel.condition'),
     filter: t('defaults.nodeLabel.filter'),
     transform: t('defaults.nodeLabel.transform'),
+    map: t('defaults.nodeLabel.map'),
     output: t('defaults.nodeLabel.output'),
   }
 

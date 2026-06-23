@@ -41,6 +41,11 @@ const entries = computed<{ type: NodeType; title: string; subtitle: string }[]>(
     subtitle: t('nodePalette.nodes.transform.subtitle'),
   },
   {
+    type: 'map',
+    title: t('nodePalette.nodes.map.title'),
+    subtitle: t('nodePalette.nodes.map.subtitle'),
+  },
+  {
     type: 'output',
     title: t('nodePalette.nodes.output.title'),
     subtitle: t('nodePalette.nodes.output.subtitle'),

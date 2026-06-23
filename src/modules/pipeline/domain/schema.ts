@@ -81,6 +81,18 @@ const transformConfigSchema = z.object({
   literalValue: z.string(),
 })
 
+const mapConfigSchema = z.object({
+  sourcePath: z.string().min(1),
+  outputPath: z.string().min(1),
+  mappings: z.array(
+    z.object({
+      targetField: z.string().min(1),
+      literalValue: z.string().default(''),
+      fallbackValue: z.string().optional(),
+    }),
+  ).min(1),
+})
+
 const outputConfigSchema = z.object({
   outputPath: z.string().min(1),
 })
@@ -101,6 +113,7 @@ const nodeDataSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('condition'), label: z.string(), name: z.string().optional(), config: conditionConfigSchema }),
   z.object({ type: z.literal('filter'), label: z.string(), name: z.string().optional(), config: filterConfigSchema }),
   z.object({ type: z.literal('transform'), label: z.string(), name: z.string().optional(), config: transformConfigSchema }),
+  z.object({ type: z.literal('map'), label: z.string(), name: z.string().optional(), config: mapConfigSchema }),
   z.object({ type: z.literal('output'), label: z.string(), name: z.string().optional(), config: outputConfigSchema }),
 ])
 

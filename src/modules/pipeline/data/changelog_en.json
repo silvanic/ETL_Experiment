@@ -1,4 +1,40 @@
 {
+  "v 0.0.6": {
+    "date": "June 23, 2026",
+    "sections": [
+      {
+        "title": "Map Node",
+        "features": [
+          "Added the Map node to transform each item of an array into a new structure",
+          "Supports {path} templates with fallback values to handle missing fields"
+        ]
+      },
+      {
+        "title": "User Preferences System",
+        "features": [
+          "Automatically open the Console tab when execution finishes",
+          "Ask for confirmation before deleting a node",
+          "Auto-fit canvas on pipeline open",
+          "Automatically reopen last pipeline on launch",
+          "Reset all user preferences in one click"
+        ]
+      },
+      {
+        "title": "Interface & UX",
+        "features": [
+          "Automatic saving with custom icon (floppy disk + sync badge) and status tooltip",
+          "Merged creation dialog: template selection and naming in a single step",
+          "Added 4 pre-configured pipeline templates to get started quickly"
+        ]
+      },
+      {
+        "title": "Code & Stability",
+        "features": [
+          "User preferences persist in localStorage"
+        ]
+      }
+    ]
+  },
   "v 0.0.5": {
     "date": "June 19, 2026",
     "sections": [

@@ -26,6 +26,14 @@ import '@vue-flow/controls/dist/style.css'
 import './vueFlowTheme.css'
 import { t } from '@/i18n'
 
+interface Props {
+  autoFitOnOpen?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  autoFitOnOpen: true,
+})
+
 const store = usePipelineEditorStore()
 const { getSelectedEdges } = useVueFlow()
 type ViewportState = { x: number; y: number; zoom: number }
@@ -149,6 +157,12 @@ function onMove(event: { flowTransform: ViewportState }): void {
 }
 
 function confirmDeleteNode(nodeId: string, nodeName?: string, nodeLabel?: string): void {
+  const shouldConfirmDeletion = localStorage.getItem('pipeline.editor.confirmDeleteNode') !== 'false'
+  if (!shouldConfirmDeletion) {
+    store.removeNode(nodeId)
+    return
+  }
+
   const displayName = String(nodeName ?? '').trim() || String(nodeLabel ?? '').trim() || nodeId
   const confirmed = window.confirm(t('pipelineCanvas.deleteNodeConfirm', { name: displayName }))
 
@@ -189,7 +203,7 @@ watch(nodesInitialized, (isInitialized) => {
       :nodes="flowNodes"
       :edges="store.edges"
       :default-edge-options="{ markerEnd: MarkerType.ArrowClosed, type: 'step' }"
-      :fit-view-on-init="true"
+      :fit-view-on-init="props.autoFitOnOpen"
       :delete-key-code="null"
       :class="['canvas', 'dark']"
       :snap-to-grid="true"      

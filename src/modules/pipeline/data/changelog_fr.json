@@ -1,4 +1,40 @@
 {
+  "v 0.0.6": {
+    "date": "23 juin 2026",
+    "sections": [
+      {
+        "title": "Nœud Map",
+        "features": [
+          "Ajout du nœud Map pour transformer chaque élément d'un tableau vers une nouvelle structure",
+          "Support des templates {chemin} avec valeur de secours pour gérer les champs manquants"
+        ]
+      },
+      {
+        "title": "Système de préférences utilisateur",
+        "features": [
+          "Ouvrir automatiquement l'onglet Console à la fin d'une exécution",
+          "Demander confirmation avant suppression d'un nœud",
+          "Auto-fit du canvas à l'ouverture du pipeline",
+          "Réouvrir automatiquement le dernier pipeline au lancement",
+          "Réinitialiser toutes les préférences utilisateur en un clic"
+        ]
+      },
+      {
+        "title": "Interface et UX",
+        "features": [
+          "Sauvegarde automatique avec icône personnalisée (disquette + badge de synchronisation) et tooltip de statut",
+          "Fusion des dialogues de création : choix du modèle et du nom en une seule étape",
+          "Ajout de 4 modèles de pipeline préconfigurés pour démarrer rapidement"
+        ]
+      },
+      {
+        "title": "Code et stabilité",
+        "features": [
+          "Persistence des préférences utilisateur en localStorage"
+        ]
+      }
+    ]
+  },
   "v 0.0.5": {
     "date": "19 juin 2026",
     "sections": [
