@@ -68,9 +68,13 @@ function getNodeById(nodes: PipelineNode[], id: string): PipelineNode {
 }
 
 export async function runPipeline(definition: PipelineDefinition): Promise<RunResult> {
+  const activeEnvironment = definition.environments?.find(
+    (environment) => environment.id === definition.activeEnvironmentId,
+  )
+
   const context: ExecutionContext = {
     data: {
-      __variables: buildVariableMap(definition.variables),
+      __variables: buildVariableMap(definition.variables, activeEnvironment?.variableOverrides),
     },
     logs: [],
   }

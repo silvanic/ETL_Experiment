@@ -1,4 +1,67 @@
 {
+  "v 0.0.8": {
+    "date": "24 juin 2026",
+    "sections": [
+      {
+        "title": "Gestion des environnements",
+        "features": [
+          "Créez plusieurs environnements (dev, staging, production, etc.)",
+          "Basculez entre les environnements instantanément",
+          "Renommez les environnements avec un dialogue dédié",
+          "Supprimez les environnements avec confirmation"
+        ]
+      },
+      {
+        "title": "Surcharges de variables",
+        "features": [
+          "Chaque environnement peut surcharger les valeurs des variables de base",
+          "Les surcharges sont résolues automatiquement pendant l'exécution",
+          "Visualisez quelles variables sont surchargées par environnement",
+          "Rétrocompatibilité : les anciens pipelines s'initialisent automatiquement avec l'environnement 'default'"
+        ]
+      },
+      {
+        "title": "Diagnostics des tests HTTP",
+        "features": [
+          "Suivi des métadonnées de réponse : statut HTTP, durée, taille de la réponse",
+          "Les en-têtes de réponse sont affichés pour le débogage",
+          "Référence rapide pour les problèmes d'intégration API"
+        ]
+      },
+      {
+        "title": "Fonctionnalités des nœuds",
+        "features": [
+          "Dupliquez les nœuds en un seul clic depuis la barre d'outils",
+          "Correction du clonage des nœuds pour fonctionner correctement avec la réactivité Vue"
+        ]
+      },
+      {
+        "title": "Refonte de l'onglet Variables",
+        "features": [
+          "Disposition à deux colonnes : liste des environnements et variables à gauche, éditeur à droite",
+          "Barre latérale organisée avec des sections distinctes pour les environnements et les variables",
+          "SplitButton pour les actions d'environnement (menu renommer + supprimer)",
+          "Dialogue de création d'environnement pour une meilleure UX"
+        ]
+      },
+      {
+        "title": "Configuration simplifiée",
+        "features": [
+          "Les nouveaux pipelines commencent avec un seul environnement 'default'",
+          "État initial plus propre pour les nouveaux utilisateurs"
+        ]
+      },
+      {
+        "title": "Accueil et navigation",
+        "features": [
+          "Refonte de la page d'accueil avec une présentation plus claire des composants de l'éditeur",
+          "Ajout du bouton de changement de langue FR/EN sur la page d'accueil",
+          "Le titre en haut à gauche dans l'éditeur est désormais cliquable pour revenir à l'accueil",
+          "Améliorations de cohérence visuelle et terminologique (pipeline, libellés FR avec accents)"
+        ]
+      }
+    ]
+  },
   "v 0.0.6": {
     "date": "23 juin 2026",
     "sections": [

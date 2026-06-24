@@ -12,14 +12,17 @@ export function toVariableToken(name: string): string {
   return `${VARIABLE_PREFIX}${name}`
 }
 
-export function buildVariableMap(variables: PipelineVariable[]): Record<string, string> {
+export function buildVariableMap(
+  variables: PipelineVariable[],
+  environmentOverrides?: Record<string, string>,
+): Record<string, string> {
   return variables.reduce<Record<string, string>>((acc, variable) => {
     const key = variable.name.trim()
     if (!key) {
       return acc
     }
 
-    acc[key] = variable.value
+    acc[key] = environmentOverrides?.[key] ?? variable.value
     return acc
   }, {})
 }

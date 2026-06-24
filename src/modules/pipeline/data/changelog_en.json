@@ -1,4 +1,67 @@
 {
+  "v 0.0.8": {
+    "date": "June 24, 2026",
+    "sections": [
+      {
+        "title": "Environment Management",
+        "features": [
+          "Create multiple environments (dev, staging, production, etc.)",
+          "Switch between environments instantly",
+          "Rename environments with a dedicated dialog",
+          "Delete environments with confirmation"
+        ]
+      },
+      {
+        "title": "Variable Overrides",
+        "features": [
+          "Each environment can override base variable values",
+          "Overrides are resolved automatically during execution",
+          "View which variables are overridden per environment",
+          "Backwards compatible: old pipelines auto-initialize with 'default' environment"
+        ]
+      },
+      {
+        "title": "HTTP Test Diagnostics",
+        "features": [
+          "Response metadata tracking: HTTP status, duration, response size",
+          "Response headers are displayed for debugging",
+          "Quick reference for API integration issues"
+        ]
+      },
+      {
+        "title": "Node Features",
+        "features": [
+          "Duplicate nodes with a single click from the toolbar",
+          "Fixed node cloning to work correctly with Vue reactivity"
+        ]
+      },
+      {
+        "title": "Variables Tab Redesign",
+        "features": [
+          "Two-column layout: environments & variables list on the left, editor on the right",
+          "Organized sidebar with distinct sections for environments and variables",
+          "SplitButton for environment actions (rename + delete menu)",
+          "Create environment dialog for better UX"
+        ]
+      },
+      {
+        "title": "Simplified Setup",
+        "features": [
+          "New pipelines start with a single 'default' environment",
+          "Cleaner initial state for new users"
+        ]
+      },
+      {
+        "title": "Home & Navigation",
+        "features": [
+          "Redesigned Home page with a clearer presentation of editor components",
+          "Added FR/EN language switch on the Home page",
+          "Top-left title in the editor is now clickable to return to Home",
+          "Improved visual and terminology consistency (pipeline wording, polished FR labels)"
+        ]
+      }
+    ]
+  },
   "v 0.0.6": {
     "date": "June 23, 2026",
     "sections": [

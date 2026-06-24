@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import NodePalette from '@/modules/pipeline/components/NodePalette.vue'
 import PipelineCanvas from '@/modules/pipeline/components/PipelineCanvas.vue'
 import InspectorPanel from '@/modules/pipeline/components/InspectorPanel.vue'
@@ -14,7 +15,9 @@ import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditor
 import { setLocale, type AppLocale } from '@/i18n'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
+import Select from 'primevue/select'
 import Button from 'primevue/button'
+import SplitButton from 'primevue/splitbutton'
 import Message from 'primevue/message'
 import Menubar from 'primevue/menubar'
 import Dialog from 'primevue/dialog'
@@ -41,10 +44,14 @@ const showLoadDialog = ref(false)
 const showCreateDialog = ref(false)
 const showRenameDialog = ref(false)
 const showWhatsNewDialog = ref(false)
+const showRenameEnvironmentDialog = ref(false)
+const showAddEnvironmentDialog = ref(false)
 const importFileInput = ref<HTMLInputElement | null>(null)
 const selectedRunId = ref<string | null>(null)
 const selectedSavedPipelineId = ref<string | null>(null)
 const draftPipelineName = ref('')
+const draftEnvironmentName = ref('')
+const draftNewEnvironmentName = ref('')
 const createPipelineName = ref('')
 const selectedCreateSource = ref<'empty' | string>('empty')
 const newTabVariableName = ref('')
@@ -189,6 +196,22 @@ const selectedTabVariable = computed(() => {
   }
   return store.pipeline.variables.find((variable) => variable.id === selectedTabVariableId.value) ?? null
 })
+const environmentOptions = computed(() => {
+  return store.environments.map((environment) => ({
+    label: environment.name,
+    value: environment.id,
+  }))
+})
+const activeEnvironmentId = computed(() => store.activeEnvironment?.id ?? null)
+const environmentActionsMenu = computed(() => [
+  {
+    label: t('pipelineEditor.variables.removeEnvironment'),
+    icon: 'pi pi-trash',
+    severity: 'danger',
+    command: () => removeActiveEnvironment(),
+    disabled: store.environments.length <= 1,
+  },
+])
 
 watch(newTabVariableName, () => {
   tabVariableError.value = null
@@ -252,7 +275,91 @@ function updateVariableName(variableId: string, value: string): void {
 }
 
 function updateVariableValue(variableId: string, value: string): void {
-  store.updateVariable(variableId, { value })
+  store.updateVariableValueForActiveEnvironment(variableId, value)
+}
+
+function switchActiveEnvironment(environmentId: string): void {
+  store.setActiveEnvironment(environmentId)
+}
+
+function resolveEnvironmentId(payload: unknown): string | null {
+  if (typeof payload === 'string' && payload.trim()) {
+    return payload
+  }
+
+  if (payload && typeof payload === 'object' && 'value' in payload) {
+    const value = (payload as { value?: unknown }).value
+    if (typeof value === 'string' && value.trim()) {
+      return value
+    }
+  }
+
+  return null
+}
+
+function handleActiveEnvironmentChange(payload: unknown): void {
+  const environmentId = resolveEnvironmentId(payload)
+  if (!environmentId) {
+    return
+  }
+
+  switchActiveEnvironment(environmentId)
+}
+
+function renameActiveEnvironment(name: string): void {
+  const environmentId = store.activeEnvironment?.id
+  if (!environmentId) {
+    return
+  }
+
+  store.renameEnvironment(environmentId, name)
+}
+
+function openAddEnvironmentDialog(): void {
+  draftNewEnvironmentName.value = ''
+  showAddEnvironmentDialog.value = true
+}
+
+function confirmAddEnvironment(): void {
+  const name = draftNewEnvironmentName.value.trim()
+  if (!name) {
+    return
+  }
+
+  store.addEnvironment(name)
+  showAddEnvironmentDialog.value = false
+}
+
+function removeActiveEnvironment(): void {
+  const environmentId = store.activeEnvironment?.id
+  if (!environmentId) {
+    return
+  }
+
+  const confirmed = window.confirm(t('pipelineEditor.variables.confirmDeleteEnvironment'))
+  if (!confirmed) {
+    return
+  }
+
+  const removed = store.removeEnvironment(environmentId)
+  if (!removed) {
+    tabVariableError.value = t('pipelineEditor.variables.cannotDeleteLastEnvironment')
+  }
+}
+
+function openRenameEnvironmentDialog(): void {
+  draftEnvironmentName.value = store.activeEnvironment?.name ?? ''
+  showRenameEnvironmentDialog.value = true
+}
+
+function confirmRenameEnvironment(): void {
+  const nextName = draftEnvironmentName.value.trim()
+  if (!nextName) {
+    return
+  }
+
+  renameActiveEnvironment(nextName)
+  showRenameEnvironmentDialog.value = false
 }
 
 function removeVariable(variableId: string): void {
@@ -457,7 +564,9 @@ if (!reopenLastPipelineOnLaunch.value) {
     <Menubar :key="menubarKey" :model="menuItems" class="toolbar-menubar">
       <template #start>
         <div class="title-group title-group--inline">
-          <p class="eyebrow">{{ t('pipelineEditor.eyebrow') }}</p>
+          <RouterLink to="/" class="editor-home-link eyebrow">
+            {{ t('pipelineEditor.eyebrow') }}
+          </RouterLink>
           <Badge>BETA</Badge>
           <span class="title-separator" aria-hidden="true" />
           <span class="pipeline-name-display pipeline-name-chip">{{ store.pipeline.name }}</span>
@@ -617,6 +726,70 @@ if (!reopenLastPipelineOnLaunch.value) {
     />
 
     <Dialog
+      v-model:visible="showAddEnvironmentDialog"
+      :header="t('pipelineEditor.variables.addEnvironment')"
+      :modal="true"
+      style="width: min(400px, 92vw)"
+    >
+      <div class="add-environment-dialog-body">
+        <label class="dialog-label" for="add-environment-name-input">
+          {{ t('pipelineEditor.variables.environmentNamePlaceholder') }}
+        </label>
+        <InputText
+          id="add-environment-name-input"
+          :model-value="draftNewEnvironmentName"
+          autocomplete="off"
+          @update:model-value="draftNewEnvironmentName = String($event)"
+          @keyup.enter="confirmAddEnvironment"
+        />
+      </div>
+      <template #footer>
+        <Button
+          :label="t('pipelineEditor.pipelineNameDialog.cancel')"
+          text
+          @click="showAddEnvironmentDialog = false"
+        />
+        <Button
+          :label="t('pipelineEditor.variables.addEnvironment')"
+          :disabled="!draftNewEnvironmentName.trim()"
+          @click="confirmAddEnvironment"
+        />
+      </template>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="showRenameEnvironmentDialog"
+      :header="t('pipelineEditor.variables.renameEnvironment')"
+      :modal="true"
+      style="width: min(400px, 92vw)"
+    >
+      <div class="rename-environment-dialog-body">
+        <label class="dialog-label" for="environment-name-input">
+          {{ t('pipelineEditor.variables.environmentNamePlaceholder') }}
+        </label>
+        <InputText
+          id="environment-name-input"
+          :model-value="draftEnvironmentName"
+          autocomplete="off"
+          @update:model-value="draftEnvironmentName = String($event)"
+          @keyup.enter="confirmRenameEnvironment"
+        />
+      </div>
+      <template #footer>
+        <Button
+          :label="t('pipelineEditor.pipelineNameDialog.cancel')"
+          text
+          @click="showRenameEnvironmentDialog = false"
+        />
+        <Button
+          :label="t('pipelineEditor.pipelineNameDialog.renameConfirm')"
+          :disabled="!draftEnvironmentName.trim()"
+          @click="confirmRenameEnvironment"
+        />
+      </template>
+    </Dialog>
+
+    <Dialog
       v-model:visible="showWhatsNewDialog"
       :header="t('pipelineEditor.whatsNew.title')"
       :modal="true"
@@ -716,45 +889,86 @@ if (!reopenLastPipelineOnLaunch.value) {
         </TabPanel>
         <TabPanel value="variables">
           <section class="variables-tab">
-            <div class="variables-tab-header">
+            <div class="variables-tab-title">
               <h3>{{ t('pipelineEditor.variables.title') }}</h3>
               <p>{{ t('pipelineEditor.variables.description') }}</p>
             </div>
 
             <div class="tab-variables-container">
               <aside class="tab-variables-sidebar">
-                <div class="tab-sidebar-header">
-                  <h4 class="tab-sidebar-title">{{ t('pipelineEditor.variables.title') }}</h4>
-                  <Button
-                    icon="pi pi-plus"
-                    severity="success"
-                    rounded
-                    text
-                    :aria-label="t('pipelineEditor.variables.add')"
-                    @click="startAddTabVariable"
-                  />
-                </div>
-
-                <div class="tab-variables-list">
-
-                  <div v-if="store.pipeline.variables.length === 0" class="tab-list-empty">
-                    {{ t('pipelineEditor.variables.empty') }}
+                <!-- Environments Section -->
+                <div class="sidebar-section">
+                  <div class="sidebar-section-header">
+                    <h4 class="sidebar-section-title">{{ t('pipelineEditor.variables.environment') }}</h4>
+                    <Button
+                      size="small"
+                      icon="pi pi-plus"
+                      severity="success"
+                      rounded
+                      text
+                      :aria-label="t('pipelineEditor.variables.addEnvironment')"
+                      @click="openAddEnvironmentDialog"
+                    />
                   </div>
 
-                  <button
-                    v-for="variable in store.pipeline.variables"
-                    :key="variable.id"
-                    type="button"
-                    class="tab-list-item"
-                    :class="{ 'tab-list-item--active': selectedTabVariableId === variable.id }"
-                    @click="selectTabVariable(variable.id)"
-                  >
-                    <span class="tab-item-icon"><i class="pi pi-circle-fill" /></span>
-                    <span class="tab-item-content">
-                      <span class="tab-item-name">{{ variable.name }}</span>
-                      <span class="tab-item-meta">{{ countVariableLines(variable.value) }} {{ t('pipelineEditor.variables.lines') }}</span>
-                    </span>
-                  </button>
+                  <div class="sidebar-section-content">
+                    <div class="environment-control-row">
+                      <Select
+                        :options="environmentOptions"
+                        option-label="label"
+                        option-value="value"
+                        :model-value="activeEnvironmentId"
+                        @update:model-value="handleActiveEnvironmentChange($event)"
+                        class="w-full"
+                      />
+                      <SplitButton
+                        icon="pi pi-pencil"
+                        size="small"
+                        severity="secondary"
+                        outlined
+                        :model="environmentActionsMenu"
+                        @click="openRenameEnvironmentDialog"
+                        :aria-label="t('pipelineEditor.variables.renameEnvironment')"
+                        class="environment-splitbutton-icon"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Variables List Section -->
+                <div class="sidebar-section">
+                  <div class="sidebar-section-header">
+                    <h4 class="sidebar-section-title">{{ t('pipelineEditor.variables.title') }}</h4>
+                    <Button
+                      icon="pi pi-plus"
+                      severity="success"
+                      rounded
+                      text
+                      :aria-label="t('pipelineEditor.variables.add')"
+                      @click="startAddTabVariable"
+                    />
+                  </div>
+
+                  <div class="tab-variables-list">
+                    <div v-if="store.pipeline.variables.length === 0" class="tab-list-empty">
+                      {{ t('pipelineEditor.variables.empty') }}
+                    </div>
+
+                    <button
+                      v-for="variable in store.pipeline.variables"
+                      :key="variable.id"
+                      type="button"
+                      class="tab-list-item"
+                      :class="{ 'tab-list-item--active': selectedTabVariableId === variable.id }"
+                      @click="selectTabVariable(variable.id)"
+                    >
+                      <span class="tab-item-icon"><i class="pi pi-circle-fill" /></span>
+                      <span class="tab-item-content">
+                        <span class="tab-item-name">{{ variable.name }}</span>
+                        <span class="tab-item-meta">{{ countVariableLines(variable.value) }} {{ t('pipelineEditor.variables.lines') }}</span>
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </aside>
 
@@ -818,13 +1032,13 @@ if (!reopenLastPipelineOnLaunch.value) {
                   <div class="tab-form-group">
                     <label class="tab-form-label">{{ t('pipelineEditor.variables.valuePlaceholder') }}</label>
                     <Textarea
-                      :model-value="selectedTabVariable.value"
+                      :model-value="store.getVariableValueForActiveEnvironment(selectedTabVariable)"
                       auto-resize
                       rows="8"
                       :placeholder="t('pipelineEditor.variables.valuePlaceholder')"
                       @update:model-value="updateVariableValue(selectedTabVariable.id, String($event))"
                     />
-                    <small class="tab-line-count">{{ countVariableLines(selectedTabVariable.value) }} {{ t('pipelineEditor.variables.lines') }}</small>
+                    <small class="tab-line-count">{{ countVariableLines(store.getVariableValueForActiveEnvironment(selectedTabVariable)) }} {{ t('pipelineEditor.variables.lines') }}</small>
                   </div>
 
                   <div class="tab-form-actions">
@@ -899,6 +1113,21 @@ if (!reopenLastPipelineOnLaunch.value) {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-soft);
+}
+
+.editor-home-link {
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.editor-home-link:hover {
+  color: var(--accent);
+}
+
+.editor-home-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .title-separator {
@@ -1049,15 +1278,15 @@ if (!reopenLastPipelineOnLaunch.value) {
   min-height: 56vh;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 1rem;
 }
 
-.variables-tab-header h3 {
+.variables-tab-title h3 {
   margin: 0;
   font-size: 0.95rem;
 }
 
-.variables-tab-header p {
+.variables-tab-title p {
   margin: 0.25rem 0 0;
   font-size: 0.85rem;
   color: var(--text-soft);
@@ -1074,24 +1303,65 @@ if (!reopenLastPipelineOnLaunch.value) {
 .tab-variables-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
   border-right: 1px solid var(--surface-border);
   padding-right: 1rem;
   min-height: 0;
+  overflow-y: auto;
 }
 
-.tab-sidebar-header {
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sidebar-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
 }
 
-.tab-sidebar-title {
+.sidebar-section-title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text);
+}
+
+.sidebar-section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.environment-control-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.environment-splitbutton-icon :deep(.p-button) {
+  height: 2.5rem;
+}
+
+.split-button-environment {
+  width: 100%;
+}
+
+.add-environment-dialog-body,
+.rename-environment-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.dialog-label {
+  font-size: 0.875rem;
+  color: var(--text-color);
+  font-weight: 500;
 }
 
 .tab-variables-list {
@@ -1158,6 +1428,10 @@ if (!reopenLastPipelineOnLaunch.value) {
 .tab-item-meta {
   font-size: 0.75rem;
   color: var(--text-soft);
+}
+
+.w-full {
+  width: 100%;
 }
 
 .tab-list-empty {

@@ -242,6 +242,12 @@ watch(nodesInitialized, (isInitialized) => {
           </div>
           <NodeToolbar :position="Position.Bottom" :is-visible="data.isSelected">
             <Button
+              icon="pi pi-copy"
+              severity="secondary"
+              :label="t('common.duplicate')"
+              @click="store.duplicateNode(id)"
+            />
+            <Button
               icon="pi pi-trash"
               severity="danger"
               :label="t('common.delete')"

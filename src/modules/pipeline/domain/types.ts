@@ -117,6 +117,12 @@ export interface PipelineVariable {
   type?: 'string' | 'number' | 'json' | 'object'
 }
 
+export interface PipelineEnvironment {
+  id: string
+  name: string
+  variableOverrides: Record<string, string>
+}
+
 export interface PipelineDefinition {
   id: string
   name: string
@@ -124,6 +130,8 @@ export interface PipelineDefinition {
   nodes: PipelineNode[]
   edges: PipelineEdge[]
   variables: PipelineVariable[]
+  environments?: PipelineEnvironment[]
+  activeEnvironmentId?: string
   updatedAt: string
 }
 

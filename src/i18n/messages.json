@@ -5,6 +5,7 @@
       "confirm": "Confirmer",
       "close": "Fermer",
       "delete": "Supprimer",
+      "duplicate": "Dupliquer",
       "edit": "Modifier",
       "save": "Enregistrer",
       "loading": "Chargement...",
@@ -35,6 +36,27 @@
         "switchToFr": "Passer au français",
         "switchToEn": "Passer à l'anglais"
       },
+      "home": {
+        "title": "Construisez et exécutez vos pipelines ETL visuellement",
+        "description": "L'application permet de composer des flux de traitement avec des nœuds, d'exécuter le pipeline, d'inspecter les logs et d'itérer rapidement.",
+        "openEditor": "Accéder à l'éditeur",
+        "whatItDoesTitle": "Ce que fait l'application",
+        "templatesTitle": "Modèles disponibles",
+        "getStartedTitle": "Démarrage rapide",
+        "componentsTitle": "Composants de l'éditeur",
+        "componentsIntro": "Découvrez les zones principales de travail avant de démarrer votre pipeline.",
+        "points": {
+          "visualBuilder": "Concevoir un pipeline ETL dans un canevas visuel (nœuds + connexions).",
+          "execution": "Exécuter le flux et consulter les résultats dans la console d'exécution.",
+          "variables": "Gérer des variables globales et des environnements pour vos scénarios.",
+          "templates": "Démarrer à partir de modèles préconfigurés puis personnaliser le pipeline."
+        },
+        "steps": {
+          "openEditor": "Ouvrir l'éditeur de pipeline",
+          "chooseTemplate": "Créer un pipeline vide ou choisir un modèle",
+          "runPipeline": "Configurer les nœuds puis lancer l'exécution"
+        }
+      },
       "pipelineNameDialog": {
         "open": "Renommer le pipeline",
         "renameTitle": "Renommer le pipeline",
@@ -44,7 +66,7 @@
       },
       "createDialog": {
         "title": "Créer un pipeline",
-        "intro": "Choisissez un point de départ: pipeline vide ou modèle prêt à l'emploi.",
+        "intro": "Choisissez un point de départ : pipeline vide ou modèle prêt à l'emploi.",
         "nameLabel": "Nom du pipeline",
         "emptyTitle": "Pipeline vide",
         "emptyDescription": "Commencer avec uniquement un nœud Départ.",
@@ -57,11 +79,11 @@
         "autoSaveEnabled": "Activer la sauvegarde automatique",
         "autoSaveStatusEnabled": "Sauvegarde auto activée",
         "confirmDeleteNode": "Demander confirmation avant suppression d'un nœud",
-        "autoFitOnOpen": "Auto-fit du pipeline à l'ouverture",
-        "reopenLastPipelineOnLaunch": "Réouvrir automatiquement le dernier pipeline au lancement",
+        "autoFitOnOpen": "Ajuster automatiquement le pipeline à l'ouverture",
+        "reopenLastPipelineOnLaunch": "Rouvrir automatiquement le dernier pipeline au lancement",
         "resetPreferences": "Réinitialiser les préférences utilisateur",
-        "autoSaveBadgeOn": "Auto-save ON",
-        "autoSaveBadgeOff": "Auto-save OFF",
+        "autoSaveBadgeOn": "Sauvegarde auto ON",
+        "autoSaveBadgeOff": "Sauvegarde auto OFF",
         "autoSaveDisabled": "Désactiver la sauvegarde automatique",
         "autoSaveStatusDisabled": "Sauvegarde auto désactivée",
         "variablesMoved": "La gestion des variables se fait depuis l'onglet Variables."
@@ -70,8 +92,15 @@
         "description": "Ajoute des variables globales du pipeline (nom + valeur).",
         "namePlaceholder": "Nom de la variable",
         "valuePlaceholder": "Valeur",
+        "environmentNamePlaceholder": "Nom de l'environnement",
         "add": "Ajouter",
+        "addEnvironment": "Créer",
+        "renameEnvironment": "Renommer",
+        "removeEnvironment": "Supprimer",
         "remove": "Supprimer la variable",
+        "environment": "Environnement actif",
+        "cannotDeleteLastEnvironment": "Au moins un environnement est requis.",
+        "confirmDeleteEnvironment": "Supprimer l'environnement actif ?",
         "empty": "Aucune variable pour le moment.",
         "nameDuplicate": "Ce nom de variable existe déjà.",
         "nameInvalid": "Le nom doit commencer par une lettre et ne contenir que des lettres, chiffres, _ ou -.",
@@ -91,21 +120,21 @@
         "maxOutgoingConnectionsReachedDetail": "Le nœud \"{name}\" autorise au maximum {max} connexion(s) sortante(s)."
       },
       "storage": {
-        "empty": "Aucun projet sauvegardé pour le moment.",
-        "savedListLabel": "Liste des projets sauvegardés",
-        "loadDialogTitle": "Charger un projet",
-        "selectedProject": "Projet sélectionné",
+        "empty": "Aucun pipeline sauvegardé pour le moment.",
+        "savedListLabel": "Liste des pipelines sauvegardés",
+        "loadDialogTitle": "Charger un pipeline",
+        "selectedProject": "Pipeline sélectionné",
         "lastUpdate": "Dernière mise à jour",
-        "loadConfirm": "Charger ce projet",
-        "saveSuccess": "Projet sauvegardé",
-        "saveSuccessDetail": "Le projet a été enregistré dans le stockage local.",
-        "importSuccess": "Projet importé",
-        "importSuccessDetail": "Le projet \"{name}\" a été importé.",
+        "loadConfirm": "Charger ce pipeline",
+        "saveSuccess": "Pipeline sauvegardé",
+        "saveSuccessDetail": "Le pipeline a été enregistré dans le stockage local.",
+        "importSuccess": "Pipeline importé",
+        "importSuccessDetail": "Le pipeline \"{name}\" a été importé.",
         "importInvalid": "Import invalide",
         "importInvalidDetail": "Le fichier JSON n'est pas un pipeline valide.",
-        "loadSuccess": "Projet chargé",
-        "loadSuccessDetail": "Le projet \"{name}\" a été chargé.",
-        "loadMissing": "Projet introuvable",
+        "loadSuccess": "Pipeline chargé",
+        "loadSuccessDetail": "Le pipeline \"{name}\" a été chargé.",
+        "loadMissing": "Pipeline introuvable",
         "loadMissingDetail": "Cette sauvegarde n'est plus disponible."
       },
       "history": {
@@ -118,14 +147,14 @@
         "eventCount": "{count} événement(s)"
       },
       "whatsNew": {
-        "menuLabel": "Nouveauté",
+        "menuLabel": "Nouveautés",
         "title": "Historique des dernières versions",
         "intro": "Retrouvez ici les évolutions récentes de l'éditeur de pipeline."
       },
       "templates": {
-        "tabSaved": "Mes projets",
+        "tabSaved": "Mes pipelines",
         "tabTemplates": "Modèles",
-        "intro": "Démarrez rapidement avec un pipeline pré-configuré. Il sera dupliqué dans votre espace de travail.",
+        "intro": "Démarrez rapidement avec un pipeline préconfiguré. Il sera dupliqué dans votre espace de travail.",
         "use": "Utiliser",
         "loadSuccess": "Modèle chargé",
         "loadSuccessDetail": "Le modèle \"{name}\" a été chargé. Vous pouvez le modifier librement.",
@@ -278,9 +307,9 @@
       }
     },
     "nodePalette": {
-      "title": "Noeuds",
+      "title": "Nœuds",
       "tag": "Palette",
-      "description": "Ajoute des briques puis relie-les dans le canevas.",
+      "description": "Ajoutez des briques puis reliez-les dans le canevas.",
       "nodes": {
         "start": {
           "title": "Départ",
@@ -308,7 +337,7 @@
         },
         "map": {
           "title": "Map",
-          "subtitle": "Transformer chaque element"
+          "subtitle": "Transformer chaque élément"
         },
         "output": {
           "title": "Sortie",
@@ -317,7 +346,7 @@
       }
     },
     "pipelineCanvas": {
-      "nodeNamePlaceholder": "Nom du noeud",
+      "nodeNamePlaceholder": "Nom du nœud",
       "deleteNodeConfirm": "Voulez-vous vraiment supprimer le nœud \"{name}\" ?"
     },
     "inspector": {
@@ -331,7 +360,7 @@
       },
       "fields": {
         "nodeName": "Nom",
-        "nodeNamePlaceholder": "Nom du noeud",
+        "nodeNamePlaceholder": "Nom du nœud",
         "method": "Méthode",
         "url": "URL",
         "outputPath": "Chemin de sortie",
@@ -393,7 +422,7 @@
       },
       "options": {
         "conditionOperator": {
-          "equals": "Egal à",
+          "equals": "Égal à",
           "notEquals": "Différent de",
           "greaterThan": "Supérieur à",
           "lessThan": "Inférieur à",
@@ -482,7 +511,7 @@
         }
       },
       "map": {
-        "result": "Map: {sourcePath} -> {outputPath} ({count} element(s) produits)."
+        "result": "Map: {sourcePath} -> {outputPath} ({count} élément(s) produits)."
       },
       "output": {
         "resolved": "Sortie résolue depuis le chemin \"{path}\"."
@@ -510,6 +539,7 @@
       "confirm": "Confirm",
       "close": "Close",
       "delete": "Delete",
+      "duplicate": "Duplicate",
       "edit": "Edit",
       "save": "Save",
       "loading": "Loading...",
@@ -539,6 +569,27 @@
       "language": {
         "switchToFr": "Switch to French",
         "switchToEn": "Switch to English"
+      },
+      "home": {
+        "title": "Build and run your ETL pipelines visually",
+        "description": "The app lets you compose processing flows with nodes, run the pipeline, inspect logs, and iterate quickly.",
+        "openEditor": "Open editor",
+        "whatItDoesTitle": "What this app does",
+        "templatesTitle": "Available templates",
+        "getStartedTitle": "Quick start",
+        "componentsTitle": "Editor components",
+        "componentsIntro": "Get familiar with the main work areas before building your pipeline.",
+        "points": {
+          "visualBuilder": "Design an ETL pipeline on a visual canvas (nodes + connections).",
+          "execution": "Run the flow and inspect results in the execution console.",
+          "variables": "Manage global variables and environments for your scenarios.",
+          "templates": "Start from preconfigured templates and customize the pipeline."
+        },
+        "steps": {
+          "openEditor": "Open the pipeline editor",
+          "chooseTemplate": "Create an empty pipeline or choose a template",
+          "runPipeline": "Configure nodes and run execution"
+        }
       },
       "pipelineNameDialog": {
         "open": "Rename pipeline",
@@ -575,8 +626,15 @@
         "description": "Add global pipeline variables (name + value).",
         "namePlaceholder": "Variable name",
         "valuePlaceholder": "Value",
+        "environmentNamePlaceholder": "Environment name",
         "add": "Add",
+        "addEnvironment": "Create",
+        "renameEnvironment": "Rename",
+        "removeEnvironment": "Delete",
         "remove": "Remove variable",
+        "environment": "Active environment",
+        "cannotDeleteLastEnvironment": "At least one environment is required.",
+        "confirmDeleteEnvironment": "Delete the active environment?",
         "empty": "No variables yet.",
         "nameDuplicate": "This variable name already exists.",
         "nameInvalid": "Name must start with a letter and only contain letters, digits, _ or -.",
@@ -596,21 +654,21 @@
         "maxOutgoingConnectionsReachedDetail": "Node \"{name}\" allows a maximum of {max} outgoing connection(s)."
       },
       "storage": {
-        "empty": "No saved project found yet.",
-        "savedListLabel": "Saved projects list",
-        "loadDialogTitle": "Load a project",
-        "selectedProject": "Selected project",
+        "empty": "No saved pipeline found yet.",
+        "savedListLabel": "Saved pipelines list",
+        "loadDialogTitle": "Load a pipeline",
+        "selectedProject": "Selected pipeline",
         "lastUpdate": "Last update",
-        "loadConfirm": "Load this project",
-        "saveSuccess": "Project saved",
-        "saveSuccessDetail": "Project has been stored in local storage.",
-        "importSuccess": "Project imported",
-        "importSuccessDetail": "Project \"{name}\" has been imported.",
+        "loadConfirm": "Load this pipeline",
+        "saveSuccess": "Pipeline saved",
+        "saveSuccessDetail": "Pipeline has been stored in local storage.",
+        "importSuccess": "Pipeline imported",
+        "importSuccessDetail": "Pipeline \"{name}\" has been imported.",
         "importInvalid": "Invalid import",
         "importInvalidDetail": "The JSON file is not a valid pipeline.",
-        "loadSuccess": "Project loaded",
-        "loadSuccessDetail": "Project \"{name}\" has been loaded.",
-        "loadMissing": "Project not found",
+        "loadSuccess": "Pipeline loaded",
+        "loadSuccessDetail": "Pipeline \"{name}\" has been loaded.",
+        "loadMissing": "Pipeline not found",
         "loadMissingDetail": "This save is no longer available."
       },
       "history": {
@@ -628,7 +686,7 @@
         "intro": "Find the latest updates to the pipeline editor here."
       },
       "templates": {
-        "tabSaved": "My projects",
+        "tabSaved": "My pipelines",
         "tabTemplates": "Templates",
         "intro": "Start quickly with a pre-configured pipeline. It will be duplicated into your workspace.",
         "use": "Use",

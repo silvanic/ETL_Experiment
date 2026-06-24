@@ -141,6 +141,12 @@ const variableSchema = z.object({
   type: z.enum(['string', 'number', 'json', 'object']).optional(),
 })
 
+const environmentSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  variableOverrides: z.record(z.string(), z.string()).default({}),
+})
+
 export const pipelineDefinitionSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -149,6 +155,22 @@ export const pipelineDefinitionSchema = z.object({
   nodes: z.array(nodeSchema).min(1),
   edges: z.array(edgeSchema),
   variables: z.array(variableSchema).default([]),
+  environments: z.array(environmentSchema).optional(),
+  activeEnvironmentId: z.string().min(1).optional(),
+}).transform((definition) => {
+  const environments = definition.environments && definition.environments.length > 0
+    ? definition.environments
+    : [{ id: crypto.randomUUID(), name: 'default', variableOverrides: {} }]
+
+  const activeEnvironmentExists = definition.activeEnvironmentId
+    ? environments.some((env) => env.id === definition.activeEnvironmentId)
+    : false
+
+  return {
+    ...definition,
+    environments,
+    activeEnvironmentId: activeEnvironmentExists ? definition.activeEnvironmentId : environments[0].id,
+  }
 })
 
 export type PipelineDefinitionSchema = z.infer<typeof pipelineDefinitionSchema>

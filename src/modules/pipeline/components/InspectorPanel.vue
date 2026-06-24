@@ -117,14 +117,18 @@ const lastApiRequest = ref<{
   headers: Record<string, string>
   body: string
 } | null>(null)
+const lastApiResponseMeta = ref<{
+  status: number
+  statusText: string
+  durationMs: number
+  sizeBytes: number
+  headers: Record<string, string>
+} | null>(null)
 const variableSuggestions = ref<string[]>([])
 const cursorByField = ref<Record<string, { start: number; end: number; value: string }>>({})
 
 const variableMap = computed<Record<string, string>>(() => {
-  return store.pipeline.variables.reduce<Record<string, string>>((acc, variable) => {
-    acc[variable.name] = variable.value
-    return acc
-  }, {})
+  return store.effectiveVariableMap
 })
 
 const variableTokens = computed(() => store.pipeline.variables.map((variable) => toVariableToken(variable.name)))
@@ -373,6 +377,26 @@ const prettyApiResponse = computed(() => {
   }
 })
 
+const prettyApiResponseMeta = computed(() => {
+  if (!lastApiResponseMeta.value) {
+    return t('inspector.messages.noApiResult')
+  }
+
+  const { status, statusText, durationMs, sizeBytes, headers } = lastApiResponseMeta.value
+  const headerLines = Object.entries(headers).map(([key, value]) => `${key}: ${value}`)
+
+  return [
+    `HTTP ${status} ${statusText}`,
+    `Duration: ${durationMs} ms`,
+    `Size: ${sizeBytes} bytes`,
+    headerLines.length > 0 ? '' : null,
+    headerLines.length > 0 ? 'Headers:' : null,
+    ...headerLines,
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\n')
+})
+
 
 function patchConfig(partial: Record<string, unknown>): void {
   const node = selected.value
@@ -576,6 +600,7 @@ async function runApiCall(): Promise<void> {
 
   lastApiError.value = null
   lastApiResult.value = null
+  lastApiResponseMeta.value = null
   isApiLoading.value = true
 
   try {
@@ -603,14 +628,33 @@ async function runApiCall(): Promise<void> {
       body: resolvedBodyRaw,
     }
 
+    const startTime = performance.now()
     const response = await fetch(resolvedUrl, init)
+    const durationMs = Math.round(performance.now() - startTime)
     const contentType = response.headers.get('content-type') ?? ''
+    const responseHeaders = Object.fromEntries(response.headers.entries())
 
     let data: unknown
+    let sizeBytes = 0
     if (contentType.includes('application/json')) {
       data = await response.json()
+      try {
+        sizeBytes = new TextEncoder().encode(JSON.stringify(data)).length
+      } catch {
+        sizeBytes = 0
+      }
     } else {
-      data = await response.text()
+      const textBody = await response.text()
+      data = textBody
+      sizeBytes = new TextEncoder().encode(textBody).length
+    }
+
+    lastApiResponseMeta.value = {
+      status: response.status,
+      statusText: response.statusText,
+      durationMs,
+      sizeBytes,
+      headers: responseHeaders,
     }
 
     if (!response.ok) {
@@ -1342,6 +1386,7 @@ function openApiResultDialog(): void {
             <pre class="api-result">{{ prettyApiRequest }}</pre>
           </TabPanel>
           <TabPanel value="response">
+            <pre class="api-result api-result--meta">{{ prettyApiResponseMeta }}</pre>
             <pre class="api-result">{{ prettyApiResponse }}</pre>
           </TabPanel>
         </TabPanels>
@@ -1450,6 +1495,14 @@ label {
   line-height: 1.45;
   max-height: 60vh;
   overflow: auto;
+}
+
+.api-result--meta {
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  background: var(--surface-100);
 }
 
 .headers-section {

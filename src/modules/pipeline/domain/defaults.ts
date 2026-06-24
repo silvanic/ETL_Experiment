@@ -124,6 +124,7 @@ export function createNode(type: NodeType, x: number, y: number): PipelineNode {
 
 export function createInitialPipeline(): PipelineDefinition {
   const start = createNode('start', 80, 180)
+  const defaultEnvironmentId = crypto.randomUUID()
 
   return {
     id: crypto.randomUUID(),
@@ -132,6 +133,10 @@ export function createInitialPipeline(): PipelineDefinition {
     updatedAt: new Date().toISOString(),
     nodes: [start],
     variables: [],
+    environments: [
+      { id: defaultEnvironmentId, name: 'default', variableOverrides: {} },
+    ],
+    activeEnvironmentId: defaultEnvironmentId,
     edges: [],
   }
 }

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import type { Connection, EdgeChange, NodeChange } from '@vue-flow/core'
 import { createInitialPipeline, createNode } from '@/modules/pipeline/domain/defaults'
@@ -20,12 +20,13 @@ import type {
   ExecutionLog,
   ExecutionRun,
   NodeType,
+  PipelineEnvironment,
   PipelineDefinition,
   PipelineEdge,
   PipelineNode,
   PipelineVariable,
 } from '@/modules/pipeline/domain/types'
-import { isValidVariableName } from '../domain/variables'
+import { buildVariableMap, isValidVariableName } from '../domain/variables'
 
 function branchLabel(branch?: ConditionBranch | FilterBranch): string | undefined {
   if (branch === 'true') {
@@ -98,6 +99,46 @@ function isFiniteCoordinate(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
+function ensurePipelineEnvironments(definition: PipelineDefinition): void {
+  if (!definition.environments || definition.environments.length === 0) {
+    const environmentId = crypto.randomUUID()
+    definition.environments = [{ id: environmentId, name: 'default', variableOverrides: {} }]
+    definition.activeEnvironmentId = environmentId
+    return
+  }
+
+  const hasActiveEnvironment = definition.activeEnvironmentId
+    && definition.environments.some((environment) => environment.id === definition.activeEnvironmentId)
+
+  if (!hasActiveEnvironment) {
+    definition.activeEnvironmentId = definition.environments[0].id
+  }
+}
+
+function buildUniqueEnvironmentName(
+  desiredName: string,
+  existingEnvironments: PipelineEnvironment[],
+  skipEnvironmentId?: string,
+): string {
+  const normalized = desiredName.trim() || 'environment'
+  const existingNames = new Set(
+    existingEnvironments
+      .filter((environment) => environment.id !== skipEnvironmentId)
+      .map((environment) => environment.name.trim().toLowerCase()),
+  )
+
+  if (!existingNames.has(normalized.toLowerCase())) {
+    return normalized
+  }
+
+  let counter = 2
+  while (existingNames.has(`${normalized} ${counter}`.toLowerCase())) {
+    counter += 1
+  }
+
+  return `${normalized} ${counter}`
+}
+
 export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   const toast = useToast()
   const pipeline = ref<PipelineDefinition>(loadPipeline())
@@ -109,6 +150,8 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   const logs = ref<ExecutionLog[]>([])
   const runHistory = ref<ExecutionRun[]>([])
   const autoSaveEnabled = ref(true)
+
+  ensurePipelineEnvironments(pipeline.value)
 
   const nodes = computed({
     get: () => pipeline.value.nodes,
@@ -130,6 +173,24 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     return nodes.value.find((node) => node.id === selectedNodeId.value) ?? null
   })
 
+  const environments = computed<PipelineEnvironment[]>(() => {
+    ensurePipelineEnvironments(pipeline.value)
+    return pipeline.value.environments ?? []
+  })
+
+  const activeEnvironment = computed<PipelineEnvironment | null>(() => {
+    const environmentId = pipeline.value.activeEnvironmentId
+    if (!environmentId) {
+      return null
+    }
+
+    return environments.value.find((environment) => environment.id === environmentId) ?? null
+  })
+
+  const effectiveVariableMap = computed<Record<string, string>>(() => {
+    return buildVariableMap(pipeline.value.variables, activeEnvironment.value?.variableOverrides)
+  })
+
   function setSelectedNode(nodeId: string | null): void {
     selectedNodeId.value = nodeId
   }
@@ -145,6 +206,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
 
   function resetPipeline(): void {
     pipeline.value = createInitialPipeline()
+    ensurePipelineEnvironments(pipeline.value)
     selectedNodeId.value = null
     logs.value = []
     runHistory.value = []
@@ -179,6 +241,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
         ...validated,
         updatedAt: new Date().toISOString(),
       }
+      ensurePipelineEnvironments(pipeline.value)
       selectedNodeId.value = null
       logs.value = []
       runHistory.value = []
@@ -217,6 +280,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     }
 
     pipeline.value = loaded
+    ensurePipelineEnvironments(pipeline.value)
     selectedNodeId.value = null
     logs.value = []
     runHistory.value = []
@@ -258,6 +322,9 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   }
 
   function updateVariable(variableId: string, updates: Partial<Pick<PipelineVariable, 'name' | 'value'>>): void {
+    const previousVariable = pipeline.value.variables.find((variable) => variable.id === variableId) ?? null
+    const previousName = previousVariable?.name.trim() ?? ''
+
     pipeline.value.variables = pipeline.value.variables.map((variable) => {
       if (variable.id !== variableId) {
         return variable
@@ -272,11 +339,171 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
       }
     })
 
+
+    const nextVariable = pipeline.value.variables.find((variable) => variable.id === variableId) ?? null
+    const nextName = nextVariable?.name.trim() ?? ''
+
+    if (previousName && nextName && previousName !== nextName) {
+      pipeline.value.environments = (pipeline.value.environments ?? []).map((environment) => {
+        if (!(previousName in environment.variableOverrides)) {
+          return environment
+        }
+
+        const nextOverrides = { ...environment.variableOverrides }
+        nextOverrides[nextName] = nextOverrides[previousName]
+        delete nextOverrides[previousName]
+
+        return {
+          ...environment,
+          variableOverrides: nextOverrides,
+        }
+      })
+    }
     pipeline.value.updatedAt = new Date().toISOString()
   }
 
+  function setActiveEnvironment(environmentId: string): void {
+    ensurePipelineEnvironments(pipeline.value)
+    const normalizedEnvironmentId = environmentId.trim()
+    if (!normalizedEnvironmentId) {
+      return
+    }
+
+    const exists = (pipeline.value.environments ?? []).some((environment) => environment.id === normalizedEnvironmentId)
+
+    if (!exists) {
+      return
+    }
+
+    pipeline.value.activeEnvironmentId = normalizedEnvironmentId
+    pipeline.value.updatedAt = new Date().toISOString()
+  }
+
+  function addEnvironment(name: string): string {
+    ensurePipelineEnvironments(pipeline.value)
+    const uniqueName = buildUniqueEnvironmentName(name, pipeline.value.environments ?? [])
+    const environmentId = crypto.randomUUID()
+    const nextEnvironment: PipelineEnvironment = {
+      id: environmentId,
+      name: uniqueName,
+      variableOverrides: {},
+    }
+
+    pipeline.value.environments = [...(pipeline.value.environments ?? []), nextEnvironment]
+    pipeline.value.activeEnvironmentId = environmentId
+    pipeline.value.updatedAt = new Date().toISOString()
+    return environmentId
+  }
+
+  function renameEnvironment(environmentId: string, name: string): void {
+    ensurePipelineEnvironments(pipeline.value)
+    if (!name.trim()) {
+      return
+    }
+
+    const environmentsList = pipeline.value.environments ?? []
+    const uniqueName = buildUniqueEnvironmentName(name, environmentsList, environmentId)
+    pipeline.value.environments = environmentsList.map((environment) => {
+      if (environment.id !== environmentId) {
+        return environment
+      }
+
+      return {
+        ...environment,
+        name: uniqueName,
+      }
+    })
+    pipeline.value.updatedAt = new Date().toISOString()
+  }
+
+  function removeEnvironment(environmentId: string): boolean {
+    ensurePipelineEnvironments(pipeline.value)
+    const environmentsList = pipeline.value.environments ?? []
+    if (environmentsList.length <= 1) {
+      return false
+    }
+
+    const nextEnvironments = environmentsList.filter((environment) => environment.id !== environmentId)
+    if (nextEnvironments.length === environmentsList.length) {
+      return false
+    }
+
+    pipeline.value.environments = nextEnvironments
+    if (pipeline.value.activeEnvironmentId === environmentId) {
+      pipeline.value.activeEnvironmentId = nextEnvironments[0].id
+    }
+
+    pipeline.value.updatedAt = new Date().toISOString()
+    return true
+  }
+
   function removeVariable(variableId: string): void {
+    const targetVariable = pipeline.value.variables.find((variable) => variable.id === variableId) ?? null
+    const variableName = targetVariable?.name.trim() ?? ''
+
     pipeline.value.variables = pipeline.value.variables.filter((variable) => variable.id !== variableId)
+
+    if (variableName) {
+      pipeline.value.environments = (pipeline.value.environments ?? []).map((environment) => {
+        if (!(variableName in environment.variableOverrides)) {
+          return environment
+        }
+
+        const nextOverrides = { ...environment.variableOverrides }
+        delete nextOverrides[variableName]
+
+        return {
+          ...environment,
+          variableOverrides: nextOverrides,
+        }
+      })
+    }
+
+    pipeline.value.updatedAt = new Date().toISOString()
+  }
+
+  function getVariableValueForActiveEnvironment(variable: PipelineVariable): string {
+    const variableName = variable.name.trim()
+    if (!variableName) {
+      return variable.value
+    }
+
+    return activeEnvironment.value?.variableOverrides?.[variableName] ?? variable.value
+  }
+
+  function updateVariableValueForActiveEnvironment(variableId: string, value: string): void {
+    ensurePipelineEnvironments(pipeline.value)
+    const variable = pipeline.value.variables.find((candidate) => candidate.id === variableId)
+    if (!variable) {
+      return
+    }
+
+    const activeEnvironmentId = pipeline.value.activeEnvironmentId
+    const defaultEnvironmentId = pipeline.value.environments?.[0]?.id
+
+    if (!activeEnvironmentId || !defaultEnvironmentId || activeEnvironmentId === defaultEnvironmentId) {
+      updateVariable(variableId, { value })
+      return
+    }
+
+    const variableName = variable.name.trim()
+    if (!variableName) {
+      return
+    }
+
+    pipeline.value.environments = (pipeline.value.environments ?? []).map((environment) => {
+      if (environment.id !== activeEnvironmentId) {
+        return environment
+      }
+
+      return {
+        ...environment,
+        variableOverrides: {
+          ...environment.variableOverrides,
+          [variableName]: value,
+        },
+      }
+    })
     pipeline.value.updatedAt = new Date().toISOString()
   }
 
@@ -312,6 +539,37 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     const newNode = createNode(type, x, y)
     nodes.value = [...nodes.value, newNode]
     selectedNodeId.value = newNode.id
+    nodeCreationTick.value += 1
+  }
+
+  function duplicateNode(nodeId: string): void {
+    const sourceNode = nodes.value.find((node) => node.id === nodeId)
+    if (!sourceNode) {
+      return
+    }
+
+    const rawNode = toRaw(sourceNode)
+    const rawData = toRaw(rawNode.data)
+    const clonedConfig = structuredClone(toRaw(rawData.config))
+
+    const duplicate: PipelineNode = {
+      ...rawNode,
+      id: crypto.randomUUID(),
+      position: {
+        x: rawNode.position.x + 40,
+        y: rawNode.position.y + 40,
+      },
+      data: {
+        ...rawData,
+        name: rawData.name?.trim()
+          ? `${rawData.name} copy`
+          : rawData.name,
+        config: clonedConfig,
+      },
+    }
+
+    nodes.value = [...nodes.value, duplicate]
+    selectedNodeId.value = duplicate.id
     nodeCreationTick.value += 1
   }
 
@@ -512,6 +770,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
       id: crypto.randomUUID(),
       updatedAt: new Date().toISOString(),
     }
+    ensurePipelineEnvironments(pipeline.value)
     selectedNodeId.value = null
     logs.value = []
     runHistory.value = []
@@ -549,11 +808,15 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     edges,
     selectedNode,
     selectedNodeId,
+    environments,
+    activeEnvironment,
+    effectiveVariableMap,
     nodeCreationTick,
     isRunning,
     logs,
     runHistory,
     addNodeByType,
+    duplicateNode,
     removeNode,
     updateNodeName,
     onNodesChange,
@@ -572,6 +835,12 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     resetPipeline,
     addVariable,
     updateVariable,
+    setActiveEnvironment,
+    addEnvironment,
+    renameEnvironment,
+    removeEnvironment,
+    getVariableValueForActiveEnvironment,
+    updateVariableValueForActiveEnvironment,
     removeVariable,
     runCurrentPipeline,
     loadFromTemplate,
