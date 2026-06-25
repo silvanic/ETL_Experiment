@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import NodePalette from '@/modules/pipeline/components/NodePalette.vue'
 import PipelineCanvas from '@/modules/pipeline/components/PipelineCanvas.vue'
 import InspectorPanel from '@/modules/pipeline/components/InspectorPanel.vue'
 import RunConsole from '@/modules/pipeline/components/RunConsole.vue'
 import PipelineSettingsDialog from '@/modules/pipeline/components/dialogs/DialogPipelineSettings.vue'
-import PipelineHelpDialog from '@/modules/pipeline/components/dialogs/DialogPipelineHelp.vue'
 import PipelineLoadDialog from '@/modules/pipeline/components/dialogs/DialogPipelineLoad.vue'
 import AutoSaveIcon from '@/modules/pipeline/components/AutoSaveIcon.vue'
 import { pipelineTemplates } from '@/modules/pipeline/data/templates'
@@ -36,9 +35,9 @@ import changelogFr from '@/modules/pipeline/data/changelog_fr.json'
 import changelogEn from '@/modules/pipeline/data/changelog_en.json'
 
 const store = usePipelineEditorStore()
+const router = useRouter()
 const activeTab = ref('flow')
 const showSettingsDialog = ref(false)
-const showHelpDialog = ref(false)
 const showRunDialog = ref(false)
 const showLoadDialog = ref(false)
 const showCreateDialog = ref(false)
@@ -178,7 +177,7 @@ const menuItems = computed<MenuItem[]>(() => [
       {
         label: t('pipelineEditor.help.menuLabel'),
         icon: 'pi pi-question-circle',
-        command: () => showHelpDialog.value = true
+        command: () => openHelpPageInNewTab()
       },
     ]
   }
@@ -477,6 +476,11 @@ function openLoadDialog(): void {
   showLoadDialog.value = true
 }
 
+function openHelpPageInNewTab(): void {
+  const route = router.resolve({ name: 'help' })
+  window.open(route.href, '_blank', 'noopener')
+}
+
 function loadSelectedPipeline(): void {
   if (!selectedSavedPipelineId.value) {
     return
@@ -706,10 +710,6 @@ if (!reopenLastPipelineOnLaunch.value) {
       v-model:auto-fit-on-open="autoFitOnOpen"
       v-model:reopen-last-pipeline-on-launch="reopenLastPipelineOnLaunch"
       @reset-preferences="resetPreferences"
-    />
-
-    <PipelineHelpDialog
-      v-model:visible="showHelpDialog"
     />
 
     <PipelineLoadDialog

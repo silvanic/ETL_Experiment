@@ -9,6 +9,7 @@ import type {
   OutputNodeConfig,
   PipelineNode,
   SetVariableNodeConfig,
+  TransformNodeConfig,
 } from '@/modules/pipeline/domain/types'
 
 function createApiNode(overrides: Partial<ApiNodeConfig> = {}): PipelineNode<'api'> {
@@ -115,6 +116,25 @@ function createMapNode(overrides: Partial<MapNodeConfig> = {}): PipelineNode<'ma
   }
 }
 
+function createTransformNode(overrides: Partial<TransformNodeConfig> = {}): PipelineNode<'transform'> {
+  return {
+    id: 'transform-node',
+    type: 'default',
+    position: { x: 0, y: 0 },
+    data: {
+      type: 'transform',
+      label: 'Transform',
+      config: {
+        mode: 'assignLiteral',
+        sourcePath: '',
+        targetPath: 'result.value',
+        literalValue: '',
+        ...overrides,
+      },
+    },
+  }
+}
+
 function createOutputNode(overrides: Partial<OutputNodeConfig> = {}): PipelineNode<'output'> {
   return {
     id: 'output-node',
@@ -177,9 +197,14 @@ describe('api executor', () => {
     expect(result.details).toEqual({
       url: 'https://example.test/users',
       method: 'GET',
+      status: 200,
+      statusText: '',
+      contentType: 'application/json',
       outputPath: 'api.result',
       headers: {},
       body: undefined,
+      payloadType: 'object',
+      payloadPreview: '{"users":[{"id":1,"name":"Ada"}]}',
     })
   })
 
@@ -204,9 +229,14 @@ describe('api executor', () => {
     expect(result.details).toEqual({
       url: 'https://example.test/users',
       method: 'GET',
+      status: 200,
+      statusText: '',
+      contentType: 'text/plain',
       outputPath: 'api.raw',
       headers: {},
       body: undefined,
+      payloadType: 'string',
+      payloadPreview: 'ok',
     })
   })
 
@@ -633,6 +663,57 @@ describe('condition executor', () => {
 
     expect(result.nextBranch).toBe('true')
     expect(context.data.__lastCondition).toBe(true)
+  })
+})
+
+describe('transform executor', () => {
+  it('supports mixed templates with context paths and #variables in assignLiteral mode', async () => {
+    const context: ExecutionContext = {
+      data: {
+        user: { firstName: 'Ada', lastName: 'Lovelace' },
+        __variables: { env: 'prod' },
+      },
+      logs: [],
+    }
+
+    const node = createTransformNode({
+      targetPath: 'result.label',
+      literalValue: 'User: {user.firstName} {user.lastName} (env=#env)',
+    })
+
+    await executorByType.transform(node, context)
+
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        result: {
+          label: 'User: Ada Lovelace (env=prod)',
+        },
+      }),
+    )
+  })
+
+  it('returns raw value for a single template token in assignLiteral mode', async () => {
+    const context: ExecutionContext = {
+      data: {
+        user: { age: 36 },
+      },
+      logs: [],
+    }
+
+    const node = createTransformNode({
+      targetPath: 'result.age',
+      literalValue: '{user.age}',
+    })
+
+    await executorByType.transform(node, context)
+
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        result: {
+          age: 36,
+        },
+      }),
+    )
   })
 })
 

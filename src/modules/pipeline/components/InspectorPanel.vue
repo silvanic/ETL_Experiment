@@ -12,7 +12,7 @@ import Dialog from 'primevue/dialog'
 import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
-import { resolveValueWithVariables, toVariableToken, findUnresolvedVariables } from '@/modules/pipeline/domain/variables'
+import { resolveValueWithVariables, findUnresolvedVariables } from '@/modules/pipeline/domain/variables'
 import type {
   ApiNodeConfig,
   ConditionNodeConfig,
@@ -131,8 +131,62 @@ const variableMap = computed<Record<string, string>>(() => {
   return store.effectiveVariableMap
 })
 
-const variableTokens = computed(() => store.pipeline.variables.map((variable) => toVariableToken(variable.name)))
 const parameterVariableNames = computed(() => store.pipeline.variables.map((variable) => variable.name))
+
+const templatePathSuggestions = computed(() => {
+  const paths = new Set<string>()
+  store.pipeline.nodes
+    .filter((n) => (n.data.type === 'api' || n.data.type === 'transform' || n.data.type === 'map') && n.id !== selected.value?.id)
+    .forEach((n) => {
+      const config = n.data.config
+      let path = ''
+      if (n.data.type === 'api') path = (config as ApiNodeConfig).outputPath
+      else if (n.data.type === 'transform') path = (config as TransformNodeConfig).targetPath
+      else if (n.data.type === 'map') path = (config as MapNodeConfig).outputPath
+
+      if (path) {
+        paths.add(`{${path}}`)
+        const parts = path.split('.')
+        for (let i = 1; i < parts.length; i++) {
+          paths.add(`{${parts.slice(0, i).join('.')}}`)
+        }
+      }
+    })
+  return Array.from(paths)
+})
+
+const templateVariableSuggestions = computed(() => {
+  // For template fields: only suggest {#variable} (with braces) as #variable alone won't be interpolated
+  const suggestions = new Set<string>()
+  store.pipeline.variables.forEach((variable) => {
+    suggestions.add(`{#${variable.name}}`)
+  })
+  return Array.from(suggestions)
+})
+
+const globalVariableSuggestions = computed(() => {
+  // For non-template fields: suggest #variable (without braces)
+  return store.pipeline.variables.map((variable) => `#${variable.name}`)
+})
+
+function getTemplateFieldSuggestions(fieldKey: string): string[] {
+  const isTemplateField = [
+    'transform.literalValue',
+    'map.sourcePath',
+    'map.outputPath',
+  ].includes(fieldKey)
+
+  if (isTemplateField) {
+    // For template fields: only suggest {path} and {#variable} that will be interpreted
+    return Array.from(new Set([
+      ...templatePathSuggestions.value,
+      ...templateVariableSuggestions.value,
+    ]))
+  }
+
+  // For non-template fields: suggest #variable and output paths as before
+  return Array.from(new Set([...globalVariableSuggestions.value, ...outputPathSuggestions.value]))
+}
 
 const outputPathSuggestions = computed(() =>
   store.pipeline.nodes
@@ -419,19 +473,23 @@ function patchNodeName(value: string | number | undefined): void {
   store.updateNodeName(node.id, String(value ?? ''))
 }
 
-// Méthode à revoir pour optimiser les suggestions de variables et de chemins de sortie
-function completeVariables(event: { query: string }): void {
+// Méthode optimisée pour fournir des suggestions contextuelles selon le champ
+function completeVariables(event: { query: string }, fieldKey?: string): void {
   const rawQuery = String(event.query ?? '')
   const query = rawQuery.toLowerCase()
 
-  const candidates = Array.from(new Set([...variableTokens.value, ...outputPathSuggestions.value]))
+  const candidates = fieldKey
+    ? getTemplateFieldSuggestions(fieldKey)
+    : Array.from(new Set([...globalVariableSuggestions.value, ...outputPathSuggestions.value]))
   variableSuggestions.value = query
     ? candidates.filter((candidate) => candidate.toLowerCase().includes(query))
     : candidates
 }
 
-function openSuggestionMenu(): void {
-  variableSuggestions.value = Array.from(new Set([...variableTokens.value, ...outputPathSuggestions.value]))
+function openSuggestionMenu(fieldKey?: string): void {
+  variableSuggestions.value = fieldKey
+    ? getTemplateFieldSuggestions(fieldKey)
+    : Array.from(new Set([...globalVariableSuggestions.value, ...outputPathSuggestions.value]))
 }
 
 const fieldConfigKeyByFieldKey: Record<string, string> = {
@@ -539,7 +597,10 @@ function insertVariableTokenAtField(fieldKey: string, token: string): void {
 
 function handleSuggestionSelect(fieldKey: string, event: { value?: unknown }): void {
   const selectedValue = String(event.value ?? '')
-  if (!selectedValue.startsWith('#')) {
+  const isVariable = selectedValue.startsWith('#')
+  const isTemplatePath = selectedValue.startsWith('{')
+
+  if (!isVariable && !isTemplatePath) {
     return
   }
 
@@ -1205,11 +1266,14 @@ function openApiResultDialog(): void {
             @focus="captureCursorPosition"
             @click="captureCursorPosition"
             @keyup="captureCursorPosition"
-            @focusin="openSuggestionMenu"
-            @complete="completeVariables"
+            @focusin="openSuggestionMenu('transform.literalValue')"
+            @complete="completeVariables($event, 'transform.literalValue')"
             @item-select="handleSuggestionSelect('transform.literalValue', $event)"
             @update:model-value="patchConfig({ literalValue: String($event) })"
           />
+          <p class="hint hint--info">
+            {{ t('inspector.hints.transformTemplateSyntax') }}
+          </p>
           <p v-if="isVariableTokenInput(transformConfig.literalValue)" class="hint">
             {{ variableTokenHint(transformConfig.literalValue) }}
           </p>
@@ -1234,8 +1298,8 @@ function openApiResultDialog(): void {
             @focus="captureCursorPosition"
             @click="captureCursorPosition"
             @keyup="captureCursorPosition"
-            @focusin="openSuggestionMenu"
-            @complete="completeVariables"
+            @focusin="openSuggestionMenu('map.sourcePath')"
+            @complete="completeVariables($event, 'map.sourcePath')"
             @item-select="handleSuggestionSelect('map.sourcePath', $event)"
             @update:model-value="patchConfig({ sourcePath: String($event) })"
           />
@@ -1253,8 +1317,8 @@ function openApiResultDialog(): void {
             @focus="captureCursorPosition"
             @click="captureCursorPosition"
             @keyup="captureCursorPosition"
-            @focusin="openSuggestionMenu"
-            @complete="completeVariables"
+            @focusin="openSuggestionMenu('map.outputPath')"
+            @complete="completeVariables($event, 'map.outputPath')"
             @item-select="handleSuggestionSelect('map.outputPath', $event)"
             @update:model-value="patchConfig({ outputPath: String($event) })"
           />
@@ -1290,9 +1354,16 @@ function openApiResultDialog(): void {
               <template #header>
                 <div class="map-template-header">
                   <span>{{ t('inspector.fields.literalValue') }}</span>
-                  <p class="hint hint--info">
-                    {{ t('inspector.hints.templateSyntax') }}
-                  </p>
+                  <Button
+                    icon="pi pi-question"
+                    text
+                    rounded
+                    severity="secondary"
+                    class="map-template-help"
+                    :aria-label="t('inspector.hints.templateSyntax')"
+                    v-tooltip.top="t('inspector.hints.templateSyntax')"
+                    v-tooltip.focus.top="t('inspector.hints.templateSyntax')"
+                  />
                 </div>
               </template>
               <template #body="slotProps">
@@ -1483,8 +1554,16 @@ label {
 }
 
 .map-template-header {
-  display: grid;
-  gap: 0.2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.map-template-help {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-width: 1.15rem;
+  padding: 0;
 }
 
 .api-result {

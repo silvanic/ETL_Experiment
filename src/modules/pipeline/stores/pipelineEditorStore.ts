@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import type { Connection, EdgeChange, NodeChange } from '@vue-flow/core'
-import { createInitialPipeline, createNode } from '@/modules/pipeline/domain/defaults'
+import { createInitialPipeline, createNode, getDefaultConfig } from '@/modules/pipeline/domain/defaults'
 import { pipelineDefinitionSchema } from '@/modules/pipeline/domain/schema'
 import { runPipeline } from '@/modules/pipeline/engine/runPipeline'
 import {
@@ -142,6 +142,7 @@ function buildUniqueEnvironmentName(
 export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   const toast = useToast()
   const pipeline = ref<PipelineDefinition>(loadPipeline())
+  const lastAutoFilledByNodeField = ref<Record<string, string>>({})
   const savedPipelines = ref<SavedPipelineSummary[]>(listSavedPipelines())
   const selectedNodeId = ref<string | null>(null)
   const nodeCreationCenter = ref<{ x: number; y: number } | null>(null)
@@ -206,6 +207,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
 
   function resetPipeline(): void {
     pipeline.value = createInitialPipeline()
+    lastAutoFilledByNodeField.value = {}
     ensurePipelineEnvironments(pipeline.value)
     selectedNodeId.value = null
     logs.value = []
@@ -241,6 +243,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
         ...validated,
         updatedAt: new Date().toISOString(),
       }
+      lastAutoFilledByNodeField.value = {}
       ensurePipelineEnvironments(pipeline.value)
       selectedNodeId.value = null
       logs.value = []
@@ -280,6 +283,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     }
 
     pipeline.value = loaded
+    lastAutoFilledByNodeField.value = {}
     ensurePipelineEnvironments(pipeline.value)
     selectedNodeId.value = null
     logs.value = []
@@ -595,6 +599,11 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     nodes.value = nodes.value.filter((node) => node.id !== nodeId)
     edges.value = edges.value.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
 
+    const prefix = `${nodeId}:`
+    lastAutoFilledByNodeField.value = Object.fromEntries(
+      Object.entries(lastAutoFilledByNodeField.value).filter(([key]) => !key.startsWith(prefix)),
+    )
+
     if (selectedNodeId.value === nodeId) {
       selectedNodeId.value = null
     }
@@ -605,6 +614,11 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
 
     for (const change of changes) {
       if (change.type === 'remove') {
+        const removedNodeId = change.id
+        const prefix = `${removedNodeId}:`
+        lastAutoFilledByNodeField.value = Object.fromEntries(
+          Object.entries(lastAutoFilledByNodeField.value).filter(([key]) => !key.startsWith(prefix)),
+        )
         nextNodes = nextNodes.filter((node) => node.id !== change.id)
       }
 
@@ -634,6 +648,86 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
 
     edges.value = nextEdges
   }
+
+  function getSourceOutputPath(
+    sourceNode: PipelineNode,
+    branch: ConditionBranch | FilterBranch | undefined,
+  ): string {
+    const config = sourceNode.data.config as Record<string, unknown>
+    switch (sourceNode.data.type) {
+      case 'api':
+        return (config.outputPath as string) || ''
+      case 'filter':
+        return branch === 'rejected'
+          ? (config.outputPathRejected as string) || ''
+          : (config.outputPath as string) || ''
+      case 'transform':
+        return (config.targetPath as string) || ''
+      case 'map':
+        return (config.outputPath as string) || ''
+      default:
+        return ''
+    }
+  }
+
+  function shouldReplaceAutoFillValue(
+    targetNode: PipelineNode,
+    key: string,
+    currentValue: unknown,
+  ): boolean {
+    const nodeFieldKey = `${targetNode.id}:${key}`
+
+    if (typeof currentValue !== 'string' || !currentValue.trim()) {
+      return true
+    }
+
+    const previousAutoFilledValue = lastAutoFilledByNodeField.value[nodeFieldKey]
+    if (previousAutoFilledValue && currentValue === previousAutoFilledValue) {
+      return true
+    }
+
+    const defaultConfig = getDefaultConfig(targetNode.data.type) as Record<string, unknown>
+    const defaultValue = defaultConfig[key]
+
+    return typeof defaultValue === 'string' && currentValue === defaultValue
+  }
+
+  function autoFillTargetNodeConfig(targetNode: PipelineNode, sourcePath: string): void {
+    const config = targetNode.data.config as Record<string, unknown>
+    switch (targetNode.data.type) {
+      case 'output':
+        if (shouldReplaceAutoFillValue(targetNode, 'outputPath', config.outputPath)) {
+          config.outputPath = sourcePath
+          lastAutoFilledByNodeField.value[`${targetNode.id}:outputPath`] = sourcePath
+        }
+        break
+      case 'condition':
+        if (shouldReplaceAutoFillValue(targetNode, 'leftPath', config.leftPath)) {
+          config.leftPath = sourcePath
+          lastAutoFilledByNodeField.value[`${targetNode.id}:leftPath`] = sourcePath
+        }
+        break
+      case 'filter':
+        if (shouldReplaceAutoFillValue(targetNode, 'sourcePath', config.sourcePath)) {
+          config.sourcePath = sourcePath
+          lastAutoFilledByNodeField.value[`${targetNode.id}:sourcePath`] = sourcePath
+        }
+        break
+      case 'transform':
+        if (shouldReplaceAutoFillValue(targetNode, 'sourcePath', config.sourcePath)) {
+          config.sourcePath = sourcePath
+          lastAutoFilledByNodeField.value[`${targetNode.id}:sourcePath`] = sourcePath
+        }
+        break
+      case 'map':
+        if (shouldReplaceAutoFillValue(targetNode, 'sourcePath', config.sourcePath)) {
+          config.sourcePath = sourcePath
+          lastAutoFilledByNodeField.value[`${targetNode.id}:sourcePath`] = sourcePath
+        }
+        break
+    }
+  }
+
 
   function onConnect(connection: Connection): void {
     if (!connection.source || !connection.target) {
@@ -683,6 +777,15 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
         data: branch ? { branch } : undefined,
       },
     ]
+
+    // Auto-remplissage du chemin d'entrée du nœud cible
+    const targetNode = pipeline.value.nodes.find((n) => n.id === connection.target)
+    if (targetNode) {
+      const sourcePath = getSourceOutputPath(sourceNode, branch)
+      if (sourcePath) {
+        autoFillTargetNodeConfig(targetNode, sourcePath)
+      }
+    }
   }
 
   function relocalizePipelineLabels(): void {
@@ -705,6 +808,11 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     if (!selected) {
       return
     }
+
+    const prefix = `${selected.id}:`
+    lastAutoFilledByNodeField.value = Object.fromEntries(
+      Object.entries(lastAutoFilledByNodeField.value).filter(([key]) => !key.startsWith(prefix)),
+    )
 
     nodes.value = nodes.value.map((node) => {
       if (node.id !== selected.id) {
@@ -770,6 +878,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
       id: crypto.randomUUID(),
       updatedAt: new Date().toISOString(),
     }
+    lastAutoFilledByNodeField.value = {}
     ensurePipelineEnvironments(pipeline.value)
     selectedNodeId.value = null
     logs.value = []

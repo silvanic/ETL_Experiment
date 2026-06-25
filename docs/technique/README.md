@@ -14,7 +14,7 @@ Bienvenue! Cette section contient toute la documentation technique pour comprend
 2. **[ARCHITECTURE.md](./ARCHITECTURE.md)**
    - Vue d'ensemble complète de l'application
    - Types de données principaux
-   - Types de nœuds disponibles (7 types)
+   - Types de nœuds disponibles (8 types)
    - Flux d'exécution pipeline
    - Pinia store et services
 
@@ -95,7 +95,7 @@ Bienvenue! Cette section contient toute la documentation technique pour comprend
 
 ### Types de nœuds disponibles
 
-L'app supporte **7 types de nœuds** dans un pipeline:
+L'app supporte **8 types de nœuds** dans un pipeline:
 
 | Type | Rôle | Config principal |
 |------|------|-----------------|
@@ -105,9 +105,10 @@ L'app supporte **7 types de nœuds** dans un pipeline:
 | **condition** | Branchement logique (2 voies) | Condition (left/op/right) |
 | **filter** | Filtrer array (2 voies) | Array source, item condition |
 | **transform** | Transformation données | Pick ou assign literal |
+| **map** | Mapping tableau | Source array + mappings template |
 | **output** | Résultat final | Path à extraire |
 
-👉 Détails: [ARCHITECTURE.md → Types de nœuds](./ARCHITECTURE.md#types-de-nœuds-7-types)
+👉 Détails: [ARCHITECTURE.md → Types de nœuds](./ARCHITECTURE.md#types-de-nœuds-8-types)
 
 ### Architecture en couches
 
@@ -241,9 +242,9 @@ Validation en 3 couches:
 ### "Comment utiliser les variables?"
 
 Variables créées par nœud `setVariable` → réutilisables dans:
-- Conditions: `{{varName}}`
-- Filters: `{{varName}}`
-- API headers/body: `{{varName}}`
+- Champs globaux: `#variable`
+- Templates Map/Transform: `{chemin}` et `{#variable}`
+- Les valeurs viennent de l'environnement actif (override) si défini, sinon de la valeur de base
 
 Validation: nom = identifiant valide (alphanumérique + _ + $)
 

@@ -1,4 +1,35 @@
 {
+  "v 0.0.9": {
+    "date": "25 juin 2026",
+    "sections": [
+      {
+        "title": "Documentation et navigation",
+        "features": [
+          "Aide restructurée en pages dédiées par nœud, avec champs, exemples et bonnes pratiques",
+          "Navigation unifiée : fil d'ariane dynamique + menu latéral persistant",
+          "Mise en page responsive 2 colonnes et suppression des anciens dialogues Help"
+        ]
+      },
+      {
+        "title": "Exemples et templates",
+        "features": [
+          "Les exemples de la doc sont disponibles comme templates officiels",
+          "Bouton « Essayer dans l'éditeur » avec ouverture dans un nouvel onglet",
+          "Parcours doc ↔ éditeur simplifié avec exemples JSONPlaceholder prêts à tester"
+        ]
+      },
+      {
+        "title": "Variables et exécution",
+        "features": [
+          "Règle template clarifiée : utilisez {chemin} et {#variable} (suggestions alignées sur cette syntaxe)",
+          "Suggestions contextuelles revues dans Map/Transform pour éviter les formats non interprétés",
+          "Console d'exécution enrichie avec l'affichage des variables et de l'environnement actif",
+          "Affichage du temps d'exécution par nœud dans le résumé de chaque groupe de logs",
+          "Ajout d'un indicateur de durée totale d'exécution en fin de console"
+        ]
+      }
+    ]
+  },
   "v 0.0.8": {
     "date": "24 juin 2026",
     "sections": [

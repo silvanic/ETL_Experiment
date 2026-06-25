@@ -347,9 +347,14 @@ const apiExecutor: NodeExecutor = async (node, context) => {
     details: {
       url: resolvedUrl,
       method: config.method,
+      status: response.status,
+      statusText: response.statusText,
+      contentType: contentType ?? 'unknown',
       outputPath: resolvedOutputPath,
       headers: headers,
       body: formattedBody,
+      payloadType: getValueType(payload),
+      payloadPreview: getValuePreview(payload),
     },
     dataOut,
     }
@@ -457,7 +462,6 @@ const transformExecutor: NodeExecutor = async (node, context) => {
 
   const config = node.data.config as TransformNodeConfig
   const resolvedTargetPath = resolvePathValue(config.targetPath, context)
-  const resolvedLiteralValue = resolveConfigValue(config.literalValue, context)
   const previousTargetValue = getByPath(context.data, resolvedTargetPath)
   const targetExistedBefore = previousTargetValue !== undefined
   if (config.mode === 'pickPath') {
@@ -498,6 +502,8 @@ const transformExecutor: NodeExecutor = async (node, context) => {
     }
   }
 
+  const resolvedLiteralValue = resolveTransformTemplate(config.literalValue, context)
+
   setByPath(context.data, resolvedTargetPath, resolvedLiteralValue)
   const targetValue = getByPath(context.data, resolvedTargetPath)
   const changed = previousTargetValue !== targetValue
@@ -525,6 +531,50 @@ const transformExecutor: NodeExecutor = async (node, context) => {
       isNoop: !changed,
     },
   }
+}
+
+/**
+ * Resolve un template Transform contre le contexte complet du pipeline.
+ * - {path}: lit un chemin dans context.data
+ * - {#variable}: lit une variable globale
+ * - texte mixte: concatène en string
+ */
+function resolveTransformTemplate(template: string, context: ExecutionContext): unknown {
+  const regex = /\{([^}]+)\}/g
+  const matches = Array.from(template.matchAll(regex))
+
+  const resolveTemplateToken = (token: string): unknown => {
+    const trimmed = token.trim()
+
+    if (trimmed.includes('#')) {
+      return resolveConfigValue(trimmed, context)
+    }
+
+    return getByPath(context.data, trimmed)
+  }
+
+  if (matches.length === 0) {
+    return resolveConfigValue(template, context)
+  }
+
+  // Template simple: retourne la valeur brute (nombre, boolean, objet, etc.)
+  if (matches.length === 1 && matches[0][0] === template) {
+    const value = resolveTemplateToken(matches[0][1])
+    return value
+  }
+
+  // Template mixte: concatène en string et laisse les tokens introuvables inchangés.
+  const result = template.replace(regex, (match, pathPattern) => {
+    const value = resolveTemplateToken(pathPattern)
+
+    if (value === undefined || value === null) {
+      return match
+    }
+
+    return String(value)
+  })
+
+  return resolveConfigValue(result, context)
 }
 
 /**

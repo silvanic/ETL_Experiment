@@ -16,6 +16,8 @@ src/
 └── modules/pipeline/
     ├── components/                        # Composants Vue
     │   ├── PipelineEditorPage.vue        # Page principale (3-colonne layout)
+    │   ├── PipelineHelpPage.vue          # Page d'aide dédiée (documentation)
+    │   ├── PipelineHelpContent.vue       # Contenu d'aide partagé
     │   ├── PipelineCanvas.vue            # Canvas Vue Flow + gestion nœuds/arêtes
     │   ├── NodePalette.vue               # Palette nœuds draggables
     │   ├── InspectorPanel.vue            # Éditeur config nœud sélectionné
@@ -24,8 +26,7 @@ src/
     │   └── dialogs/
     │       ├── DialogPipelineLoad.vue     # Charger pipeline
     │       ├── DialogPipelineRun.vue      # Exécution + console
-    │       ├── DialogPipelineSettings.vue # Éditer infos pipeline
-    │       └── DialogPipelineHelp.vue     # Documentation
+    │       └── DialogPipelineSettings.vue # Éditer infos pipeline
     │
     ├── domain/                            # Types, schémas, constantes
     │   ├── types.ts                       # Types TypeScript (300+ lignes)
@@ -66,7 +67,7 @@ src/
   type: string                    // Doit correspondre à NodeType
   position: { x: number; y: number }
   data: {
-    type: NodeType              // Start|Api|SetVariable|Condition|Filter|Transform|Output
+    type: NodeType              // Start|Api|SetVariable|Condition|Filter|Transform|Map|Output
     label: string               // Affichage
     name?: string               // Optional custom name
     config: NodeConfigMap[T]    // Config typée selon type
@@ -99,6 +100,8 @@ src/
   nodes: PipelineNode[]
   edges: PipelineEdge[]
   variables: PipelineVariable[]
+  environments?: PipelineEnvironment[]
+  activeEnvironmentId?: string
   updatedAt: string             // ISO timestamp
 }
 ```
@@ -117,7 +120,7 @@ src/
 
 ---
 
-## Types de nœuds (7 types)
+## Types de nœuds (8 types)
 
 | Type | Rôle | Config | Sortie |
 |------|------|--------|--------|
@@ -127,6 +130,7 @@ src/
 | **condition** | Branchement logique | leftPath, operator, rightType/rightValue | 2 arêtes: true/false |
 | **filter** | Filtre array | sourcePath, itemPath, operator, outputPath/rejected | 2 arêtes: filtered/rejected |
 | **transform** | Transformation données | mode (pickPath\|assignLiteral), paths | Contexte modifié |
+| **map** | Mapping tableau | sourcePath, outputPath, mappings[] | Tableau transformé |
 | **output** | Résultat final | `outputPath: string` | Terminal (aucune sortie) |
 
 ---
@@ -184,6 +188,7 @@ isRunning: boolean
 - **Nœuds**: `addNodeByType(type)`, `updateNodeConfig(id, config)`, `removeNode(id)`
 - **Arêtes**: `addEdge(connection)`, `removeEdge(id)`, `applyEdgeChanges(changes)`
 - **Variables**: `addVariable()`, `updateVariable(id, ...)`, `removeVariable(id)`
+- **Environnements**: `setActiveEnvironment(id)`, `addEnvironment(name)`, `renameEnvironment(id, name)`, `removeEnvironment(id)`
 - **Persistance**: `saveCurrentPipeline()`, `loadPipeline(id)`, `listSavedPipelines()`
 - **Exécution**: `runCurrentPipeline()` → appelle `runPipeline()` du moteur
 - **Pipelines**: `createPipeline()`, `openNewPipeline()`, `closeCurrentPipeline()`
@@ -216,7 +221,8 @@ Accès paths JSON (like lodash get/set):
 Gestion variables pipeline:
 - `buildVariableMap(variables)` — Record<name, value>
 - `isValidVariableName(name)` — validation format
-- Substitution templates `{{varName}}` dans strings
+- Résolution des variables globales via `#variable`
+- En contexte template (Map/Transform): utiliser `{chemin}` et `{#variable}`
 
 ---
 
@@ -243,9 +249,9 @@ Dialogue config conditionnelle par type nœud:
 
 ### RunConsole
 Affichage logs ExecutionRun:
-- Tableau chronologique
-- Couleurs level (info/error)
-- Export logs option
+- Groupement des logs par nœud exécuté
+- Détails dépliables (payload/erreurs)
+- Affichage des variables effectives et de l'environnement actif
 
 ---
 
@@ -289,7 +295,8 @@ Orchestration:
 ✅ **Solution**: Valider viewport avant centrage, fallback null → placement grille store
 
 ### Variables templates
-- Format: `{{variableName}}` dans strings
+- Variables globales: `#variable`
+- Templates (Map/Transform): `{chemin}` et `{#variable}`
 - Validation: identifiant valide (alphanumérique + _ + $)
 - Scope: Variables changent à SetVariable node
 

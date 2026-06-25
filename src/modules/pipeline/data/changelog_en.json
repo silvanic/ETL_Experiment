@@ -1,4 +1,35 @@
 {
+  "v 0.0.9": {
+    "date": "June 25, 2026",
+    "sections": [
+      {
+        "title": "Documentation and navigation",
+        "features": [
+          "Help is now split into dedicated node pages with fields, examples, and best practices",
+          "Unified navigation with dynamic breadcrumbs and a persistent sidebar",
+          "Responsive 2-column layout and removal of the old monolithic Help dialogs"
+        ]
+      },
+      {
+        "title": "Examples and templates",
+        "features": [
+          "Documentation examples are available as official templates",
+          "\"Try in editor\" opens templates in a new tab",
+          "Simplified doc ↔ editor workflow with ready-to-run JSONPlaceholder examples"
+        ]
+      },
+      {
+        "title": "Variables and execution",
+        "features": [
+          "Template rule clarified: use {path} and {#variable} (suggestions now match this syntax)",
+          "Map/Transform suggestions are context-aware and avoid non-interpreted formats",
+          "Execution console now shows variable values and the active environment",
+          "Per-node execution time is shown in each log group summary",
+          "A total execution duration indicator is displayed at the bottom of the console"
+        ]
+      }
+    ]
+  },
   "v 0.0.8": {
     "date": "June 24, 2026",
     "sections": [

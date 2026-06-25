@@ -336,7 +336,7 @@ function createExtractAndTransformTemplate(): PipelineDefinition {
           type: 'api',
           label: '',
           config: {
-            url: 'https://jsonplaceholder.typicode.com/todos?userId={{userId}}',
+            url: 'https://jsonplaceholder.typicode.com/todos?userId=#userId',
             method: 'GET',
             headers: [{ key: 'Accept', value: 'application/json' }],
             bodyRaw: '',
@@ -382,6 +382,349 @@ function createExtractAndTransformTemplate(): PipelineDefinition {
   }
 }
 
+// ─── Template : Requête + Condition + Transform (exemple doc) ──────────────
+
+function createRequestConditionTransformTemplate(): PipelineDefinition {
+  const startId = crypto.randomUUID()
+  const apiId = crypto.randomUUID()
+  const conditionId = crypto.randomUUID()
+  const transformTrueId = crypto.randomUUID()
+  const transformFalseId = crypto.randomUUID()
+  const outputId = crypto.randomUUID()
+
+  return {
+    id: crypto.randomUUID(),
+    name: 'Requête + Condition + Transform',
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    variables: [],
+    nodes: [
+      {
+        id: startId,
+        type: 'input',
+        position: { x: 80, y: 300 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: { type: 'start', label: '', name: 'Départ', config: { note: '' } },
+      },
+      {
+        id: apiId,
+        type: 'default',
+        position: { x: 320, y: 300 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'api',
+          label: '',
+          name: 'Récupérer tâche',
+          config: {
+            url: 'https://jsonplaceholder.typicode.com/todos/1',
+            method: 'GET',
+            headers: [],
+            bodyRaw: '',
+            outputPath: '$.todo',
+          },
+        },
+      },
+      {
+        id: conditionId,
+        type: 'default',
+        position: { x: 560, y: 300 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'condition',
+          label: '',
+          name: 'Tâche terminée ?',
+          config: {
+            leftPath: '$.todo.completed',
+            operator: 'equals',
+            rightType: 'boolean',
+            rightValue: 'true',
+            aggregation: 'any',
+          },
+        },
+      },
+      {
+        id: transformTrueId,
+        type: 'default',
+        position: { x: 800, y: 200 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'transform',
+          label: '',
+          name: 'Extraire titre (cas VRAI)',
+          config: {
+            mode: 'pickPath',
+            sourcePath: '$.todo.title',
+            targetPath: '$.result',
+            literalValue: '',
+          },
+        },
+      },
+      {
+        id: transformFalseId,
+        type: 'default',
+        position: { x: 800, y: 400 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'transform',
+          label: '',
+          name: 'Assigner message (cas FAUX)',
+          config: {
+            mode: 'assignLiteral',
+            sourcePath: '',
+            targetPath: '$.result',
+            literalValue: 'Tâche non terminée',
+          },
+        },
+      },
+      {
+        id: outputId,
+        type: 'default',
+        position: { x: 1040, y: 300 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: { type: 'output', label: '', name: 'Résultat final', config: { outputPath: '$.result' } },
+      },
+    ],
+    edges: [
+      { id: crypto.randomUUID(), source: startId, target: apiId },
+      { id: crypto.randomUUID(), source: apiId, target: conditionId },
+      { id: crypto.randomUUID(), source: conditionId, target: transformTrueId, data: { branch: 'true' } },
+      { id: crypto.randomUUID(), source: conditionId, target: transformFalseId, data: { branch: 'false' } },
+      { id: crypto.randomUUID(), source: transformTrueId, target: outputId },
+      { id: crypto.randomUUID(), source: transformFalseId, target: outputId },
+    ],
+  }
+}
+
+// ─── Template : Liste + Wildcard Transform (exemple doc) ────────────────────
+
+function createListWildcardTransformTemplate(): PipelineDefinition {
+  const startId = crypto.randomUUID()
+  const apiId = crypto.randomUUID()
+  const transformId = crypto.randomUUID()
+  const outputId = crypto.randomUUID()
+
+  return {
+    id: crypto.randomUUID(),
+    name: 'Liste + Wildcard Transform',
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    variables: [],
+    nodes: [
+      {
+        id: startId,
+        type: 'input',
+        position: { x: 80, y: 230 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: { type: 'start', label: '', name: 'Départ', config: { note: '' } },
+      },
+      {
+        id: apiId,
+        type: 'default',
+        position: { x: 320, y: 230 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'api',
+          label: '',
+          name: 'Récupérer utilisateurs',
+          config: {
+            url: 'https://jsonplaceholder.typicode.com/users',
+            method: 'GET',
+            headers: [],
+            bodyRaw: '',
+            outputPath: '$.users',
+          },
+        },
+      },
+      {
+        id: transformId,
+        type: 'default',
+        position: { x: 560, y: 230 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'transform',
+          label: '',
+          name: 'Activer tous les utilisateurs',
+          config: {
+            mode: 'assignLiteral',
+            sourcePath: '',
+            targetPath: '$.users[*].active',
+            literalValue: 'true',
+          },
+        },
+      },
+      {
+        id: outputId,
+        type: 'default',
+        position: { x: 800, y: 230 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: { type: 'output', label: '', name: 'Résultat', config: { outputPath: '$.users' } },
+      },
+    ],
+    edges: [
+      { id: crypto.randomUUID(), source: startId, target: apiId },
+      { id: crypto.randomUUID(), source: apiId, target: transformId },
+      { id: crypto.randomUUID(), source: transformId, target: outputId },
+    ],
+  }
+}
+
+// ─── Template : DummyJSON Auth + Profil ─────────────────────────────────────
+
+function createDummyJsonAuthProfileTemplate(): PipelineDefinition {
+  const startId = crypto.randomUUID()
+  const loginApiId = crypto.randomUUID()
+  const setVariablesId = crypto.randomUUID()
+  const profileApiId = crypto.randomUUID()
+  const transformId = crypto.randomUUID()
+  const outputId = crypto.randomUUID()
+
+  return {
+    id: crypto.randomUUID(),
+    name: 'DummyJSON Auth + Profil',
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    variables: [
+      { id: crypto.randomUUID(), name: 'authToken', value: '', type: 'string' },
+    ],
+    nodes: [
+      {
+        id: startId,
+        type: 'input',
+        position: { x: 80, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'start',
+          label: '',
+          name: 'Départ',
+          config: {
+            note: 'Exemple DummyJSON: login puis récupération du profil authentifié',
+          },
+        },
+      },
+      {
+        id: loginApiId,
+        type: 'default',
+        position: { x: 330, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'api',
+          label: '',
+          name: 'Authentification',
+          config: {
+            url: 'https://dummyjson.com/auth/login',
+            method: 'POST',
+            headers: [{ key: 'Content-Type', value: 'application/json' }],
+            bodyRaw: '{"username":"emilys","password":"emilyspass"}',
+            outputPath: 'auth',
+          },
+        },
+      },
+      {
+        id: setVariablesId,
+        type: 'default',
+        position: { x: 580, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'setVariable',
+          label: '',
+          name: 'Stocker token + userId',
+          config: {
+            extractions: [
+              { extractPath: 'auth.accessToken', variableName: 'authToken' },
+            ],
+          },
+        },
+      },
+      {
+        id: profileApiId,
+        type: 'default',
+        position: { x: 830, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'api',
+          label: '',
+          name: 'Profil utilisateur',
+          config: {
+            url: 'https://dummyjson.com/auth/me',
+            method: 'GET',
+            headers: [{ key: 'Authorization', value: 'Bearer #authToken' }],
+            bodyRaw: '',
+            outputPath: 'profile',
+          },
+        },
+      },
+      {
+        id: transformId,
+        type: 'default',
+        position: { x: 1080, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'transform',
+          label: '',
+          name: 'Tagger le résultat',
+          config: {
+            mode: 'assignLiteral',
+            sourcePath: '',
+            targetPath: 'profile.source',
+            literalValue: 'dummyjson-auth-profile-template',
+          },
+        },
+      },
+      {
+        id: outputId,
+        type: 'default',
+        position: { x: 1330, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'output',
+          label: '',
+          name: 'Résultat complet',
+          config: { outputPath: 'profile' },
+        },
+      },
+    ],
+    edges: [
+      { id: crypto.randomUUID(), source: startId, target: loginApiId },
+      { id: crypto.randomUUID(), source: loginApiId, target: setVariablesId },
+      { id: crypto.randomUUID(), source: setVariablesId, target: profileApiId },
+      { id: crypto.randomUUID(), source: profileApiId, target: transformId },
+      { id: crypto.randomUUID(), source: transformId, target: outputId },
+    ],
+  }
+}
+
 // ─── Catalogue des templates ─────────────────────────────────────────────────
 
 export const pipelineTemplates: PipelineTemplate[] = [
@@ -412,5 +755,26 @@ export const pipelineTemplates: PipelineTemplate[] = [
     nameKey: 'pipelineEditor.templates.variablesChaining.name',
     descriptionKey: 'pipelineEditor.templates.variablesChaining.description',
     create: createExtractAndTransformTemplate,
+  },
+  {
+    id: 'doc-request-condition-transform',
+    icon: '📖',
+    nameKey: 'pipelineEditor.templates.docRequestCondition.name',
+    descriptionKey: 'pipelineEditor.templates.docRequestCondition.description',
+    create: createRequestConditionTransformTemplate,
+  },
+  {
+    id: 'doc-list-wildcard-transform',
+    icon: '📖',
+    nameKey: 'pipelineEditor.templates.docListWildcard.name',
+    descriptionKey: 'pipelineEditor.templates.docListWildcard.description',
+    create: createListWildcardTransformTemplate,
+  },
+  {
+    id: 'dummyjson-auth-profile',
+    icon: '🔐',
+    nameKey: 'pipelineEditor.templates.dummyJsonAuthProfile.name',
+    descriptionKey: 'pipelineEditor.templates.dummyJsonAuthProfile.description',
+    create: createDummyJsonAuthProfileTemplate,
   },
 ]

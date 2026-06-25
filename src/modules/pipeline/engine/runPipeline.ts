@@ -18,6 +18,7 @@ function createLog(
   level: ExecutionLog['level'],
   message: string,
   details?: unknown,
+  durationMs?: number,
 ): ExecutionLog {
   return {
     at: new Date().toISOString(),
@@ -27,6 +28,7 @@ function createLog(
     level,
     message,
     details,
+    durationMs,
   }
 }
 
@@ -101,11 +103,13 @@ export async function runPipeline(definition: PipelineDefinition): Promise<RunRe
       }
 
       
-      const { nextBranch, details, message, dataOut } = await executor(currentNode, context)      
-      
+      const executorStart = performance.now()
+      const { nextBranch, details, message, dataOut } = await executor(currentNode, context)
+      const durationMs = Math.round(performance.now() - executorStart)
+
       if(currentNode.data.type !== 'start') {
         context.logs.push(
-          createLog(currentNode, 'info', message ?? t('engine.run.executionCompleted'), details),
+          createLog(currentNode, 'info', message ?? t('engine.run.executionCompleted'), details, durationMs),
         )
       }
 

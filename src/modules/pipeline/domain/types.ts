@@ -143,6 +143,7 @@ export interface ExecutionLog {
   level: 'info' | 'error'
   message: string
   details?: unknown
+  durationMs?: number
 }
 
 export interface ExecutionRun {

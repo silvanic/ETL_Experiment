@@ -65,7 +65,7 @@
 
 #### `RunConsole.vue`
 **Rôle**: Affichage logs exécution  
-**Contient**: Tableau ExecutionLog[] chronologique  
+**Contient**: Logs groupés par nœud + détails dépliables + variables effectives et environnement actif  
 **À modifier**: Format logs, colonnes affichées, export
 
 #### `CustomStepEdge.vue`
@@ -74,14 +74,22 @@
 **À modifier**: Style arêtes, animation, positionnement labels
 
 #### `dialogs/`
-**Rôle**: Dialogues modaux (4 fichiers)
+**Rôle**: Dialogues modaux (3 fichiers)
 
 | Dialog | Rôle | Trigger |
 |--------|------|---------|
 | `DialogPipelineLoad.vue` | Charger pipeline sauvegardé | Bouton "Ouvrir" |
 | `DialogPipelineRun.vue` | Exécution + RunConsole | Bouton "Run" |
 | `DialogPipelineSettings.vue` | Éditer nom/description pipeline | Menu settings |
-| `DialogPipelineHelp.vue` | Documentation types nœuds | Bouton help |
+
+#### `PipelineHelpPage.vue`
+**Rôle**: Page dédiée à la documentation utilisateur (nouvel onglet)  
+**Contient**: Header navigation + intégration du contenu d'aide  
+**Trigger**: Menu Help depuis l'éditeur
+
+#### `PipelineHelpContent.vue`
+**Rôle**: Contenu détaillé de la documentation (nœuds + exemples)  
+**Contient**: Tables de champs, exemples guidés, section wildcard/agrégation
 
 ---
 
@@ -131,7 +139,8 @@
 **Contient**:
 - `buildVariableMap()` — Record<name, value>
 - `isValidVariableName()` — validation format
-- Substitution templates `{{varName}}`
+- Résolution variables globales `#variable`
+- Support templates `{chemin}` et `{#variable}` dans Map/Transform
 
 **À consulter**: Avant utiliser variables dans conditions/filters
 
@@ -231,7 +240,7 @@ etl-experiment.pipelines.entry.v1.{id} // Contenu pipeline
 
 #### `changelog_*.json`
 **Rôle**: Changelogs traduits (FR/EN)  
-**Affichage**: DialogPipelineHelp
+**Affichage**: Dialog "Nouveautés" + section home
 
 #### `src/i18n/`
 

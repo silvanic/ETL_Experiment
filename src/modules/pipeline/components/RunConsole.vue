@@ -12,6 +12,7 @@ interface LogGroup {
 	nodeType: string
 	logs: ExecutionLog[]
 	hasError: boolean
+	durationMs?: number
 }
 
 interface Props {
@@ -26,6 +27,17 @@ const consoleLogs = computed(() => props.logs ?? store.logs)
 const hasLogs = computed(() => consoleLogs.value.length > 0)
 const eventCountLabel = computed(() => t('runConsole.eventCount', { count: consoleLogs.value.length }))
 
+const activeEnvironmentName = computed(() => {
+  return store.activeEnvironment?.name ?? 'N/A'
+})
+
+const environmentVariables = computed(() => {
+  return Object.entries(store.effectiveVariableMap).map(([name, value]) => ({
+    name,
+    value: typeof value === 'string' ? value : JSON.stringify(value),
+  }))
+})
+
 const groupedLogs = computed<LogGroup[]>(() => {
 	const groups: LogGroup[] = []
 	for (const log of consoleLogs.value) {
@@ -33,6 +45,9 @@ const groupedLogs = computed<LogGroup[]>(() => {
 		if (last && last.nodeId === log.nodeId) {
 			last.logs.push(log)
 			if (log.level === 'error') last.hasError = true
+			if (log.durationMs !== undefined) {
+				last.durationMs = (last.durationMs ?? 0) + log.durationMs
+			}
 		} else {
 			groups.push({
 				nodeId: log.nodeId,
@@ -40,11 +55,16 @@ const groupedLogs = computed<LogGroup[]>(() => {
 				nodeType: log.nodeType,
 				logs: [log],
 				hasError: log.level === 'error',
+				durationMs: log.durationMs,
 			})
 		}
 	}
 	return groups
 })
+
+const totalDurationMs = computed(() =>
+	groupedLogs.value.reduce((sum, group) => sum + (group.durationMs ?? 0), 0)
+)
 
 function formatDetails(details: unknown): string {
 	if (typeof details === 'string') {
@@ -78,6 +98,27 @@ function translatedNodeType(nodeType: string): string {
 		<p v-if="hasLogs" class="console-subtitle">{{ t('runConsole.subtitleWithLogs') }}</p>
 		<p v-else class="console-subtitle">{{ t('runConsole.subtitleEmpty') }}</p>
 
+		<!-- Environment Variables Section -->
+		<div v-if="environmentVariables.length > 0" class="environment-section">
+			<details open>
+				<summary class="environment-summary">
+					<span>{{ t('runConsole.environment') }}</span>
+					<Tag :value="String(environmentVariables.length)" severity="secondary" />
+				</summary>
+				<div class="environment-active">
+					<span class="label">{{ t('runConsole.activeEnvironment') }}:</span>
+					<span class="value">{{ activeEnvironmentName }}</span>
+				</div>
+				<ul class="environment-list">
+					<li v-for="env in environmentVariables" :key="env.name" class="environment-item">
+						<code class="env-name">{{ env.name }}</code>
+						<span class="env-separator">:</span>
+						<code class="env-value">{{ env.value }}</code>
+					</li>
+				</ul>
+			</details>
+		</div>
+
 		<ul v-if="hasLogs" class="groups">
 			<li
 				v-for="group in groupedLogs"
@@ -88,6 +129,7 @@ function translatedNodeType(nodeType: string): string {
 					<summary class="group-summary">
 						<span v-if="group.nodeName" class="group-name">{{ group.nodeName }}</span>
 						<span v-if="group.nodeName!==translatedNodeType(group.nodeType)" class="group-type">({{ translatedNodeType(group.nodeType) }})</span>
+						<span v-if="group.durationMs !== undefined" class="duration">{{ group.durationMs }}ms</span>
 						<code class="group-id">{{ group.nodeId.slice(0, 8) }}</code>
 						<Tag
 							:value="String(group.logs.length)"
@@ -115,6 +157,10 @@ function translatedNodeType(nodeType: string): string {
 			</li>
 		</ul>
 		<Message v-else severity="info" :closable="false">{{ t('runConsole.emptyMessage') }}</Message>
+		<Message v-if="hasLogs" severity="secondary" size="large" :closable="false" class="total-duration">
+			<span>{{ t('runConsole.totalDuration') }}</span>
+			<span class="duration">{{ totalDurationMs }}ms</span>
+		</Message>
 	</div>
 </template>
 
@@ -148,6 +194,92 @@ h2 {
 	margin: 0 0 1rem 0;
 	color: var(--text-soft);
 	font-size: 0.9rem;
+}
+
+.environment-section {
+	margin-bottom: 1rem;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	overflow: hidden;
+	background: var(--code-bg);
+}
+
+.environment-summary {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.6rem 0.8rem;
+	cursor: pointer;
+	user-select: none;
+	list-style: none;
+	font-weight: 500;
+	font-size: 0.85rem;
+}
+
+.environment-summary::-webkit-details-marker {
+	display: none;
+}
+
+.environment-summary::before {
+	content: '▼';
+	font-size: 0.6rem;
+	color: var(--text-soft);
+	transition: transform 0.15s;
+	flex-shrink: 0;
+}
+
+details[open] .environment-summary::before {
+	transform: rotate(-180deg);
+}
+
+.environment-active {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.6rem 0.8rem 0 0.8rem;
+	font-size: 0.8rem;
+	border-bottom: 1px solid var(--border);
+	padding-bottom: 0.6rem;
+}
+
+.environment-active .label {
+	font-weight: 600;
+	color: var(--text-soft);
+}
+
+.environment-active .value {
+	font-weight: 600;
+	color: var(--accent);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.environment-list {
+	list-style: none;
+	margin: 0;
+	padding: 0.6rem 0.8rem;
+	display: grid;
+	gap: 0.4rem;
+}
+
+.environment-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.8rem;
+}
+
+.env-name {
+	font-weight: 600;
+	color: var(--accent);
+}
+
+.env-separator {
+	color: var(--text-soft);
+}
+
+.env-value {
+	color: var(--text);
+	word-break: break-all;
 }
 
 .groups {
@@ -250,6 +382,28 @@ details[open] .group-summary::before {
 	color: var(--text-soft);
 	font-size: 0.75rem;
 	margin-bottom: 0.2rem;
+}
+
+.duration {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	font-size: 0.72rem;
+	color: var(--accent);
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
+	border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+	border-radius: 4px;
+	padding: 0 0.35rem;
+}
+
+.total-duration {
+	display: flex;
+	justify-content: space-between;
+	margin-top: 0.75rem;
+}
+
+.total-duration .duration {
+	font-size: 1rem;
+	padding: 0.1rem 0.5rem;
 }
 
 p {
