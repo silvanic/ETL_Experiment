@@ -75,3 +75,8 @@ select {
   background-color: var(--panel) !important;
   border: 1px solid var(--border-node) !important;
 }
+
+.p-dialog-footer{
+  justify-content: flex-start !important;
+  flex-direction: row-reverse;
+}

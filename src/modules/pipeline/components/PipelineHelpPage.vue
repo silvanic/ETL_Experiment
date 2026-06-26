@@ -82,6 +82,14 @@ function toggleLanguage(): void {
                   {{ overviewLabel }}
                 </RouterLink>
 
+                <p class="help-nav-title">{{ t('pipelineEditor.help.guidesTitle') }}</p>
+                <RouterLink class="help-nav-link help-nav-link--sub" :to="{ name: 'help-concepts' }">
+                  {{ t('pipelineEditor.help.concepts.navTitle') }}
+                </RouterLink>
+                <RouterLink class="help-nav-link help-nav-link--sub" :to="{ name: 'help-multiselection' }">
+                  {{ t('pipelineEditor.help.multiselection.navTitle') }}
+                </RouterLink>
+
                 <p class="help-nav-title">{{ nodeSectionLabel }}</p>
                 <RouterLink
                   v-for="nodeKey in helpNodeKeys"

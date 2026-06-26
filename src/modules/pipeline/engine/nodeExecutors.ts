@@ -279,9 +279,47 @@ function getValuePreview(value: unknown, maxLength = 200): string {
   }
 }
 
+class ApiHttpError extends Error {
+  status: number
+  statusText: string
+
+  constructor(status: number, statusText: string) {
+    super(
+      t('engine.api.error', {
+        status,
+        statusText,
+      }),
+    )
+    this.name = 'ApiHttpError'
+    this.status = status
+    this.statusText = statusText
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  if (ms <= 0) {
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function isRetryableApiError(error: unknown): boolean {
+  if (error instanceof ApiHttpError) {
+    return error.status === 408 || error.status === 429 || error.status >= 500
+  }
+
+  return error instanceof TypeError
+}
+
 const startExecutor: NodeExecutor = async () => {
   return {}
 }
+
+const defaultApiMaxRetries = 3
+const defaultApiRetryDelayMs = 1000
 
 const apiExecutor: NodeExecutor = async (node, context) => {
   if (node.data?.type !== 'api') {
@@ -310,20 +348,41 @@ const apiExecutor: NodeExecutor = async (node, context) => {
     }
   }
 
-  const response = await fetch(resolvedUrl, requestInit)
-  const contentType = response.headers.get('content-type')
+  const maxRetries = Math.max(0, Math.trunc(config.retryConfig?.maxRetries ?? defaultApiMaxRetries))
+  const delayMs = Math.max(0, Math.trunc(config.retryConfig?.delayMs ?? defaultApiRetryDelayMs))
+  let attempts = 0
 
-  const payload = contentType?.includes('application/json')
-    ? await response.json()
-    : await response.text()
+  let response: Response | null = null
+  let contentType: string | null = null
+  let payload: unknown
 
-  if (!response.ok) {
-    throw new Error(
-      t('engine.api.error', {
-        status: response.status,
-        statusText: response.statusText,
-      }),
-    )
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      attempts += 1
+      response = await fetch(resolvedUrl, requestInit)
+      contentType = response.headers.get('content-type')
+      payload = contentType?.includes('application/json')
+        ? await response.json()
+        : await response.text()
+
+      if (!response.ok) {
+        throw new ApiHttpError(response.status, response.statusText)
+      }
+
+      break
+    } catch (error) {
+      const canRetry = attempt < maxRetries && isRetryableApiError(error)
+
+      if (!canRetry) {
+        throw error
+      }
+
+      await delay(delayMs)
+    }
+  }
+
+  if (!response) {
+    throw new Error(t('engine.run.executionFailed'))
   }
 
   // Format the request body for logging
@@ -336,7 +395,7 @@ const apiExecutor: NodeExecutor = async (node, context) => {
 
   // Create an output object showing only what was just stored
   const dataOut: Record<string, unknown> = {}
-  dataOut[config.outputPath] = {...payload};
+  dataOut[config.outputPath] = payload
 
   return {
     message: t('engine.api.completed', {
@@ -353,6 +412,9 @@ const apiExecutor: NodeExecutor = async (node, context) => {
       outputPath: resolvedOutputPath,
       headers: headers,
       body: formattedBody,
+      attempts,
+      retriesUsed: Math.max(0, attempts - 1),
+      configuredMaxRetries: maxRetries,
       payloadType: getValueType(payload),
       payloadPreview: getValuePreview(payload),
     },

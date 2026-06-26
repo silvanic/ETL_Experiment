@@ -18,7 +18,7 @@ const entries = computed<{ type: NodeType; title: string; subtitle: string }[]>(
   {
     type: 'api',
     title: t('nodePalette.nodes.api.title'),
-    subtitle: t('nodePalette.nodes.api.subtitle'),
+    subtitle: `${t('nodePalette.nodes.api.subtitle')} · ${t('nodePalette.nodes.api.retry')}`,
   },
   {
     type: 'setVariable',

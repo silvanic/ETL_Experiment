@@ -18,12 +18,18 @@ export interface StartNodeConfig {
   note?: string
 }
 
+export interface ApiRetryConfig {
+  maxRetries: number
+  delayMs: number
+}
+
 export interface ApiNodeConfig {
   url: string
   method: HttpMethod
   headers: Array<{ key: string; value: string }>
   bodyRaw: string
   outputPath: string
+  retryConfig?: ApiRetryConfig
 }
 
 export interface ConditionNodeConfig {

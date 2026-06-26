@@ -6,7 +6,6 @@ import {
   Position,
   VueFlow,
   useNodesInitialized,
-  useVueFlow,
   type Connection,
   type EdgeChange,
   type NodeChange,
@@ -18,7 +17,17 @@ import { Controls } from '@vue-flow/controls'
 import { ControlButton } from '@vue-flow/controls'
 import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditorStore'
 import CustomStepEdge from './CustomStepEdge.vue'
+import MdiIcon from '@/components/MdiIcon.vue'
 import Button from 'primevue/button'
+import { useConfirm } from 'primevue/useconfirm'
+import {
+  mdiPlay,
+  mdiContentCopy,
+  mdiContentPaste,
+  mdiContentCut,
+  mdiContentDuplicate,
+  mdiDelete,
+} from '@mdi/js'
 
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
@@ -35,7 +44,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const store = usePipelineEditorStore()
-const { getSelectedEdges } = useVueFlow()
+const confirm = useConfirm()
 type ViewportState = { x: number; y: number; zoom: number }
 type PaneState = {
   dimensions: { width: number; height: number }
@@ -49,7 +58,7 @@ const nodesInitialized = useNodesInitialized()
 
 const flowNodes = computed(() => {
   return store.nodes.map((node) => {
-    const isSelected = store.selectedNodeId === node.id
+    const isSelected = store.selectedNodeIds.has(node.id)
 
     return {
       ...node,
@@ -102,29 +111,76 @@ function onNodesChange(changes: NodeChange[]): void {
   store.onNodesChange(changes)
 }
 
-function onDeleteKey(event: KeyboardEvent): void {
-  if (event.key !== 'Backspace' && event.key !== 'Delete') {
-    return
-  }
 
-  const selectedEdges = getSelectedEdges.value
-  if (selectedEdges.length === 0) {
-    return
-  }
+function isAnyDialogOpen(): boolean {
+  const openDialogSelectors = [
+    '.p-dialog-mask',
+    '.p-dialog[aria-modal="true"]',
+    '[role="dialog"][aria-modal="true"]',
+  ]
 
-  const changes: EdgeChange[] = selectedEdges.map((edge) => ({
-    type: 'remove',
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    sourceHandle: edge.sourceHandle ?? null,
-    targetHandle: edge.targetHandle ?? null,
-  }))
-  store.onEdgesChange(changes)
+  return openDialogSelectors.some((selector) => {
+    const element = document.querySelector(selector)
+    if (!element) {
+      return false
+    }
+
+    return (element as HTMLElement).offsetParent !== null
+  })
 }
 
-onMounted(() => window.addEventListener('keydown', onDeleteKey))
-onUnmounted(() => window.removeEventListener('keydown', onDeleteKey))
+
+
+function onKeyDown(event: KeyboardEvent): void {
+  if (isAnyDialogOpen()) {
+    return
+  }
+
+  const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+  const isCtrlOrCmd = isMac ? event.metaKey : event.ctrlKey
+
+  // Ctrl/Cmd+A: Select all nodes
+  if (isCtrlOrCmd && event.key === 'a') {
+    event.preventDefault()
+    store.selectAllNodes()
+    return
+  }
+
+  // Ctrl/Cmd+C: Copy selected nodes
+  if (isCtrlOrCmd && event.key === 'c') {
+    event.preventDefault()
+    store.copySelectedNodes()
+    return
+  }
+
+  // Ctrl/Cmd+X: Cut selected nodes
+  if (isCtrlOrCmd && event.key === 'x') {
+    event.preventDefault()
+    store.cutSelectedNodes()
+    return
+  }
+
+  // Ctrl/Cmd+V: Paste nodes
+  if (isCtrlOrCmd && event.key === 'v') {
+    event.preventDefault()
+    store.pasteNodes()
+    return
+  }
+
+  // Ctrl/Cmd+D: Duplicate selected nodes
+  if (isCtrlOrCmd && event.key === 'd') {
+    event.preventDefault()
+    store.duplicateSelectedNodes()
+    return
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeyDown)
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeyDown)
+})
 
 function onEdgesChange(changes: EdgeChange[]): void {
   store.onEdgesChange(changes)
@@ -135,15 +191,28 @@ function onConnect(connection: Connection): void {
 }
 
 function onNodeClick(event: NodeMouseEvent): void {
-  store.setSelectedNode(event.node.id)
+  const mouseEvent = event.event as MouseEvent
+  const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+  const isCtrlOrCmd = isMac ? mouseEvent.metaKey : mouseEvent.ctrlKey
+
+  if (isCtrlOrCmd) {
+    // Ctrl/Cmd+Click: Toggle selection
+    store.toggleSelectNode(event.node.id)
+  } else if (mouseEvent.shiftKey) {
+    // Shift+Click: Add to selection
+    store.addToSelection(event.node.id)
+  } else {
+    // Normal click: Single selection
+    store.setSelectedNode(event.node.id)
+  }
 }
 
 function onEdgeClick(): void {
-  store.setSelectedNode(null)
+  store.clearSelection()
 }
 
 function onPaneClick(): void {
-  store.setSelectedNode(null)
+  store.clearSelection()
 }
 
 function onPaneReady(event: unknown): void {
@@ -156,6 +225,28 @@ function onMove(event: { flowTransform: ViewportState }): void {
   syncNodeCreationCenter(event.flowTransform)
 }
 
+function confirmDeleteSelectedNodes(): void {
+  const count = store.selectedNodeIds.size
+  if (count === 0) {
+    return
+  }
+
+  const shouldConfirmDeletion = localStorage.getItem('pipeline.editor.confirmDeleteNode') !== 'false'
+  if (!shouldConfirmDeletion) {
+    store.deleteSelectedNodes()
+    return
+  }
+
+  confirm.require({
+    message: t('pipelineCanvas.deleteNodesConfirm', { count }),
+    header: t('common.confirm'),
+    icon: 'pi pi-exclamation-triangle',
+    accept: () => {
+      store.deleteSelectedNodes()
+    },
+  })
+}
+
 function confirmDeleteNode(nodeId: string, nodeName?: string, nodeLabel?: string): void {
   const shouldConfirmDeletion = localStorage.getItem('pipeline.editor.confirmDeleteNode') !== 'false'
   if (!shouldConfirmDeletion) {
@@ -164,13 +255,14 @@ function confirmDeleteNode(nodeId: string, nodeName?: string, nodeLabel?: string
   }
 
   const displayName = String(nodeName ?? '').trim() || String(nodeLabel ?? '').trim() || nodeId
-  const confirmed = window.confirm(t('pipelineCanvas.deleteNodeConfirm', { name: displayName }))
-
-  if (!confirmed) {
-    return
-  }
-
-  store.removeNode(nodeId)
+  confirm.require({
+    message: t('pipelineCanvas.deleteNodeConfirm', { name: displayName }),
+    header: t('common.confirm'),
+    icon: 'pi pi-exclamation-triangle',
+    accept: () => {
+      store.removeNode(nodeId)
+    },
+  })
 }
 
 watch(
@@ -220,15 +312,66 @@ watch(nodesInitialized, (isInitialized) => {
         <CustomStepEdge v-bind="edgeProps" />
       </template>
       <Background :gap="20" :size="1.1" />
-      <Controls position="top-left":show-interactive="false">
-        <ControlButton>
-          <i 
-            class="pi pi-play" 
-            style="color:black" 
+      <Controls position="top-left" :show-interactive="false">
+        <ControlButton key="run-button">
+          <MdiIcon 
+            :path="mdiPlay" 
+            size="24"
+            color="black"
             @click="() => store.runCurrentPipeline()"
-            v-tooltip.right=" t('pipelineEditor.menu.runPipeline')"
-            >
-          </i>
+            v-tooltip.right="t('pipelineEditor.menu.runPipeline')"
+            style="cursor: pointer"
+          />
+        </ControlButton>
+        <ControlButton v-if="store.selectedNodeIds.size > 0" key="copy-button">
+          <MdiIcon 
+            :path="mdiContentCopy" 
+            size="24"
+            color="black"
+            @click="() => store.copySelectedNodes()"
+            v-tooltip.right="t('pipelineEditor.multiselect.copy')"
+            style="cursor: pointer"
+          />
+        </ControlButton>
+        <ControlButton v-if="store.clipboard.nodes.length > 0" key="paste-button">
+          <MdiIcon 
+            :path="mdiContentPaste" 
+            size="24"
+            color="black"
+            @click="() => store.pasteNodes()"
+            v-tooltip.right="t('pipelineEditor.multiselect.paste')"
+            style="cursor: pointer"
+          />
+        </ControlButton>
+        <ControlButton v-if="store.selectedNodeIds.size > 0" key="cut-button">
+          <MdiIcon 
+            :path="mdiContentCut" 
+            size="24"
+            color="black"
+            @click="() => store.cutSelectedNodes()"
+            v-tooltip.right="t('pipelineEditor.multiselect.cut')"
+            style="cursor: pointer"
+          />
+        </ControlButton>
+        <ControlButton v-if="store.selectedNodeIds.size > 0" key="duplicate-button">
+          <MdiIcon 
+            :path="mdiContentDuplicate" 
+            size="24"
+            color="black"
+            @click="() => store.duplicateSelectedNodes()"
+            v-tooltip.right="t('pipelineEditor.multiselect.duplicate')"
+            style="cursor: pointer"
+          />
+        </ControlButton>
+        <ControlButton v-if="store.selectedNodeIds.size > 0" key="delete-button">
+          <MdiIcon 
+            :path="mdiDelete" 
+            size="24"
+            color="black"
+            @click="() => confirmDeleteSelectedNodes()"
+            v-tooltip.right="t('pipelineEditor.multiselect.delete')"
+            style="cursor: pointer"
+          />
         </ControlButton>
       </Controls>
         <template #node-default="{ id, data }">
@@ -242,6 +385,7 @@ watch(nodesInitialized, (isInitialized) => {
           </div>
           <NodeToolbar :position="Position.Bottom" :is-visible="data.isSelected">
             <Button
+              v-if="store.selectedNodeIds.size === 1"
               icon="pi pi-copy"
               severity="secondary"
               :label="t('common.duplicate')"

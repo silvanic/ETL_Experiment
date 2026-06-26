@@ -144,7 +144,8 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   const pipeline = ref<PipelineDefinition>(loadPipeline())
   const lastAutoFilledByNodeField = ref<Record<string, string>>({})
   const savedPipelines = ref<SavedPipelineSummary[]>(listSavedPipelines())
-  const selectedNodeId = ref<string | null>(null)
+  const selectedNodeIds = ref<Set<string>>(new Set())
+  const clipboard = ref<{ nodes: PipelineNode[]; edges: PipelineEdge[] }>({ nodes: [], edges: [] })
   const nodeCreationCenter = ref<{ x: number; y: number } | null>(null)
   const nodeCreationTick = ref(0)
   const isRunning = ref(false)
@@ -171,7 +172,11 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   })
 
   const selectedNode = computed(() => {
-    return nodes.value.find((node) => node.id === selectedNodeId.value) ?? null
+    return nodes.value.find((node) => node.id === selectedNodeIds.value.values().next().value) ?? null
+  })
+
+  const selectedNodes = computed(() => {
+    return nodes.value.filter((node) => selectedNodeIds.value.has(node.id))
   })
 
   const environments = computed<PipelineEnvironment[]>(() => {
@@ -193,7 +198,36 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   })
 
   function setSelectedNode(nodeId: string | null): void {
-    selectedNodeId.value = nodeId
+    selectedNodeIds.value.clear()
+    if (nodeId) {
+      selectedNodeIds.value.add(nodeId)
+    }
+  }
+
+  function toggleSelectNode(nodeId: string): void {
+    if (selectedNodeIds.value.has(nodeId)) {
+      selectedNodeIds.value.delete(nodeId)
+    } else {
+      selectedNodeIds.value.add(nodeId)
+    }
+  }
+
+  function addToSelection(nodeId: string): void {
+    selectedNodeIds.value.add(nodeId)
+  }
+
+  function removeFromSelection(nodeId: string): void {
+    selectedNodeIds.value.delete(nodeId)
+  }
+
+  function selectAllNodes(): void {
+    nodes.value.forEach((node) => {
+      selectedNodeIds.value.add(node.id)
+    })
+  }
+
+  function clearSelection(): void {
+    selectedNodeIds.value.clear()
   }
 
   function renamePipeline(name: string): void {
@@ -209,7 +243,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     pipeline.value = createInitialPipeline()
     lastAutoFilledByNodeField.value = {}
     ensurePipelineEnvironments(pipeline.value)
-    selectedNodeId.value = null
+    selectedNodeIds.value.clear()
     logs.value = []
     runHistory.value = []
   }
@@ -245,7 +279,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
       }
       lastAutoFilledByNodeField.value = {}
       ensurePipelineEnvironments(pipeline.value)
-      selectedNodeId.value = null
+      selectedNodeIds.value.clear()
       logs.value = []
       runHistory.value = []
       relocalizePipelineLabels()
@@ -285,7 +319,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     pipeline.value = loaded
     lastAutoFilledByNodeField.value = {}
     ensurePipelineEnvironments(pipeline.value)
-    selectedNodeId.value = null
+    selectedNodeIds.value.clear()
     logs.value = []
     runHistory.value = []
     relocalizePipelineLabels()
@@ -542,7 +576,8 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
 
     const newNode = createNode(type, x, y)
     nodes.value = [...nodes.value, newNode]
-    selectedNodeId.value = newNode.id
+    selectedNodeIds.value.clear()
+    selectedNodeIds.value.add(newNode.id)
     nodeCreationTick.value += 1
   }
 
@@ -552,28 +587,27 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
       return
     }
 
-    const rawNode = toRaw(sourceNode)
-    const rawData = toRaw(rawNode.data)
-    const clonedConfig = structuredClone(toRaw(rawData.config))
+    // JSON stringify/parse to guarantee no Proxies
+    const clonedNode = JSON.parse(JSON.stringify(toRaw(sourceNode)))
 
     const duplicate: PipelineNode = {
-      ...rawNode,
+      ...clonedNode,
       id: crypto.randomUUID(),
       position: {
-        x: rawNode.position.x + 40,
-        y: rawNode.position.y + 40,
+        x: clonedNode.position.x + 40,
+        y: clonedNode.position.y + 40,
       },
       data: {
-        ...rawData,
-        name: rawData.name?.trim()
-          ? `${rawData.name} copy`
-          : rawData.name,
-        config: clonedConfig,
+        ...clonedNode.data,
+        name: clonedNode.data.name?.trim()
+          ? `${clonedNode.data.name} copy`
+          : clonedNode.data.name,
       },
     }
 
     nodes.value = [...nodes.value, duplicate]
-    selectedNodeId.value = duplicate.id
+    selectedNodeIds.value.clear()
+    selectedNodeIds.value.add(duplicate.id)
     nodeCreationTick.value += 1
   }
 
@@ -604,9 +638,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
       Object.entries(lastAutoFilledByNodeField.value).filter(([key]) => !key.startsWith(prefix)),
     )
 
-    if (selectedNodeId.value === nodeId) {
-      selectedNodeId.value = null
-    }
+    selectedNodeIds.value.delete(nodeId)
   }
 
   function onNodesChange(changes: NodeChange[]): void {
@@ -734,6 +766,17 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
       return
     }
 
+    // Prevent self-connection
+    if (connection.source === connection.target) {
+      toast.add({
+        severity: 'warn',
+        summary: t('pipelineEditor.toast.selfConnectionNotAllowed'),
+        detail: t('pipelineEditor.toast.selfConnectionNotAllowedDetail'),
+        life: 4500,
+      })
+      return
+    }
+
     const sourceNode = nodes.value.find((node) => node.id === connection.source)
     if (!sourceNode) {
       return
@@ -829,6 +872,184 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     })
   }
 
+  function copySelectedNodes(): void {
+    if (selectedNodeIds.value.size === 0) {
+      return
+    }
+
+    const nodesToCopy = nodes.value.filter((node) => selectedNodeIds.value.has(node.id))
+    // Copy edges between selected nodes
+    const edgesToCopy = edges.value.filter((edge) => 
+      selectedNodeIds.value.has(edge.source) && selectedNodeIds.value.has(edge.target)
+    )
+
+    // Use JSON serialization to guarantee no Proxies
+    clipboard.value = {
+      nodes: nodesToCopy.map((node) => JSON.parse(JSON.stringify(toRaw(node)))),
+      edges: edgesToCopy.map((edge) => JSON.parse(JSON.stringify(toRaw(edge))))
+    }
+
+    toast.add({
+      severity: 'info',
+      summary: t('pipelineEditor.toast.nodesCopied'),
+      detail: t('pipelineEditor.toast.nodesCopiedDetail', { count: nodesToCopy.length }),
+      life: 2500,
+    })
+  }
+
+  function cutSelectedNodes(): void {
+    if (selectedNodeIds.value.size === 0) {
+      return
+    }
+
+    copySelectedNodes()
+    deleteSelectedNodes()
+  }
+
+  function pasteNodes(): void {
+    if (clipboard.value.nodes.length === 0) {
+      return
+    }
+
+    const offset = 40
+    const newIds = new Map<string, string>()
+    const newNodes: PipelineNode[] = []
+
+    // Create mapping of old IDs to new IDs and create new nodes
+    clipboard.value.nodes.forEach((node, index) => {
+      const newId = crypto.randomUUID()
+      newIds.set(node.id, newId)
+
+      // JSON stringify/parse ensures no Proxies
+      const clonedNode = JSON.parse(JSON.stringify(node))
+
+      const pastedNode: PipelineNode = {
+        ...clonedNode,
+        id: newId,
+        position: {
+          x: clonedNode.position.x + offset * (index % 3),
+          y: clonedNode.position.y + offset * Math.floor(index / 3),
+        },
+      }
+      newNodes.push(pastedNode)
+    })
+
+    // Update edges using clipboard edges (not canvas edges)
+    const newEdges = clipboard.value.edges.map((edge) => {
+      const clonedEdge = JSON.parse(JSON.stringify(edge))
+      return {
+        ...clonedEdge,
+        id: crypto.randomUUID(),
+        source: newIds.get(edge.source) || edge.source,
+        target: newIds.get(edge.target) || edge.target,
+      }
+    })
+
+    nodes.value = [...nodes.value, ...newNodes]
+    edges.value = [...edges.value, ...newEdges]
+
+    // Select the pasted nodes
+    selectedNodeIds.value.clear()
+    newNodes.forEach((node) => {
+      selectedNodeIds.value.add(node.id)
+    })
+
+    toast.add({
+      severity: 'success',
+      summary: t('pipelineEditor.toast.nodesPasted'),
+      detail: t('pipelineEditor.toast.nodesPastedDetail', { count: newNodes.length }),
+      life: 2500,
+    })
+  }
+
+  function deleteSelectedNodes(): void {
+    if (selectedNodeIds.value.size === 0) {
+      return
+    }
+
+    const nodesToDelete = Array.from(selectedNodeIds.value)
+    nodesToDelete.forEach((nodeId) => {
+      removeNode(nodeId)
+    })
+
+    toast.add({
+      severity: 'warn',
+      summary: t('pipelineEditor.toast.nodesDeleted'),
+      detail: t('pipelineEditor.toast.nodesDeletedDetail', { count: nodesToDelete.length }),
+      life: 2500,
+    })
+  }
+
+  function duplicateSelectedNodes(): void {
+    if (selectedNodeIds.value.size === 0) {
+      return
+    }
+
+    const offset = 40
+    const newIds = new Map<string, string>()
+    const nodesToDuplicate = nodes.value.filter((node) => selectedNodeIds.value.has(node.id))
+    const newNodes: PipelineNode[] = []
+
+    nodesToDuplicate.forEach((sourceNode, index) => {
+      const newId = crypto.randomUUID()
+      newIds.set(sourceNode.id, newId)
+
+      // JSON stringify/parse to guarantee no Proxies
+      const clonedNode = JSON.parse(JSON.stringify(toRaw(sourceNode)))
+
+      const duplicate: PipelineNode = {
+        ...clonedNode,
+        id: newId,
+        position: {
+          x: clonedNode.position.x + offset * (index % 3),
+          y: clonedNode.position.y + offset * Math.floor(index / 3),
+        },
+        data: {
+          ...clonedNode.data,
+          name: clonedNode.data.name?.trim() ? `${clonedNode.data.name} copy` : clonedNode.data.name,
+        },
+      }
+      newNodes.push(duplicate)
+    })
+
+    // Duplicate edges between selected nodes
+    const newEdges = nodesToDuplicate.flatMap((sourceNode) => {
+      return edges.value
+        .filter((edge) => edge.source === sourceNode.id)
+        .map((edge) => {
+          const targetIsSelected = selectedNodeIds.value.has(edge.target)
+          if (!targetIsSelected) {
+            return null
+          }
+
+          const clonedEdge = JSON.parse(JSON.stringify(toRaw(edge)))
+          return {
+            ...clonedEdge,
+            id: crypto.randomUUID(),
+            source: newIds.get(edge.source) || edge.source,
+            target: newIds.get(edge.target) || edge.target,
+          }
+        })
+        .filter((edge) => edge !== null) as PipelineEdge[]
+    })
+
+    nodes.value = [...nodes.value, ...newNodes]
+    edges.value = [...edges.value, ...newEdges]
+
+    // Select the duplicated nodes
+    selectedNodeIds.value.clear()
+    newNodes.forEach((node) => {
+      selectedNodeIds.value.add(node.id)
+    })
+
+    toast.add({
+      severity: 'success',
+      summary: t('pipelineEditor.toast.nodesDuplicated'),
+      detail: t('pipelineEditor.toast.nodesDuplicatedDetail', { count: newNodes.length }),
+      life: 2500,
+    })
+  }
+
   async function runCurrentPipeline(): Promise<void> {
     const startedAt = new Date().toISOString()
     isRunning.value = true
@@ -880,7 +1101,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     }
     lastAutoFilledByNodeField.value = {}
     ensurePipelineEnvironments(pipeline.value)
-    selectedNodeId.value = null
+    selectedNodeIds.value.clear()
     logs.value = []
     runHistory.value = []
     relocalizePipelineLabels()
@@ -916,7 +1137,9 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     nodes,
     edges,
     selectedNode,
-    selectedNodeId,
+    selectedNodeIds,
+    selectedNodes,
+    clipboard,
     environments,
     activeEnvironment,
     effectiveVariableMap,
@@ -932,6 +1155,16 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     onEdgesChange,
     onConnect,
     setSelectedNode,
+    toggleSelectNode,
+    addToSelection,
+    removeFromSelection,
+    selectAllNodes,
+    clearSelection,
+    copySelectedNodes,
+    cutSelectedNodes,
+    pasteNodes,
+    deleteSelectedNodes,
+    duplicateSelectedNodes,
     setNodeCreationCenter,
     updateSelectedNodeConfig,
     relocalizePipelineLabels,

@@ -1,4 +1,36 @@
 {
+  "v 0.0.10": {
+    "date": "26 juin 2026",
+    "sections": [
+      {
+        "title": "Documentation",
+        "features": [
+          "Ajout de la page \"Concevoir un pipeline\" dans le Guide d'utilisation, axée sur la compréhension théorique et les bonnes pratiques de conception",
+          "Réécriture du contenu en format narratif pour une lecture plus claire, plus progressive et moins listée",
+          "Clarification de la page Multi-sélection : les exemples n'encouragent plus la duplication du nœud Départ (un seul nœud Départ est autorisé par pipeline)",
+          "Mise à jour de la navigation d'aide avec un lien dédié vers le nouveau guide conceptuel et son fil d'Ariane"
+        ]
+      },
+      {
+        "title": "Édition multi-sélection",
+        "features": [
+          "Ajout des raccourcis de multi-sélection : copier, coller, couper, dupliquer et supprimer plusieurs nœuds",
+          "Ajout de la suppression en lot des nœuds sélectionnés avec la touche Suppr",
+          "Documentation des actions de multi-sélection dans le guide pour accélérer l'édition de branches complètes"
+        ]
+      },
+      {
+        "title": "API & résilience",
+        "features": [
+          "Ajout d'une configuration de tentatives sur les nœuds API (nombre de tentatives + délai entre tentatives)",
+          "Valeurs par défaut de tentatives API harmonisées (3 tentatives, délai 1000 ms)",
+          "Mise à jour de l'inspecteur API et des templates pour exposer et préremplir ces paramètres",
+          "Détails d'exécution API enrichis avec le nombre de tentatives effectuées",
+          "Les raccourcis clavier globaux du canvas sont maintenant désactivés lorsqu'une dialog est ouverte"
+        ]
+      }
+    ]
+  },
   "v 0.0.9": {
     "date": "25 juin 2026",
     "sections": [
@@ -7,15 +39,15 @@
         "features": [
           "Aide restructurée en pages dédiées par nœud, avec champs, exemples et bonnes pratiques",
           "Navigation unifiée : fil d'ariane dynamique + menu latéral persistant",
-          "Mise en page responsive 2 colonnes et suppression des anciens dialogues Help"
+          "Mise en page responsive en 2 colonnes et suppression des anciennes fenêtres d'aide"
         ]
       },
       {
         "title": "Exemples et templates",
         "features": [
-          "Les exemples de la doc sont disponibles comme templates officiels",
+          "Les exemples de la documentation sont disponibles comme templates officiels",
           "Bouton « Essayer dans l'éditeur » avec ouverture dans un nouvel onglet",
-          "Parcours doc ↔ éditeur simplifié avec exemples JSONPlaceholder prêts à tester"
+          "Parcours documentation ↔ éditeur simplifié avec exemples JSONPlaceholder prêts à tester"
         ]
       },
       {
@@ -72,7 +104,7 @@
           "Disposition à deux colonnes : liste des environnements et variables à gauche, éditeur à droite",
           "Barre latérale organisée avec des sections distinctes pour les environnements et les variables",
           "SplitButton pour les actions d'environnement (menu renommer + supprimer)",
-          "Dialogue de création d'environnement pour une meilleure UX"
+          "Dialogue de création d'environnement pour une meilleure expérience utilisateur (UX)"
         ]
       },
       {
@@ -116,7 +148,7 @@
       {
         "title": "Interface et UX",
         "features": [
-          "Sauvegarde automatique avec icône personnalisée (disquette + badge de synchronisation) et tooltip de statut",
+          "Sauvegarde automatique avec icône personnalisée (disquette + badge de synchronisation) et infobulle de statut",
           "Fusion des dialogues de création : choix du modèle et du nom en une seule étape",
           "Ajout de 4 modèles de pipeline préconfigurés pour démarrer rapidement"
         ]
@@ -124,7 +156,7 @@
       {
         "title": "Code et stabilité",
         "features": [
-          "Persistence des préférences utilisateur en localStorage"
+          "Persistance des préférences utilisateur en localStorage"
         ]
       }
     ]
@@ -161,7 +193,7 @@
       {
         "title": "Nœud SetVariable",
         "features": [
-          "Nouveau nœud SetVariable pour extraire des valeurs et les affecter à tes variables de pipeline",
+          "Nouveau nœud SetVariable pour extraire des valeurs et les affecter aux variables du pipeline",
           "Le champ \"Nom de variable\" propose uniquement les variables des paramètres pour éviter les confusions"
         ]
       },
@@ -186,7 +218,7 @@
       {
         "title": "Variables",
         "features": [
-          "Utilise tes variables partout (URL, corps, chemin de sortie)",
+          "Utilise les variables partout (URL, corps, chemin de sortie)",
           "Combine facilement texte et variables (ex : #host#endpoint)",
           "Suggestions automatiques de variables pendant la saisie",
           "Insertion de la variable exactement à la position du curseur"

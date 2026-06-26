@@ -15,6 +15,11 @@ const apiHeaderSchema = z.object({
   value: z.string(),
 })
 
+const apiRetryConfigSchema = z.object({
+  maxRetries: z.number().int().min(0).default(3),
+  delayMs: z.number().int().min(0).default(1000),
+})
+
 function parseLegacyHeadersRaw(raw: string | undefined): Array<{ key: string; value: string }> {
   if (!raw || !raw.trim()) {
     return []
@@ -43,6 +48,7 @@ const apiConfigSchema = z
     headersRaw: z.string().optional(),
     bodyRaw: z.string(),
     outputPath: z.string().min(1),
+    retryConfig: apiRetryConfigSchema.optional(),
   })
   .transform((config) => {
     const headers = config.headers ?? parseLegacyHeadersRaw(config.headersRaw)
@@ -53,6 +59,7 @@ const apiConfigSchema = z
       headers,
       bodyRaw: config.bodyRaw,
       outputPath: config.outputPath,
+      retryConfig: config.retryConfig,
     }
   })
 

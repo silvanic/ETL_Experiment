@@ -58,6 +58,12 @@ const crumbs = computed<Crumb[]>(() => {
     return list
   }
 
+  if (route.name === 'help-concepts') {
+    list.push({ label: t('pipelineEditor.help.guidesTitle') })
+    list.push({ label: t('pipelineEditor.help.concepts.navTitle') })
+    return list
+  }
+
   return list
 })
 </script>

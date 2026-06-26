@@ -30,6 +30,18 @@ const faqItems = computed(() => [
     <p class="doc-lead">{{ t('pipelineEditor.help.title') }}</p>
 
     <section class="doc-section">
+      <h3>{{ t('pipelineEditor.help.guidesTitle') }}</h3>
+      <ul>
+        <li>
+          <RouterLink :to="{ name: 'help-concepts' }">{{ t('pipelineEditor.help.concepts.navTitle') }}</RouterLink>
+        </li>
+        <li>
+          <RouterLink :to="{ name: 'help-multiselection' }">{{ t('pipelineEditor.help.multiselection.navTitle') }}</RouterLink>
+        </li>
+      </ul>
+    </section>
+
+    <section class="doc-section">
       <h3>Parcours recommande</h3>
       <ol class="doc-path">
         <li>Commencer par les noeuds Start, API, Transform et Output.</li>

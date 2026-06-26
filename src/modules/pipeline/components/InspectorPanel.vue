@@ -27,6 +27,8 @@ import { TabList, TabPanels, Tabs, Tab } from 'primevue'
 
 const store = usePipelineEditorStore()
 const { t } = useI18n()
+const defaultApiMaxRetries = 3
+const defaultApiRetryDelayMs = 1000
 
 const selected = computed(() => store.selectedNode)
 const selectedData = computed(() => selected.value?.data)
@@ -464,6 +466,29 @@ function patchConfig(partial: Record<string, unknown>): void {
   })
 }
 
+function toNonNegativeInteger(value: unknown, fallback = 0): number {
+  const parsed = Number.parseInt(String(value ?? ''), 10)
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
+    return fallback
+  }
+
+  return Math.max(0, parsed)
+}
+
+function patchApiRetryConfig(partial: Partial<NonNullable<ApiNodeConfig['retryConfig']>>): void {
+  if (!apiConfig.value) {
+    return
+  }
+
+  patchConfig({
+    retryConfig: {
+      maxRetries: apiConfig.value.retryConfig?.maxRetries ?? defaultApiMaxRetries,
+      delayMs: apiConfig.value.retryConfig?.delayMs ?? defaultApiRetryDelayMs,
+      ...partial,
+    },
+  })
+}
+
 function patchNodeName(value: string | number | undefined): void {
   const node = selected.value
   if (!node || node.data.type === 'start') {
@@ -812,6 +837,26 @@ function openApiResultDialog(): void {
                     :options="apiMethodOptions"
                     :model-value="apiConfig.method"
                     @update:model-value="patchConfig({ method: String($event) })"
+                  />
+                </label>
+                <label>
+                  {{ t('inspector.fields.retryMaxRetries') }}
+                  <InputText
+                    type="number"
+                    min="0"
+                    step="1"
+                    :model-value="String(apiConfig.retryConfig?.maxRetries ?? defaultApiMaxRetries)"
+                    @update:model-value="patchApiRetryConfig({ maxRetries: toNonNegativeInteger($event) })"
+                  />
+                </label>
+                <label>
+                  {{ t('inspector.fields.retryDelayMs') }}
+                  <InputText
+                    type="number"
+                    min="0"
+                    step="50"
+                    :model-value="String(apiConfig.retryConfig?.delayMs ?? defaultApiRetryDelayMs)"
+                    @update:model-value="patchApiRetryConfig({ delayMs: toNonNegativeInteger($event) })"
                   />
                 </label>
                 <label>

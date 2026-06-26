@@ -203,6 +203,9 @@ describe('api executor', () => {
       outputPath: 'api.result',
       headers: {},
       body: undefined,
+      attempts: 1,
+      retriesUsed: 0,
+      configuredMaxRetries: 3,
       payloadType: 'object',
       payloadPreview: '{"users":[{"id":1,"name":"Ada"}]}',
     })
@@ -235,6 +238,9 @@ describe('api executor', () => {
       outputPath: 'api.raw',
       headers: {},
       body: undefined,
+      attempts: 1,
+      retriesUsed: 0,
+      configuredMaxRetries: 3,
       payloadType: 'string',
       payloadPreview: 'ok',
     })
@@ -280,6 +286,101 @@ describe('api executor', () => {
     const node = createApiNode()
 
     await expect(executorByType.api(node, context)).rejects.toThrow(/400: Bad Request/)
+  })
+
+  it('retries on retryable HTTP errors and succeeds', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: 'temporary failure' }), {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ users: [{ id: 42 }] }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
+
+    const node = createApiNode({
+      retryConfig: {
+        maxRetries: 2,
+        delayMs: 0,
+      },
+    })
+
+    const result = await executorByType.api(node, context)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(result.message).toContain('(200)')
+    expect(result.details).toEqual(
+      expect.objectContaining({
+        attempts: 2,
+        retriesUsed: 1,
+        configuredMaxRetries: 2,
+      }),
+    )
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        api: {
+          result: {
+            users: [{ id: 42 }],
+          },
+        },
+      }),
+    )
+  })
+
+  it('retries on network failure and succeeds', async () => {
+    fetchMock
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
+
+    const node = createApiNode({
+      retryConfig: {
+        maxRetries: 1,
+        delayMs: 0,
+      },
+    })
+
+    await executorByType.api(node, context)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry on non-retryable HTTP errors', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: 'bad request' }), {
+        status: 400,
+        statusText: 'Bad Request',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    )
+
+    const node = createApiNode({
+      retryConfig: {
+        maxRetries: 3,
+        delayMs: 0,
+      },
+    })
+
+    await expect(executorByType.api(node, context)).rejects.toThrow(/400: Bad Request/)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('throws when bodyRaw is not valid JSON in POST', async () => {

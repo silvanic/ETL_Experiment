@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
 import ToastService from 'primevue/toastservice'
+import ConfirmationService from 'primevue/confirmationservice'
 import Material from '@primeuix/themes/material'
 import { i18n } from '@/i18n'
 import { router } from '@/router'
@@ -23,5 +24,6 @@ app.use(PrimeVue, {
 	},
 })
 app.use(ToastService)
+app.use(ConfirmationService)
 app.directive('tooltip', Tooltip);
 app.mount('#app')

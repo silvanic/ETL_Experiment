@@ -1,7 +1,7 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 
 export const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
@@ -37,6 +37,16 @@ export const router = createRouter({
           path: 'condition-array',
           name: 'help-condition-array',
           component: () => import('@/modules/pipeline/components/help/HelpConditionArrayPage.vue'),
+        },
+        {
+          path: 'multiselection',
+          name: 'help-multiselection',
+          component: () => import('@/modules/pipeline/components/help/HelpMultiSelectionPage.vue'),
+        },
+        {
+          path: 'concepts',
+          name: 'help-concepts',
+          component: () => import('@/modules/pipeline/components/help/HelpConceptsPage.vue'),
         },
       ],
     },

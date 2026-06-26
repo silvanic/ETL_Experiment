@@ -22,6 +22,10 @@ const defaultApiConfig: ApiNodeConfig = {
   ],
   bodyRaw: '{\n  "sample": true\n}',
   outputPath: 'api.result',
+  retryConfig: {
+    maxRetries: 3,
+    delayMs: 1000,
+  },
 }
 
 const defaultConditionConfig: ConditionNodeConfig = {

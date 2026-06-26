@@ -49,6 +49,12 @@ Bienvenue! Cette section contient toute la documentation technique pour comprend
 | [PATTERNS-CONVENTIONS.md](./PATTERNS-CONVENTIONS.md) | Conventions, patterns code, patterns tests, patterns UI, checklists | 15 min |
 | [GUIDE-DEMARRAGE.md](./GUIDE-DEMARRAGE.md) | Par type tâche (bug, feature), commandes, workflow idéal | 10 min |
 
+### User Guides
+
+| Document | Contenu | Durée lecture |
+|----------|---------|---------------|
+| [GUIDE-MULTISELECTION.md](./GUIDE-MULTISELECTION.md) | Multi-sélection nœuds, raccourcis clavier, opérations (copy/paste/cut/duplicate/delete), gestion edges, cas d'usage | 8 min |
+
 ### Historical
 
 | Document | Contenu |

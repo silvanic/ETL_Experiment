@@ -1,13 +1,45 @@
 {
+  "v 0.0.10": {
+    "date": "June 26, 2026",
+    "sections": [
+      {
+        "title": "Documentation",
+        "features": [
+          "Added the new \"Pipeline design fundamentals\" page in the user guide, focused on conceptual understanding and design best practices",
+          "Rewrote the content into a narrative format for clearer, more progressive reading with less list-heavy wording",
+          "Clarified the Multi-selection page: examples no longer suggest duplicating the Start node (only one Start node is allowed per pipeline)",
+          "Updated help navigation with a dedicated link to the new conceptual guide and matching breadcrumb trail"
+        ]
+      },
+      {
+        "title": "Multi-selection editing",
+        "features": [
+          "Added multi-selection shortcuts: copy, paste, cut, duplicate, and delete for multiple selected nodes",
+          "Added batch deletion for selected nodes with the Delete key",
+          "Documented multi-selection actions in the guide to speed up full-branch editing workflows"
+        ]
+      },
+      {
+        "title": "API & resilience",
+        "features": [
+          "Added retry configuration on API nodes (number of attempts + delay between attempts)",
+          "Aligned API retry defaults (3 attempts, 1000 ms delay)",
+          "Updated API inspector and templates to expose and prefill these settings",
+          "Enriched API execution details with the number of attempts performed",
+          "Global canvas keyboard shortcuts are now disabled while a dialog is open"
+        ]
+      }
+    ]
+  },
   "v 0.0.9": {
     "date": "June 25, 2026",
     "sections": [
       {
         "title": "Documentation and navigation",
         "features": [
-          "Help is now split into dedicated node pages with fields, examples, and best practices",
+          "Split help into dedicated node pages with fields, examples, and best practices",
           "Unified navigation with dynamic breadcrumbs and a persistent sidebar",
-          "Responsive 2-column layout and removal of the old monolithic Help dialogs"
+          "Added a responsive two-column layout and removed the old monolithic help dialogs"
         ]
       },
       {
@@ -15,7 +47,7 @@
         "features": [
           "Documentation examples are available as official templates",
           "\"Try in editor\" opens templates in a new tab",
-          "Simplified doc ↔ editor workflow with ready-to-run JSONPlaceholder examples"
+          "Simplified documentation ↔ editor workflow with ready-to-run JSONPlaceholder examples"
         ]
       },
       {
@@ -136,7 +168,7 @@
         "title": "Output Node",
         "features": [
           "The Output node can now be renamed like other nodes",
-          "Used in the display with the format \"Custom Name (Output)\""
+          "Displayed using the format \"Custom Name (Output)\""
         ]
       },
       {
