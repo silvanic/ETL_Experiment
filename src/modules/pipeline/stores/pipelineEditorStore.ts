@@ -26,6 +26,7 @@ import type {
   PipelineNode,
   PipelineVariable,
 } from '@/modules/pipeline/domain/types'
+import { ITERATE_CHILD_ESTIMATE, ITERATE_LAYOUT } from '@/modules/pipeline/domain/iterateLayout'
 import { buildVariableMap, isValidVariableName } from '../domain/variables'
 
 function branchLabel(branch?: ConditionBranch | FilterBranch): string | undefined {
@@ -73,6 +74,14 @@ function nodeLabel(type: NodeType): string {
     return t('defaults.nodeLabel.map')
   }
 
+  if (type === 'iterate') {
+    return t('defaults.nodeLabel.iterate')
+  }
+
+  if (type === 'subflow') {
+    return t('defaults.nodeLabel.subflow')
+  }
+
   if (type === 'setVariable') {
     return t('defaults.nodeLabel.setVariable')
   }
@@ -88,7 +97,13 @@ const maxOutgoingConnectionsByNodeType: Record<NodeType, number> = {
   filter: 2,
   transform: 1,
   map: 1,
+  iterate: 1,
+  subflow: 1,
   output: 1,
+}
+
+function isContainerNodeType(type: NodeType): boolean {
+  return type === 'iterate' || type === 'subflow'
 }
 
 function getMaxOutgoingConnections(type: NodeType): number {
@@ -97,6 +112,28 @@ function getMaxOutgoingConnections(type: NodeType): number {
 
 function isFiniteCoordinate(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
+}
+
+function getNodeWidth(node: PipelineNode): number {
+  const styledWidth = typeof node.style?.width === 'number' ? node.style.width : undefined
+  if (styledWidth && Number.isFinite(styledWidth)) {
+    return styledWidth
+  }
+
+  if (node.data.type === 'start' || node.data.type === 'output') {
+    return ITERATE_CHILD_ESTIMATE.smallNodeWidth
+  }
+
+  return ITERATE_CHILD_ESTIMATE.defaultWidth
+}
+
+function getNodeHeight(node: PipelineNode): number {
+  const styledHeight = typeof node.style?.height === 'number' ? node.style.height : undefined
+  if (styledHeight && Number.isFinite(styledHeight)) {
+    return styledHeight
+  }
+
+  return ITERATE_CHILD_ESTIMATE.defaultHeight
 }
 
 function ensurePipelineEnvironments(definition: PipelineDefinition): void {
@@ -196,6 +233,50 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   const effectiveVariableMap = computed<Record<string, string>>(() => {
     return buildVariableMap(pipeline.value.variables, activeEnvironment.value?.variableOverrides)
   })
+
+  function resizeIterateContainerFromChildren(parentId: string, sourceNodes: PipelineNode[]): PipelineNode[] {
+    const parentNode = sourceNodes.find((node) => node.id === parentId)
+    if (!parentNode || !isContainerNodeType(parentNode.data.type)) {
+      return sourceNodes
+    }
+
+    const children = sourceNodes.filter((node) => node.parentNode === parentId)
+    if (children.length === 0) {
+      return sourceNodes
+    }
+
+    const maxRight = Math.max(
+      ...children.map((child) => {
+        const x = typeof child.position?.x === 'number' ? child.position.x : 0
+        return x + getNodeWidth(child)
+      }),
+    )
+
+    const maxBottom = Math.max(
+      ...children.map((child) => {
+        const y = typeof child.position?.y === 'number' ? child.position.y : 0
+        return y + getNodeHeight(child)
+      }),
+    )
+
+    const nextWidth = Math.max(ITERATE_LAYOUT.minWidth, Math.round(maxRight + ITERATE_LAYOUT.paddingRight))
+    const nextHeight = Math.max(ITERATE_LAYOUT.minHeight, Math.round(maxBottom + ITERATE_LAYOUT.paddingBottom))
+
+    return sourceNodes.map((node) => {
+      if (node.id !== parentId) {
+        return node
+      }
+
+      return {
+        ...node,
+        style: {
+          ...(node.style ?? {}),
+          width: nextWidth,
+          height: nextHeight,
+        },
+      }
+    })
+  }
 
   function setSelectedNode(nodeId: string | null): void {
     selectedNodeIds.value.clear()
@@ -550,7 +631,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   }
 
   function addNodeByType(type: NodeType): void {
-    if (type === 'start' && nodes.value.some((node) => node.data.type === 'start')) {
+    if (type === 'start' && nodes.value.some((node) => node.data.type === 'start' && !node.parentNode)) {
       toast.add({
         severity: 'error',
         summary: t('pipelineEditor.toast.startNodeAlreadyExists'),
@@ -579,6 +660,57 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     selectedNodeIds.value.clear()
     selectedNodeIds.value.add(newNode.id)
     nodeCreationTick.value += 1
+
+    if (isContainerNodeType(type)) {
+      ensureIterateStartChild(newNode.id)
+      // Re-select the iterate parent so inspector shows its config
+      selectedNodeIds.value.clear()
+      selectedNodeIds.value.add(newNode.id)
+    }
+  }
+
+  function ensureIterateStartChild(parentId: string): string {
+    const existingStart = nodes.value.find(
+      (node) => node.parentNode === parentId && node.data.type === 'start',
+    )
+    if (existingStart) {
+      return existingStart.id
+    }
+
+    return addChildNode(parentId, 'start')
+  }
+
+  function collectNodeIdsIncludingIterateChildren(nodeIds: Iterable<string>): Set<string> {
+    const collected = new Set<string>()
+    const queue: string[] = []
+
+    for (const nodeId of nodeIds) {
+      if (!collected.has(nodeId)) {
+        collected.add(nodeId)
+        queue.push(nodeId)
+      }
+    }
+
+    while (queue.length > 0) {
+      const currentId = queue.shift() as string
+      const currentNode = nodes.value.find((node) => node.id === currentId)
+      if (!currentNode || !isContainerNodeType(currentNode.data.type)) {
+        continue
+      }
+
+      const childIds = nodes.value
+        .filter((node) => node.parentNode === currentId)
+        .map((node) => node.id)
+
+      for (const childId of childIds) {
+        if (!collected.has(childId)) {
+          collected.add(childId)
+          queue.push(childId)
+        }
+      }
+    }
+
+    return collected
   }
 
   function duplicateNode(nodeId: string): void {
@@ -587,28 +719,131 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
       return
     }
 
-    // JSON stringify/parse to guarantee no Proxies
-    const clonedNode = JSON.parse(JSON.stringify(toRaw(sourceNode)))
+    const idsToDuplicate = collectNodeIdsIncludingIterateChildren([nodeId])
+    const sourceNodes = nodes.value.filter((node) => idsToDuplicate.has(node.id))
+    const sourceEdges = edges.value.filter(
+      (edge) => idsToDuplicate.has(edge.source) && idsToDuplicate.has(edge.target),
+    )
+    const newIds = new Map<string, string>()
 
-    const duplicate: PipelineNode = {
-      ...clonedNode,
-      id: crypto.randomUUID(),
-      position: {
-        x: clonedNode.position.x + 40,
-        y: clonedNode.position.y + 40,
-      },
-      data: {
-        ...clonedNode.data,
-        name: clonedNode.data.name?.trim()
-          ? `${clonedNode.data.name} copy`
-          : clonedNode.data.name,
-      },
+    sourceNodes.forEach((node) => {
+      newIds.set(node.id, crypto.randomUUID())
+    })
+
+    const duplicatedNodes = sourceNodes.map((source) => {
+      const clonedNode = JSON.parse(JSON.stringify(toRaw(source)))
+      const isNestedChild = typeof source.parentNode === 'string' && idsToDuplicate.has(source.parentNode)
+
+      return {
+        ...clonedNode,
+        id: newIds.get(source.id) as string,
+        parentNode: isNestedChild ? newIds.get(source.parentNode as string) : source.parentNode,
+        position: {
+          x: clonedNode.position.x + (isNestedChild ? 0 : 40),
+          y: clonedNode.position.y + (isNestedChild ? 0 : 40),
+        },
+        data: {
+          ...clonedNode.data,
+          name: !isNestedChild && clonedNode.data.name?.trim()
+            ? `${clonedNode.data.name} copy`
+            : clonedNode.data.name,
+        },
+      } as PipelineNode
+    })
+
+    const duplicatedEdges = sourceEdges.map((edge) => {
+      const clonedEdge = JSON.parse(JSON.stringify(toRaw(edge)))
+      return {
+        ...clonedEdge,
+        id: crypto.randomUUID(),
+        source: newIds.get(edge.source) || edge.source,
+        target: newIds.get(edge.target) || edge.target,
+      }
+    })
+
+    nodes.value = [...nodes.value, ...duplicatedNodes]
+    edges.value = [...edges.value, ...duplicatedEdges]
+    selectedNodeIds.value.clear()
+    selectedNodeIds.value.add(newIds.get(nodeId) as string)
+    nodeCreationTick.value += 1
+  }
+
+  function addChildNode(parentId: string, type: NodeType): string {
+    const parentNode = nodes.value.find((node) => node.id === parentId)
+    if (!parentNode || !isContainerNodeType(parentNode.data.type)) {
+      toast.add({
+        severity: 'warn',
+        summary: t('pipelineEditor.toast.childNodeParentInvalid'),
+        detail: t('pipelineEditor.toast.childNodeParentInvalidDetail'),
+        life: 4500,
+      })
+      return ''
     }
 
-    nodes.value = [...nodes.value, duplicate]
+    if (isContainerNodeType(type)) {
+      toast.add({
+        severity: 'warn',
+        summary: t('pipelineEditor.toast.nestedContainerNotAllowed'),
+        detail: t('pipelineEditor.toast.nestedContainerNotAllowedDetail'),
+        life: 4500,
+      })
+      return ''
+    }
+
+    if (type === 'start') {
+      const hasChildStart = nodes.value.some((node) => node.parentNode === parentId && node.data.type === 'start')
+      if (hasChildStart) {
+        toast.add({
+          severity: 'warn',
+          summary: t('pipelineEditor.toast.childStartAlreadyExists'),
+          detail: t('pipelineEditor.toast.childStartAlreadyExistsDetail'),
+          life: 4500,
+        })
+        return ''
+      }
+    }
+
+    // Count existing children to determine horizontal position
+    const existingChildren = nodes.value.filter((n) => n.parentNode === parentId)
+    const childIndex = existingChildren.length
+
+    // Positions are RELATIVE to the iterate container (not absolute canvas coords)
+    // Vue Flow handles the transformation internally
+    const x = 20 + childIndex * 200
+    const y = 90
+
+    const newNode = createNode(type, x, y)
+    newNode.parentNode = parentId  // Vue Flow v1.47 uses 'parentNode' for visual nesting
+    newNode.extent = 'parent'
+    newNode.expandParent = true
+
+    let nextNodes = [...nodes.value, newNode]
+    nextNodes = resizeIterateContainerFromChildren(parentId, nextNodes)
+    nodes.value = nextNodes
+
     selectedNodeIds.value.clear()
-    selectedNodeIds.value.add(duplicate.id)
+    selectedNodeIds.value.add(newNode.id)
     nodeCreationTick.value += 1
+
+    return newNode.id
+  }
+
+  function addIterateQuickChild(parentId: string): void {
+    const createdId = addChildNode(parentId, 'transform')
+    if (!createdId) {
+      return
+    }
+
+    toast.add({
+      severity: 'success',
+      summary: t('pipelineEditor.toast.childNodeAdded'),
+      detail: t('pipelineEditor.toast.childNodeAddedDetail'),
+      life: 2500,
+    })
+  }
+
+  function getChildNodes(parentId: string): PipelineNode[] {
+    return nodes.value.filter((node) => node.parentNode === parentId)
   }
 
   function updateNodeName(nodeId: string, name: string): void {
@@ -630,8 +865,19 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   }
 
   function removeNode(nodeId: string): void {
-    nodes.value = nodes.value.filter((node) => node.id !== nodeId)
-    edges.value = edges.value.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+    const removedNode = nodes.value.find((node) => node.id === nodeId) ?? null
+
+    // Also remove child nodes (for Iterate containers)
+    const childIds = nodes.value.filter((n) => n.parentNode === nodeId).map((n) => n.id)
+    const idsToRemove = new Set([nodeId, ...childIds])
+    let nextNodes = nodes.value.filter((node) => !idsToRemove.has(node.id))
+
+    if (removedNode?.parentNode) {
+      nextNodes = resizeIterateContainerFromChildren(removedNode.parentNode, nextNodes)
+    }
+
+    nodes.value = nextNodes
+    edges.value = edges.value.filter((edge) => !idsToRemove.has(edge.source) && !idsToRemove.has(edge.target))
 
     const prefix = `${nodeId}:`
     lastAutoFilledByNodeField.value = Object.fromEntries(
@@ -643,10 +889,16 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
 
   function onNodesChange(changes: NodeChange[]): void {
     let nextNodes = [...nodes.value]
+    const impactedIterateParentIds = new Set<string>()
 
     for (const change of changes) {
       if (change.type === 'remove') {
         const removedNodeId = change.id
+        const removedNode = nextNodes.find((node) => node.id === removedNodeId)
+        if (removedNode?.parentNode) {
+          impactedIterateParentIds.add(removedNode.parentNode)
+        }
+
         const prefix = `${removedNodeId}:`
         lastAutoFilledByNodeField.value = Object.fromEntries(
           Object.entries(lastAutoFilledByNodeField.value).filter(([key]) => !key.startsWith(prefix)),
@@ -663,7 +915,45 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
               }
             : node,
         )
+
+        const changedNode = nextNodes.find((node) => node.id === change.id)
+        if (changedNode?.parentNode) {
+          impactedIterateParentIds.add(changedNode.parentNode)
+        }
       }
+
+      if (change.type === 'dimensions') {
+        const rawDimensions = (change as unknown as { dimensions?: { width?: number; height?: number } }).dimensions
+        const width = rawDimensions?.width
+        const height = rawDimensions?.height
+
+        if ((typeof width === 'number' && Number.isFinite(width)) || (typeof height === 'number' && Number.isFinite(height))) {
+          nextNodes = nextNodes.map((node) => {
+            if (node.id !== change.id) {
+              return node
+            }
+
+            const previousStyle = node.style ?? {}
+            return {
+              ...node,
+              style: {
+                ...previousStyle,
+                ...(typeof width === 'number' && Number.isFinite(width) ? { width: Math.round(width) } : {}),
+                ...(typeof height === 'number' && Number.isFinite(height) ? { height: Math.round(height) } : {}),
+              },
+            }
+          })
+
+          const changedNode = nextNodes.find((node) => node.id === change.id)
+          if (changedNode?.parentNode) {
+            impactedIterateParentIds.add(changedNode.parentNode)
+          }
+        }
+      }
+    }
+
+    for (const parentId of impactedIterateParentIds) {
+      nextNodes = resizeIterateContainerFromChildren(parentId, nextNodes)
     }
 
     nodes.value = nextNodes
@@ -757,6 +1047,12 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
           lastAutoFilledByNodeField.value[`${targetNode.id}:sourcePath`] = sourcePath
         }
         break
+      case 'iterate':
+        if (shouldReplaceAutoFillValue(targetNode, 'sourcePath', config.sourcePath)) {
+          config.sourcePath = sourcePath
+          lastAutoFilledByNodeField.value[`${targetNode.id}:sourcePath`] = sourcePath
+        }
+        break
     }
   }
 
@@ -778,7 +1074,24 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     }
 
     const sourceNode = nodes.value.find((node) => node.id === connection.source)
+    const targetNode = nodes.value.find((node) => node.id === connection.target)
     if (!sourceNode) {
+      return
+    }
+
+    if (!targetNode) {
+      return
+    }
+
+    const sourceScope = sourceNode.parentNode ?? null
+    const targetScope = targetNode.parentNode ?? null
+    if (sourceScope !== targetScope) {
+      toast.add({
+        severity: 'warn',
+        summary: t('pipelineEditor.toast.crossScopeConnectionNotAllowed'),
+        detail: t('pipelineEditor.toast.crossScopeConnectionNotAllowedDetail'),
+        life: 4500,
+      })
       return
     }
 
@@ -822,12 +1135,9 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     ]
 
     // Auto-remplissage du chemin d'entrée du nœud cible
-    const targetNode = pipeline.value.nodes.find((n) => n.id === connection.target)
-    if (targetNode) {
-      const sourcePath = getSourceOutputPath(sourceNode, branch)
-      if (sourcePath) {
-        autoFillTargetNodeConfig(targetNode, sourcePath)
-      }
+    const sourcePath = getSourceOutputPath(sourceNode, branch)
+    if (sourcePath) {
+      autoFillTargetNodeConfig(targetNode, sourcePath)
     }
   }
 
@@ -987,37 +1297,56 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
 
     const offset = 40
     const newIds = new Map<string, string>()
-    const nodesToDuplicate = nodes.value.filter((node) => selectedNodeIds.value.has(node.id))
+    const expandedSelectionIds = collectNodeIdsIncludingIterateChildren(selectedNodeIds.value)
+    const nodesToDuplicate = nodes.value.filter((node) => expandedSelectionIds.has(node.id))
     const newNodes: PipelineNode[] = []
 
-    nodesToDuplicate.forEach((sourceNode, index) => {
+    const rootNodeIds = nodesToDuplicate
+      .filter((node) => !node.parentNode || !expandedSelectionIds.has(node.parentNode))
+      .map((node) => node.id)
+    const rootOffsets = new Map<string, { x: number; y: number }>()
+    rootNodeIds.forEach((rootId, index) => {
+      rootOffsets.set(rootId, {
+        x: offset * (index % 3),
+        y: offset * Math.floor(index / 3),
+      })
+    })
+
+    nodesToDuplicate.forEach((sourceNode) => {
       const newId = crypto.randomUUID()
       newIds.set(sourceNode.id, newId)
 
       // JSON stringify/parse to guarantee no Proxies
       const clonedNode = JSON.parse(JSON.stringify(toRaw(sourceNode)))
+      const isNestedChild = typeof sourceNode.parentNode === 'string' && expandedSelectionIds.has(sourceNode.parentNode)
+      const sourceOffset = isNestedChild
+        ? { x: 0, y: 0 }
+        : (rootOffsets.get(sourceNode.id) ?? { x: 0, y: 0 })
 
       const duplicate: PipelineNode = {
         ...clonedNode,
         id: newId,
+        parentNode: isNestedChild ? newIds.get(sourceNode.parentNode as string) : sourceNode.parentNode,
         position: {
-          x: clonedNode.position.x + offset * (index % 3),
-          y: clonedNode.position.y + offset * Math.floor(index / 3),
+          x: clonedNode.position.x + sourceOffset.x,
+          y: clonedNode.position.y + sourceOffset.y,
         },
         data: {
           ...clonedNode.data,
-          name: clonedNode.data.name?.trim() ? `${clonedNode.data.name} copy` : clonedNode.data.name,
+          name: !isNestedChild && clonedNode.data.name?.trim()
+            ? `${clonedNode.data.name} copy`
+            : clonedNode.data.name,
         },
       }
       newNodes.push(duplicate)
     })
 
-    // Duplicate edges between selected nodes
+    // Duplicate edges between selected nodes (including iterate children)
     const newEdges = nodesToDuplicate.flatMap((sourceNode) => {
       return edges.value
         .filter((edge) => edge.source === sourceNode.id)
         .map((edge) => {
-          const targetIsSelected = selectedNodeIds.value.has(edge.target)
+          const targetIsSelected = expandedSelectionIds.has(edge.target)
           if (!targetIsSelected) {
             return null
           }
@@ -1148,6 +1477,9 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     logs,
     runHistory,
     addNodeByType,
+    addChildNode,
+    addIterateQuickChild,
+    getChildNodes,
     duplicateNode,
     removeNode,
     updateNodeName,

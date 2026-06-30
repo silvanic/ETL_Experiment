@@ -1,6 +1,7 @@
 import { executorByType } from '@/modules/pipeline/engine/nodeExecutors'
 import { t } from '@/i18n'
 import { buildVariableMap } from '@/modules/pipeline/domain/variables'
+import type { ExecutionGraph } from '@/modules/pipeline/engine/executorTypes'
 import type {
   ConditionBranch,
   ExecutionContext,
@@ -69,6 +70,10 @@ function getNodeById(nodes: PipelineNode[], id: string): PipelineNode {
   return node
 }
 
+function getScopeNodes(nodes: PipelineNode[], parentNodeId?: string): PipelineNode[] {
+  return nodes.filter((node) => node.parentNode === parentNodeId)
+}
+
 export async function runPipeline(definition: PipelineDefinition): Promise<RunResult> {
   const activeEnvironment = definition.environments?.find(
     (environment) => environment.id === definition.activeEnvironmentId,
@@ -79,80 +84,184 @@ export async function runPipeline(definition: PipelineDefinition): Promise<RunRe
       __variables: buildVariableMap(definition.variables, activeEnvironment?.variableOverrides),
     },
     logs: [],
+    executionStack: [],
+  }
+
+  const graph: ExecutionGraph = {
+    nodes: definition.nodes,
+    edges: definition.edges,
   }
 
   let success = true
-  const queue: PipelineNode[] = [findStartNode(definition.nodes)]
   let guard = 0
+  const MAX_EXECUTION_STEPS = 2000
 
-  while (queue.length > 0 && guard < 100) {
-    guard += 1
-    const currentNode = queue.shift()!
-    const executor = executorByType[currentNode.data.type]
+  const executeScope = async (
+    startNode: PipelineNode,
+    parentNodeId: string | undefined,
+    initialPath: string[],
+  ): Promise<void> => {
+    const queue: Array<{ node: PipelineNode; path: string[] }> = [{ node: startNode, path: initialPath }]
 
-    
-    try {
-      
-      if(currentNode.data.type === 'start') {
-        context.logs.push(createLog(currentNode, 'info', t('engine.start.begin')))
-      }
+    while (queue.length > 0 && guard < MAX_EXECUTION_STEPS && success) {
+      guard += 1
+      const { node: currentNode, path: currentPath } = queue.shift()!
 
-      const tracedIn = TRACED_TYPES_IN.has(currentNode.data.type)
-      if (tracedIn) {
-        context.logs.push(createLog(currentNode, 'info', t('engine.run.dataIn'), snapshotData(context.data)))
-      }
-
-      
-      const executorStart = performance.now()
-      const { nextBranch, details, message, dataOut } = await executor(currentNode, context)
-      const durationMs = Math.round(performance.now() - executorStart)
-
-      if(currentNode.data.type !== 'start') {
-        context.logs.push(
-          createLog(currentNode, 'info', message ?? t('engine.run.executionCompleted'), details, durationMs),
-        )
-      }
-
-      const tracedOut = TRACED_TYPES_OUT.has(currentNode.data.type)
-      if (tracedOut) {
-        context.logs.push(
-          createLog(currentNode, 'info', t('engine.run.dataOut'), dataOut ?? snapshotData(context.data)),
-        )
-      }
-      
-      const outgoing = getOutgoingEdges(definition.edges, currentNode.id)
-      if (outgoing.length === 0) {
+      if (currentNode.parentNode !== parentNodeId) {
         continue
       }
 
-      if (MULTI_BRANCH_TYPES.has(currentNode.data.type)) {
-        for (const edge of outgoing) {
-          queue.push(getNodeById(definition.nodes, edge.target))
+      const executor = executorByType[currentNode.data.type]
+
+      try {
+        if(currentNode.data.type === 'start') {
+          context.logs.push(createLog(currentNode, 'info', t('engine.start.begin')))
         }
-      } else {
-        const nextEdge = pickNextEdge(currentNode, outgoing, nextBranch)
-        if (!nextEdge) {
+
+        const tracedIn = TRACED_TYPES_IN.has(currentNode.data.type)
+        if (tracedIn) {
+          context.logs.push(createLog(currentNode, 'info', t('engine.run.dataIn'), snapshotData(context.data)))
+        }
+
+        const executorStart = performance.now()
+        const {
+          nextBranch,
+          details,
+          message,
+          dataOut,
+          childrenNodeIds,
+          scopedData,
+        } = await executor(currentNode, context, graph, {
+          currentPath,
+          currentNodeId: currentNode.id,
+          parentNodeId,
+        })
+        const durationMs = Math.round(performance.now() - executorStart)
+
+        if(currentNode.data.type !== 'start') {
           context.logs.push(
-            createLog(
-              currentNode,
-              'info',
-              nextBranch
-                ? t('engine.run.noEdgeForBranch', { branch: nextBranch })
-                : t('engine.run.noOutgoingEdge'),
-            ),
+            createLog(currentNode, 'info', message ?? t('engine.run.executionCompleted'), details, durationMs),
           )
+        }
+
+        const tracedOut = TRACED_TYPES_OUT.has(currentNode.data.type)
+        if (tracedOut) {
+          context.logs.push(
+            createLog(currentNode, 'info', t('engine.run.dataOut'), dataOut ?? snapshotData(context.data)),
+          )
+        }
+
+        if (currentNode.data.type === 'iterate' || currentNode.data.type === 'subflow') {
+          const iterateItems = Array.isArray(scopedData?.iterateItems)
+            ? scopedData.iterateItems
+            : []
+          const childScopeNodes = getScopeNodes(definition.nodes, currentNode.id)
+          const scopedChildNodes = childrenNodeIds && childrenNodeIds.length > 0
+            ? childScopeNodes.filter((child) => childrenNodeIds.includes(child.id))
+            : childScopeNodes
+
+          if (currentNode.data.type === 'iterate' && scopedChildNodes.length > 0 && iterateItems.length > 0) {
+            const childStartNode = findStartNode(scopedChildNodes)
+            const previousCurrentItem = context.data.__currentItem
+            const previousCurrentIndex = context.data.__currentIndex
+
+            for (let index = 0; index < iterateItems.length; index += 1) {
+              const item = iterateItems[index]
+              context.executionStack?.push({
+                nodeId: currentNode.id,
+                parentNodeId,
+                enterTime: Date.now(),
+                scopedData: {
+                  __currentItem: item,
+                  __currentIndex: index,
+                },
+              })
+
+              context.data.__currentItem = item
+              context.data.__currentIndex = index
+
+              await executeScope(childStartNode, currentNode.id, [...currentPath, childStartNode.id])
+              context.executionStack?.pop()
+
+              if (!success) {
+                break
+              }
+            }
+
+            if (previousCurrentItem === undefined) {
+              delete context.data.__currentItem
+            } else {
+              context.data.__currentItem = previousCurrentItem
+            }
+
+            if (previousCurrentIndex === undefined) {
+              delete context.data.__currentIndex
+            } else {
+              context.data.__currentIndex = previousCurrentIndex
+            }
+          }
+
+          if (currentNode.data.type === 'subflow' && scopedChildNodes.length > 0) {
+            const childStartNode = findStartNode(scopedChildNodes)
+            context.executionStack?.push({
+              nodeId: currentNode.id,
+              parentNodeId,
+              enterTime: Date.now(),
+            })
+
+            await executeScope(childStartNode, currentNode.id, [...currentPath, childStartNode.id])
+            context.executionStack?.pop()
+          }
+        }
+
+        const outgoing = getOutgoingEdges(definition.edges, currentNode.id).filter((edge) => {
+          const targetNode = definition.nodes.find((candidate) => candidate.id === edge.target)
+          return targetNode?.parentNode === parentNodeId
+        })
+        if (outgoing.length === 0) {
           continue
         }
-        queue.push(getNodeById(definition.nodes, nextEdge.target))
+
+        if (MULTI_BRANCH_TYPES.has(currentNode.data.type)) {
+          for (const edge of outgoing) {
+            queue.push({
+              node: getNodeById(definition.nodes, edge.target),
+              path: [...currentPath, edge.target],
+            })
+          }
+        } else {
+          const nextEdge = pickNextEdge(currentNode, outgoing, nextBranch)
+          if (!nextEdge) {
+            context.logs.push(
+              createLog(
+                currentNode,
+                'info',
+                nextBranch
+                  ? t('engine.run.noEdgeForBranch', { branch: nextBranch })
+                  : t('engine.run.noOutgoingEdge'),
+              ),
+            )
+            continue
+          }
+
+          queue.push({
+            node: getNodeById(definition.nodes, nextEdge.target),
+            path: [...currentPath, nextEdge.target],
+          })
+        }
+      } catch (error) {
+        success = false
+        context.logs.push(createLog(currentNode, 'error', t('engine.run.executionFailed'), String(error)))
+        break
       }
-    } catch (error) {
-      success = false
-      context.logs.push(createLog(currentNode, 'error', t('engine.run.executionFailed'), String(error)))
-      break
     }
   }
 
-  if (guard >= 100) {
+  const rootNodes = getScopeNodes(definition.nodes)
+  const rootStartNode = findStartNode(rootNodes)
+  await executeScope(rootStartNode, undefined, [rootStartNode.id])
+
+  if (guard >= MAX_EXECUTION_STEPS) {
     success = false
     context.logs.push({
       at: new Date().toISOString(),

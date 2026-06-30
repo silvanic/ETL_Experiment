@@ -1,4 +1,5 @@
 import { Position } from '@vue-flow/core'
+import { ITERATE_LAYOUT } from '@/modules/pipeline/domain/iterateLayout'
 import type { PipelineDefinition } from '@/modules/pipeline/domain/types'
 
 export interface PipelineTemplate {
@@ -595,6 +596,267 @@ function createListWildcardTransformTemplate(): PipelineDefinition {
   }
 }
 
+// ─── Template : Iterate + __currentItem (exemple doc) ──────────────────────
+
+function createIterateCurrentItemTemplate(): PipelineDefinition {
+  const startId = crypto.randomUUID()
+  const apiId = crypto.randomUUID()
+  const iterateId = crypto.randomUUID()
+  const outputId = crypto.randomUUID()
+
+  const childStartId = crypto.randomUUID()
+  const childTransformItemId = crypto.randomUUID()
+  const childTransformIndexId = crypto.randomUUID()
+
+  return {
+    id: crypto.randomUUID(),
+    name: 'Iterate + Current Item',
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    variables: [],
+    nodes: [
+      {
+        id: startId,
+        type: 'input',
+        position: { x: 80, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: { type: 'start', label: '', name: 'Départ', config: { note: '' } },
+      },
+      {
+        id: apiId,
+        type: 'default',
+        position: { x: 320, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'api',
+          label: '',
+          name: 'Récupérer todos',
+          config: {
+            url: 'https://jsonplaceholder.typicode.com/todos',
+            method: 'GET',
+            headers: [],
+            bodyRaw: '',
+            outputPath: 'todos',
+            retryConfig: { maxRetries: 3, delayMs: 1000 },
+          },
+        },
+      },
+      {
+        id: iterateId,
+        type: 'default',
+        position: { x: 560, y: 190 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        style: {
+          width: ITERATE_LAYOUT.minWidth,
+          height: ITERATE_LAYOUT.minHeight,
+        },
+        data: {
+          type: 'iterate',
+          label: '',
+          name: 'Boucle sur todos',
+          config: {
+            sourcePath: 'todos',
+          },
+        },
+      },
+      {
+        id: childStartId,
+        type: 'input',
+        position: { x: 40, y: 90 },
+        parentNode: iterateId,
+        extent: 'parent',
+        expandParent: true,
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'start',
+          label: '',
+          name: 'Start interne',
+          config: { note: '' },
+        },
+      },
+      {
+        id: childTransformItemId,
+        type: 'default',
+        position: { x: 210, y: 58 },
+        parentNode: iterateId,
+        extent: 'parent',
+        expandParent: true,
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'transform',
+          label: '',
+          name: 'Copier __currentItem',
+          config: {
+            mode: 'pickPath',
+            sourcePath: '__currentItem',
+            targetPath: 'result.currentItem',
+            literalValue: '',
+          },
+        },
+      },
+      {
+        id: childTransformIndexId,
+        type: 'default',
+        position: { x: 210, y: 138 },
+        parentNode: iterateId,
+        extent: 'parent',
+        expandParent: true,
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'transform',
+          label: '',
+          name: 'Copier __currentIndex',
+          config: {
+            mode: 'pickPath',
+            sourcePath: '__currentIndex',
+            targetPath: 'result.currentIndex',
+            literalValue: '',
+          },
+        },
+      },
+      {
+        id: outputId,
+        type: 'default',
+        position: { x: 1140, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'output',
+          label: '',
+          name: 'Sortie résultat',
+          config: { outputPath: 'result' },
+        },
+      },
+    ],
+    edges: [
+      { id: crypto.randomUUID(), source: startId, target: apiId },
+      { id: crypto.randomUUID(), source: apiId, target: iterateId },
+      { id: crypto.randomUUID(), source: iterateId, target: outputId },
+      { id: crypto.randomUUID(), source: childStartId, target: childTransformItemId },
+      { id: crypto.randomUUID(), source: childTransformItemId, target: childTransformIndexId },
+    ],
+  }
+}
+
+// ─── Template : Subflow (exemple doc) ──────────────────────────────────
+
+function createSubflowOnceTemplate(): PipelineDefinition {
+  const startId = crypto.randomUUID()
+  const subflowId = crypto.randomUUID()
+  const outputId = crypto.randomUUID()
+
+  const childStartId = crypto.randomUUID()
+  const childTransformId = crypto.randomUUID()
+
+  return {
+    id: crypto.randomUUID(),
+    name: 'Subflow + Single Run',
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    variables: [],
+    nodes: [
+      {
+        id: startId,
+        type: 'input',
+        position: { x: 80, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: { type: 'start', label: '', name: 'Départ', config: { note: '' } },
+      },
+      {
+        id: subflowId,
+        type: 'default',
+        position: { x: 360, y: 190 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        style: {
+          width: ITERATE_LAYOUT.minWidth,
+          height: ITERATE_LAYOUT.minHeight,
+        },
+        data: {
+          type: 'subflow',
+          label: '',
+          name: 'Sous-flux unique',
+          config: {},
+        },
+      },
+      {
+        id: childStartId,
+        type: 'input',
+        position: { x: 40, y: 90 },
+        parentNode: subflowId,
+        extent: 'parent',
+        expandParent: true,
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'start',
+          label: '',
+          name: 'Start interne',
+          config: { note: '' },
+        },
+      },
+      {
+        id: childTransformId,
+        type: 'default',
+        position: { x: 210, y: 90 },
+        parentNode: subflowId,
+        extent: 'parent',
+        expandParent: true,
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'transform',
+          label: '',
+          name: 'Marquer statut',
+          config: {
+            mode: 'assignLiteral',
+            sourcePath: '',
+            targetPath: 'result.subflowStatus',
+            literalValue: 'ok',
+          },
+        },
+      },
+      {
+        id: outputId,
+        type: 'default',
+        position: { x: 900, y: 260 },
+        draggable: true,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        data: {
+          type: 'output',
+          label: '',
+          name: 'Sortie',
+          config: { outputPath: 'result.subflowStatus' },
+        },
+      },
+    ],
+    edges: [
+      { id: crypto.randomUUID(), source: startId, target: subflowId },
+      { id: crypto.randomUUID(), source: subflowId, target: outputId },
+      { id: crypto.randomUUID(), source: childStartId, target: childTransformId },
+    ],
+  }
+}
+
 // ─── Template : DummyJSON Auth + Profil ─────────────────────────────────────
 
 function createDummyJsonAuthProfileTemplate(): PipelineDefinition {
@@ -785,5 +1047,19 @@ export const pipelineTemplates: PipelineTemplate[] = [
     nameKey: 'pipelineEditor.templates.dummyJsonAuthProfile.name',
     descriptionKey: 'pipelineEditor.templates.dummyJsonAuthProfile.description',
     create: createDummyJsonAuthProfileTemplate,
+  },
+  {
+    id: 'doc-iterate-current-item',
+    icon: '🔁',
+    nameKey: 'pipelineEditor.templates.docIterateCurrentItem.name',
+    descriptionKey: 'pipelineEditor.templates.docIterateCurrentItem.description',
+    create: createIterateCurrentItemTemplate,
+  },
+  {
+    id: 'doc-subflow-once',
+    icon: '🧩',
+    nameKey: 'pipelineEditor.templates.docSubflowOnce.name',
+    descriptionKey: 'pipelineEditor.templates.docSubflowOnce.description',
+    create: createSubflowOnceTemplate,
   },
 ]

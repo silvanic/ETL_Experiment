@@ -7,6 +7,9 @@
 2. [INDEX-FICHIERS.md](./INDEX-FICHIERS.md) — Naviguer les fichiers
 3. [PATTERNS-CONVENTIONS.md](./PATTERNS-CONVENTIONS.md) — Conventions et patterns
 
+**Pour l'utilisation de l'interface:**
+- [GUIDE-MULTISELECTION.md](./GUIDE-MULTISELECTION.md) — Multi-sélection, raccourcis clavier, opérations (copy/paste/duplicate/delete)
+
 **Fichiers clés toujours accessibles:**
 - `src/modules/pipeline/domain/types.ts` — Types données
 - `src/modules/pipeline/stores/pipelineEditorStore.ts` — État Pinia
@@ -302,7 +305,7 @@ components/*.vue                 # Utiliser t('key')
 | Question | Lire ce fichier | Section |
 |----------|-----------------|---------|
 | Comment exécution pipeline? | `ARCHITECTURE.md` | "Flux d'exécution" |
-| Types de nœuds disponibles? | `ARCHITECTURE.md` | "Types de nœuds (7 types)" |
+| Types de nœuds disponibles? | `ARCHITECTURE.md` | "Types de nœuds (10 types)" |
 | Structure données pipeline? | `domain/types.ts` | Types principaux |
 | Comment validation fonctionne? | `domain/schema.ts` | Schemas Zod |
 | Comment state management? | `stores/pipelineEditorStore.ts` | Actions Pinia |

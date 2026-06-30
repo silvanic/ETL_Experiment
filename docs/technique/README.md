@@ -14,7 +14,7 @@ Bienvenue! Cette section contient toute la documentation technique pour comprend
 2. **[ARCHITECTURE.md](./ARCHITECTURE.md)**
    - Vue d'ensemble complète de l'application
    - Types de données principaux
-   - Types de nœuds disponibles (8 types)
+   - Types de nœuds disponibles (10 types)
    - Flux d'exécution pipeline
    - Pinia store et services
 
@@ -48,6 +48,14 @@ Bienvenue! Cette section contient toute la documentation technique pour comprend
 |----------|---------|---------------|
 | [PATTERNS-CONVENTIONS.md](./PATTERNS-CONVENTIONS.md) | Conventions, patterns code, patterns tests, patterns UI, checklists | 15 min |
 | [GUIDE-DEMARRAGE.md](./GUIDE-DEMARRAGE.md) | Par type tâche (bug, feature), commandes, workflow idéal | 10 min |
+
+### Visual Design System
+
+| Document | Contenu | Durée lecture |
+|----------|---------|---------------|
+| [PATTERNS-CONVENTIONS.md](./PATTERNS-CONVENTIONS.md#pattern-tokens-visuels-centralises-iteratesubflow) | Tokens visuels centralisés Iterate/Subflow, règles anti-hardcode, checklist UI conteneur | 5 min |
+| [ARCHITECTURE.md](./ARCHITECTURE.md#systeme-de-couleurs-conteneur-iteratesubflow) | Rôles des composants (`PipelineCanvas`, `NodePalette`, `RunConsole`) et propagation de couleur dans la console | 5 min |
+| [INDEX-FICHIERS.md](./INDEX-FICHIERS.md#-harmoniser-couleurs-conteneur) | Workflow pas-à-pas pour harmoniser les couleurs conteneur | 3 min |
 
 ### User Guides
 
@@ -85,6 +93,8 @@ Bienvenue! Cette section contient toute la documentation technique pour comprend
 
 👉 Lire: [GUIDE-DEMARRAGE.md → 🌍 Ajouter traductions](./GUIDE-DEMARRAGE.md#-ajouter-traductions)
 
+👉 Convention projet: [PATTERNS-CONVENTIONS.md → Traductions i18n](./PATTERNS-CONVENTIONS.md#traductions-i18n)
+
 **Fichier:** `src/i18n/messages.json`
 
 ### 🔍 Je veux comprendre comment X fonctionne
@@ -101,7 +111,7 @@ Bienvenue! Cette section contient toute la documentation technique pour comprend
 
 ### Types de nœuds disponibles
 
-L'app supporte **8 types de nœuds** dans un pipeline:
+L'app supporte **10 types de nœuds** dans un pipeline:
 
 | Type | Rôle | Config principal |
 |------|------|-----------------|
@@ -112,9 +122,11 @@ L'app supporte **8 types de nœuds** dans un pipeline:
 | **filter** | Filtrer array (2 voies) | Array source, item condition |
 | **transform** | Transformation données | Pick ou assign literal |
 | **map** | Mapping tableau | Source array + mappings template |
+| **iterate** | Boucle conteneur | SourcePath tableau + variables runtime |
+| **subflow** | Conteneur mono-exécution | Exécute ses enfants une seule fois |
 | **output** | Résultat final | Path à extraire |
 
-👉 Détails: [ARCHITECTURE.md → Types de nœuds](./ARCHITECTURE.md#types-de-nœuds-8-types)
+👉 Détails: [ARCHITECTURE.md → Types de nœuds](./ARCHITECTURE.md#types-de-nœuds-10-types)
 
 ### Architecture en couches
 
@@ -136,13 +148,28 @@ Services Layer (localStorage, path utils)
 
 1. Pipeline déclenché → Valide schéma
 2. Initialise ExecutionContext vide
-3. **Boucle BFS**: queue de nœuds à exécuter
+3. **Boucle d'exécution**: queue de nœuds à exécuter
    - Exécute nœud avec exécuteur typé
    - Logs et snapshot contexte
-   - Ajoute nœuds suivants à queue
+   - Gère les scopes enfants pour `iterate` et `subflow`
+   - Ajoute les nœuds suivants à la queue
 4. Retourne ExecutionRun avec logs + résultat
 
 👉 Détails: [ARCHITECTURE.md → Flux d'exécution](./ARCHITECTURE.md#flux-dexécution-du-pipeline)
+
+### Conventions visuelles conteneur
+
+Le style des conteneurs `iterate` et `subflow` est centralisé via des tokens CSS globaux dans `src/style.css`.
+
+Règles projet:
+- Toutes les couleurs de ces deux types passent par `var(--flow-...)`.
+- Éviter les valeurs hex/RGB/RGBA hardcodées dans les composants.
+- `RunConsole.vue` propage la couleur conteneur aux niveaux enfants via `--container-info-border`.
+
+Navigation rapide:
+- [PATTERNS-CONVENTIONS.md → Tokens visuels centralisés](./PATTERNS-CONVENTIONS.md#pattern-tokens-visuels-centralises-iteratesubflow)
+- [ARCHITECTURE.md → Système de couleurs conteneur](./ARCHITECTURE.md#systeme-de-couleurs-conteneur-iteratesubflow)
+- [INDEX-FICHIERS.md → Harmoniser couleurs conteneur](./INDEX-FICHIERS.md#-harmoniser-couleurs-conteneur)
 
 ---
 
@@ -194,6 +221,7 @@ Avant de coder:
 3. **Store Pinia** — Actions pures, état centralisé, computed reactif
 4. **Tests d'abord** — `.spec.ts` pour logique, patterns tests fournis
 5. **Logs informatifs** — ExecutionLog avec snapshots data
+6. **Containers explicites** — `iterate` (par item) vs `subflow` (une fois)
 
 👉 Détails: [PATTERNS-CONVENTIONS.md](./PATTERNS-CONVENTIONS.md)
 

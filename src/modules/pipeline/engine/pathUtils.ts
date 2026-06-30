@@ -1,18 +1,53 @@
 /**
- * Tokenise un chemin en segments, en séparant les wildcards `[*]`.
- * Exemple : "items[*].name" → ["items", "[*]", "name"]
+ * Tokenise un chemin en segments, en gérant la notation à crochets.
+ * Exemples :
+ * - "items[*].name" → ["items", "[*]", "name"]
+ * - "items[0].name" → ["items", "0", "name"]
  */
 function tokenizePath(path: string): string[] {
-  return path
-    .split('.')
-    .flatMap((seg) => {
-      if (seg.endsWith('[*]')) {
-        const key = seg.slice(0, -3)
-        return key ? [key, '[*]'] : ['[*]']
+  const segments: string[] = []
+  let current = ''
+
+  for (let i = 0; i < path.length; i += 1) {
+    const char = path[i]
+
+    if (char === '.') {
+      if (current) {
+        segments.push(current)
+        current = ''
       }
-      return [seg]
-    })
-    .filter(Boolean)
+      continue
+    }
+
+    if (char === '[') {
+      if (current) {
+        segments.push(current)
+        current = ''
+      }
+
+      const closeIndex = path.indexOf(']', i + 1)
+      if (closeIndex === -1) {
+        current += char
+        continue
+      }
+
+      const token = path.slice(i + 1, closeIndex).trim()
+      if (token) {
+        segments.push(token === '*' ? '[*]' : token)
+      }
+
+      i = closeIndex
+      continue
+    }
+
+    current += char
+  }
+
+  if (current) {
+    segments.push(current)
+  }
+
+  return segments.filter(Boolean)
 }
 
 function getBySegments(data: unknown, segments: string[]): unknown {
@@ -27,6 +62,11 @@ function getBySegments(data: unknown, segments: string[]): unknown {
       return undefined
     }
     return data.map((item) => getBySegments(item, rest))
+  }
+
+  if (Array.isArray(data) && /^\d+$/.test(head)) {
+    const index = Number(head)
+    return getBySegments(data[index], rest)
   }
 
   if (data === null || data === undefined || typeof data !== 'object') {

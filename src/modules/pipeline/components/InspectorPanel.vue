@@ -17,6 +17,7 @@ import type {
   ApiNodeConfig,
   ConditionNodeConfig,
   FilterNodeConfig,
+  IterateNodeConfig,
   MapNodeConfig,
   OutputNodeConfig,
   SetVariableNodeConfig,
@@ -80,6 +81,10 @@ const mapConfig = computed(() =>
   selectedType.value === 'map' ? (selectedData.value?.config as MapNodeConfig) : null,
 )
 
+const iterateConfig = computed(() =>
+  selectedType.value === 'iterate' ? (selectedData.value?.config as IterateNodeConfig) : null,
+)
+
 const outputConfig = computed(() =>
   selectedType.value === 'output' ? (selectedData.value?.config as OutputNodeConfig) : null,
 )
@@ -107,6 +112,10 @@ const conditionRightTypeOptions = computed<{ label: string; value: ConditionNode
 const transformModeOptions = computed<{ label: string; value: TransformNodeConfig['mode'] }[]>(() => [
   { label: t('inspector.options.transformMode.pickPath'), value: 'pickPath' },
   { label: t('inspector.options.transformMode.assignLiteral'), value: 'assignLiteral' },
+])
+const setVariableSourceTypeOptions = computed<{ label: string; value: 'path' | 'literal' }[]>(() => [
+  { label: t('inspector.options.setVariableSourceType.path'), value: 'path' },
+  { label: t('inspector.options.setVariableSourceType.literal'), value: 'literal' },
 ])
 
 const isApiLoading = ref(false)
@@ -223,10 +232,17 @@ const unresolvedSetVariableVariables = computed(() => {
     return []
   }
 
-  const unresolvedInExtractions = setVariableConfig.value.extractions.flatMap(extraction => [
-    ...findUnresolvedVariables(extraction.extractPath, variableMap.value),
-    ...findUnresolvedVariables(extraction.variableName, variableMap.value),
-  ])
+  const unresolvedInExtractions = setVariableConfig.value.extractions.flatMap(extraction => {
+    const sourceType = extraction.sourceType ?? 'path'
+    const sourceValue = sourceType === 'literal'
+      ? (extraction.literalValue ?? '')
+      : extraction.extractPath
+
+    return [
+      ...findUnresolvedVariables(sourceValue, variableMap.value),
+      ...findUnresolvedVariables(extraction.variableName, variableMap.value),
+    ]
+  })
 
   return Array.from(new Set([...unresolvedInExtractions]))
 })
@@ -310,6 +326,14 @@ const unresolvedMapVariables = computed(() => {
   ])
 
   return Array.from(new Set([...unresolvedInSource, ...unresolvedInOutput, ...unresolvedInMappings]))
+})
+
+const unresolvedIterateVariables = computed(() => {
+  if (!iterateConfig.value) {
+    return []
+  }
+
+  return findUnresolvedVariables(iterateConfig.value.sourcePath, variableMap.value)
 })
 
 const unresolvedOutputVariables = computed(() => {
@@ -534,6 +558,7 @@ const fieldConfigKeyByFieldKey: Record<string, string> = {
   'transform.literalValue': 'literalValue',
   'map.sourcePath': 'sourcePath',
   'map.outputPath': 'outputPath',
+  'iterate.sourcePath': 'sourcePath',
   'output.outputPath': 'outputPath',
 }
 
@@ -553,6 +578,7 @@ const fieldValueReaderByFieldKey: Record<string, () => string> = {
   'transform.literalValue': () => transformConfig.value?.literalValue ?? '',
   'map.sourcePath': () => mapConfig.value?.sourcePath ?? '',
   'map.outputPath': () => mapConfig.value?.outputPath ?? '',
+  'iterate.sourcePath': () => iterateConfig.value?.sourcePath ?? '',
   'output.outputPath': () => outputConfig.value?.outputPath ?? '',
 }
 
@@ -996,7 +1022,7 @@ function openApiResultDialog(): void {
               size="small"
               :label="t('inspector.buttons.addExtraction')"
               icon="pi pi-plus"
-              @click="patchConfig({ extractions: [...(setVariableConfig.extractions || []), { extractPath: '', variableName: '' }] })"
+              @click="patchConfig({ extractions: [...(setVariableConfig.extractions || []), { sourceType: 'path', extractPath: '', literalValue: '', variableName: '' }] })"
             />
           </div>
           <DataTable
@@ -1005,16 +1031,27 @@ function openApiResultDialog(): void {
             responsive-layout="scroll"
             :rows="10"
           >
-            <Column header="Extract Path" style="width: 45%">
+            <Column :header="t('inspector.fields.sourceType')" style="width: 20%">
               <template #body="slotProps">
-                <InputText
-                  :model-value="slotProps.data.extractPath"
-                  @update:model-value="slotProps.data.extractPath = $event; patchConfig({ extractions: setVariableConfig.extractions })"
-                  placeholder="ex: api.result.token"
+                <Select
+                  :options="setVariableSourceTypeOptions"
+                  option-label="label"
+                  option-value="value"
+                  :model-value="slotProps.data.sourceType ?? 'path'"
+                  @update:model-value="slotProps.data.sourceType = String($event ?? 'path'); patchConfig({ extractions: setVariableConfig.extractions })"
                 />
               </template>
             </Column>
-            <Column header="Variable Name" style="width: 45%">
+            <Column :header="t('inspector.fields.valueExtractPath')" style="width: 35%">
+              <template #body="slotProps">
+                <InputText
+                  :model-value="(slotProps.data.sourceType ?? 'path') === 'literal' ? (slotProps.data.literalValue ?? '') : slotProps.data.extractPath"
+                  @update:model-value="(slotProps.data.sourceType ?? 'path') === 'literal' ? (slotProps.data.literalValue = String($event ?? '')) : (slotProps.data.extractPath = String($event ?? '')); patchConfig({ extractions: setVariableConfig.extractions })"
+                  :placeholder="(slotProps.data.sourceType ?? 'path') === 'literal' ? t('inspector.placeholders.setVariableLiteralValue') : t('inspector.placeholders.setVariableExtractPath')"
+                />
+              </template>
+            </Column>
+            <Column :header="t('inspector.fields.variableName')" style="width: 35%">
               <template #body="slotProps">
                 <Select
                   :options="parameterVariableNames"
@@ -1444,6 +1481,38 @@ function openApiResultDialog(): void {
         </div>
       </template>
 
+      <template v-if="selectedType === 'iterate' && iterateConfig">
+        <Message
+          v-if="unresolvedIterateVariables.length > 0"
+          severity="warn"
+          :closable="false"
+        >
+          {{ t('inspector.warnings.unresolvedVariables') }}: {{ unresolvedIterateVariables.join(', ') }}
+        </Message>
+        <label>
+          {{ t('inspector.fields.sourcePath') }}
+          <AutoComplete
+            input-id="iterate.sourcePath"
+            :model-value="iterateConfig.sourcePath"
+            :suggestions="variableSuggestions"
+            dropdown
+            @focus="captureCursorPosition"
+            @click="captureCursorPosition"
+            @keyup="captureCursorPosition"
+            @focusin="openSuggestionMenu"
+            @complete="completeVariables"
+            @item-select="handleSuggestionSelect('iterate.sourcePath', $event)"
+            @update:model-value="patchConfig({ sourcePath: String($event) })"
+          />
+          <p v-if="isVariableTokenInput(iterateConfig.sourcePath)" class="hint">
+            {{ variableTokenHint(iterateConfig.sourcePath) }}
+          </p>
+          <p class="hint hint--info">
+            {{ t('inspector.hints.iterateRuntimeVars') }}
+          </p>
+        </label>
+      </template>
+
       <template v-if="selectedType === 'output' && outputConfig">
         <Message
           v-if="outputPathValidation"
@@ -1483,6 +1552,13 @@ function openApiResultDialog(): void {
 
       <template v-if="selectedType === 'start'">
         <Message severity="info" :closable="false">{{ t('inspector.messages.startNoConfig') }}</Message>
+      </template>
+
+      <template v-if="selectedType === 'subflow'">
+        <Message severity="info" :closable="false">{{ t('inspector.messages.subflowNoConfig') }}</Message>
+        <p class="hint hint--info">
+          {{ t('inspector.hints.subflowBehavior') }}
+        </p>
       </template>
     </div>
 

@@ -1,6 +1,6 @@
 import { getByPath, setByPath } from '@/modules/pipeline/engine/pathUtils'
 import { t } from '@/i18n'
-import type { ExecutorResult } from '@/modules/pipeline/engine/executorTypes'
+import type { NodeExecutor } from '@/modules/pipeline/engine/executorTypes'
 import { getContextVariableMap } from '@/modules/pipeline/engine/variableContext'
 import type {
   ApiNodeConfig,
@@ -9,15 +9,13 @@ import type {
   ConditionNodeConfig,
   ExecutionContext,
   FilterNodeConfig,
+  IterateNodeConfig,
   MapNodeConfig,
   NodeType,
   OutputNodeConfig,
-  PipelineNode,
   SetVariableNodeConfig,
   TransformNodeConfig,
 } from '@/modules/pipeline/domain/types'
-
-type NodeExecutor = (node: PipelineNode, context: ExecutionContext) => Promise<ExecutorResult>
 
 function escapeMultilineJsonStrings(text: string): string {
   let inString = false
@@ -144,7 +142,7 @@ function resolvePathValue(value: string, context: ExecutionContext): string {
   const stringVariables = getContextVariableMap(context)
   const variablePathRegex = /#([a-zA-Z][a-zA-Z0-9_-]*)(((?:\.[a-zA-Z0-9_-]+(?:\[\*\])?|\.[0-9]+|\[\*\]))*)/g
 
-  return value.replace(
+  const resolvedPath = value.replace(
     variablePathRegex,
     (fullMatch: string, variableName: string, suffix: string) => {
       const rawValue = rawVariables[variableName]
@@ -168,6 +166,30 @@ function resolvePathValue(value: string, context: ExecutionContext): string {
       return `${resolvedVariable}${suffix}`
     },
   )
+
+  return resolvedPath.replace(/\[([^\]]+)\]/g, (fullMatch: string, rawToken: string) => {
+    const token = rawToken.trim()
+    if (!token || token === '*' || /^\d+$/.test(token)) {
+      return fullMatch
+    }
+
+    const tokenPath = token.startsWith('#') ? token.slice(1) : token
+    let resolved: unknown = getByPath(context.data, tokenPath)
+
+    if (resolved === undefined) {
+      resolved = rawVariables[tokenPath]
+    }
+
+    if (typeof resolved === 'number' && Number.isInteger(resolved) && resolved >= 0) {
+      return `[${resolved}]`
+    }
+
+    if (typeof resolved === 'string' && /^\d+$/.test(resolved.trim())) {
+      return `[${resolved.trim()}]`
+    }
+
+    return fullMatch
+  })
 }
 
 function evaluateCondition(left: unknown, operator: ConditionOperator, right: unknown): boolean {
@@ -276,6 +298,64 @@ function getValuePreview(value: unknown, maxLength = 200): string {
     return serialized.length > maxLength ? `${serialized.slice(0, maxLength)}...` : serialized
   } catch {
     return String(value)
+  }
+}
+
+function parseSetVariableLiteral(rawValue: string): unknown {
+  const trimmed = rawValue.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  if (trimmed === 'null') {
+    return null
+  }
+
+  if (trimmed === 'true') {
+    return true
+  }
+
+  if (trimmed === 'false') {
+    return false
+  }
+
+  if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
+    const numericValue = Number(trimmed)
+    if (Number.isFinite(numericValue)) {
+      return numericValue
+    }
+  }
+
+  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+    try {
+      return JSON.parse(trimmed)
+    } catch {
+      return rawValue
+    }
+  }
+
+  return rawValue
+}
+
+function coerceIterateItems(value: unknown): unknown[] {
+  if (Array.isArray(value)) {
+    return value
+  }
+
+  if (typeof value !== 'string') {
+    return []
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
   }
 }
 
@@ -750,6 +830,83 @@ const mapExecutor: NodeExecutor = async (node, context) => {
   }
 }
 
+const iterateExecutor: NodeExecutor = async (node, context, graph) => {
+  if (node.data?.type !== 'iterate') {
+    return {}
+  }
+
+  const config = node.data.config as IterateNodeConfig
+  const rawVariables = getRawContextVariables(context)
+  const exactVariableMatch = config.sourcePath.match(/^#([a-zA-Z][a-zA-Z0-9_-]*)(?:\.(.+))?$/)
+
+  let resolvedSourcePath: string
+  let sourceValue: unknown
+
+  if (exactVariableMatch) {
+    const variableName = exactVariableMatch[1]
+    const rawSuffix = exactVariableMatch[2]
+    const variableValue = rawVariables[variableName]
+
+    resolvedSourcePath = config.sourcePath
+
+    if (rawSuffix) {
+      const normalizedSuffix = rawSuffix.replace(/\[\*\]/g, '*')
+      sourceValue = getByPath(variableValue, normalizedSuffix)
+    } else if (typeof variableValue === 'string') {
+      // Legacy behavior: a string variable can represent a data path.
+      const valueFromPath = getByPath(context.data, variableValue)
+      sourceValue = valueFromPath === undefined ? variableValue : valueFromPath
+    } else {
+      sourceValue = variableValue
+    }
+  } else {
+    resolvedSourcePath = resolvePathValue(config.sourcePath, context)
+    sourceValue = getByPath(context.data, resolvedSourcePath)
+  }
+
+  const items = coerceIterateItems(sourceValue)
+  const childrenNodeIds = (graph?.nodes ?? [])
+    .filter((candidate) => candidate.parentNode === node.id)
+    .map((candidate) => candidate.id)
+
+  return {
+    message: t('engine.iterate.result', {
+      sourcePath: resolvedSourcePath,
+      count: items.length,
+    }),
+    details: {
+      sourcePath: resolvedSourcePath,
+      count: items.length,
+      hasChildren: childrenNodeIds.length > 0,
+    },
+    childrenNodeIds,
+    scopedData: {
+      iterateItems: items,
+    },
+  }
+}
+
+const subflowExecutor: NodeExecutor = async (node, _context, graph) => {
+  if (node.data?.type !== 'subflow') {
+    return {}
+  }
+
+  const childrenNodeIds = (graph?.nodes ?? [])
+    .filter((candidate) => candidate.parentNode === node.id)
+    .map((candidate) => candidate.id)
+
+  return {
+    message: t('engine.subflow.result', {
+      count: childrenNodeIds.length,
+    }),
+    details: {
+      hasChildren: childrenNodeIds.length > 0,
+      count: childrenNodeIds.length,
+    },
+    childrenNodeIds,
+  }
+}
+
 const outputExecutor: NodeExecutor = async (node, context) => {
   if (node.data?.type !== 'output') {
     return {}
@@ -813,7 +970,7 @@ const setVariableExecutor: NodeExecutor = async (node, context) => {
   const extractedValues: Record<string, { value: unknown; preview: string; type: string }> = {}
   
   for (const extraction of config.extractions) {
-    const resolvedExtractPath = resolvePathValue(extraction.extractPath, context)
+    const sourceType = extraction.sourceType ?? 'path'
     const resolvedVariableName = resolveConfigValue(extraction.variableName, context)
 
     if (!Object.prototype.hasOwnProperty.call(variablesObj, resolvedVariableName)) {
@@ -824,8 +981,14 @@ const setVariableExecutor: NodeExecutor = async (node, context) => {
       )
     }
 
-    // Extract value from context data using the path
-    const extractedValue = getByPath(context.data, resolvedExtractPath)
+    let extractedValue: unknown
+    if (sourceType === 'literal') {
+      const resolvedLiteralValue = resolveConfigValue(extraction.literalValue ?? '', context)
+      extractedValue = parseSetVariableLiteral(resolvedLiteralValue)
+    } else {
+      const resolvedExtractPath = resolvePathValue(extraction.extractPath, context)
+      extractedValue = getByPath(context.data, resolvedExtractPath)
+    }
 
     // Store the value in variables
     variablesObj[resolvedVariableName] = extractedValue
@@ -856,5 +1019,7 @@ export const executorByType: Record<NodeType, NodeExecutor> = {
   filter: filterExecutor,
   transform: transformExecutor,
   map: mapExecutor,
+  iterate: iterateExecutor,
+  subflow: subflowExecutor,
   output: outputExecutor
 }

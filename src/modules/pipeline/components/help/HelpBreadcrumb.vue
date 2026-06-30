@@ -26,6 +26,14 @@ function resolveExampleLabel(exampleId: string): string {
     return t('pipelineEditor.help.example3Title')
   }
 
+  if (exampleId === 'iterate-current-item' || exampleId === 'example4') {
+    return t('pipelineEditor.help.example4Title')
+  }
+
+  if (exampleId === 'subflow-once' || exampleId === 'example5') {
+    return t('pipelineEditor.help.example5Title')
+  }
+
   return t('pipelineEditor.help.section2Title')
 }
 

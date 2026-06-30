@@ -11,6 +11,7 @@ import type {
   SetVariableNodeConfig,
   TransformNodeConfig,
 } from '@/modules/pipeline/domain/types'
+import { ITERATE_LAYOUT } from '@/modules/pipeline/domain/iterateLayout'
 import { t } from '@/i18n'
 
 const defaultApiConfig: ApiNodeConfig = {
@@ -56,7 +57,9 @@ const defaultFilterConfig: FilterNodeConfig = {
 const defaultSetVariableConfig: SetVariableNodeConfig = {
   extractions: [
     {
+      sourceType: 'path',
       extractPath: 'api.result.token',
+      literalValue: '',
       variableName: 'authToken',
     },
   ],
@@ -79,6 +82,12 @@ const defaultMapConfig: MapNodeConfig = {
   ],
 }
 
+const defaultIterateConfig = {
+  sourcePath: 'api.result',
+}
+
+const defaultSubflowConfig = {}
+
 const defaultByType: NodeConfigMap = {
   start: { note: '' },
   api: defaultApiConfig,
@@ -87,6 +96,8 @@ const defaultByType: NodeConfigMap = {
   filter: defaultFilterConfig,
   transform: defaultTransformConfig,
   map: defaultMapConfig,
+  iterate: defaultIterateConfig,
+  subflow: defaultSubflowConfig,
   output: { outputPath: 'result' },
 }
 
@@ -103,15 +114,17 @@ export function createNode(type: NodeType, x: number, y: number): PipelineNode {
     filter: t('defaults.nodeLabel.filter'),
     transform: t('defaults.nodeLabel.transform'),
     map: t('defaults.nodeLabel.map'),
+    iterate: t('defaults.nodeLabel.iterate'),
+    subflow: t('defaults.nodeLabel.subflow'),
     output: t('defaults.nodeLabel.output'),
   }
 
-  let typeNode = "default";
-  if(["start"].includes(type)) {
-    typeNode = "input";
+  let typeNode = 'default'
+  if (['start'].includes(type)) {
+    typeNode = 'input'
   }
 
-  return {
+  const baseNode: PipelineNode = {
     id: crypto.randomUUID(),
     type: typeNode,
     position: { x, y },
@@ -124,6 +137,16 @@ export function createNode(type: NodeType, x: number, y: number): PipelineNode {
       config: getDefaultConfig(type),
     },
   }
+
+  if (type === 'iterate' || type === 'subflow') {
+    baseNode.style = {
+      width: ITERATE_LAYOUT.minWidth,
+      height: ITERATE_LAYOUT.minHeight,
+    }
+    baseNode.expandParent = true
+  }
+
+  return baseNode
 }
 
 export function createInitialPipeline(): PipelineDefinition {

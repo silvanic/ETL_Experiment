@@ -1,4 +1,33 @@
 {
+  "v 0.1.0": {
+    "date": "29 juin 2026",
+    "sections": [
+      {
+        "title": "Nœuds Iterate et Subflow",
+        "features": [
+          "Ajout du nouveau nœud Subflow pour encapsuler un sous-flux exécuté une seule fois",
+          "Ajout d'un comportement de redimensionnement automatique des conteneurs Iterate/Subflow selon les nœuds enfants",
+          "Amélioration visuelle des conteneurs Iterate/Subflow (surface interne + indicateur de type)",
+          "Rappel explicite des variables runtime __currentItem et __currentIndex dans l'inspecteur pour les scopes Iterate"
+        ]
+      },
+      {
+        "title": "Documentation et exemples",
+        "features": [
+          "Ajout de la documentation des nœuds Iterate et Subflow dans le guide d'aide (usage, champs, exemple)",
+          "Ajout d'exemples guidés dédiés : Iterate → __currentItem / __currentIndex et Subflow → exécution unique",
+          "Navigation Help mise à jour pour inclure ces nouveaux exemples"
+        ]
+      },
+      {
+        "title": "Templates",
+        "features": [
+          "Ajout du template officiel \"📖 Iterate + __currentItem\"",
+          "Template prêt à lancer pour démontrer l'usage de __currentItem et __currentIndex dans un sous-pipeline Iterate"
+        ]
+      }
+    ]
+  },
   "v 0.0.10": {
     "date": "26 juin 2026",
     "sections": [

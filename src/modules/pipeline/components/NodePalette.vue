@@ -46,11 +46,33 @@ const entries = computed<{ type: NodeType; title: string; subtitle: string }[]>(
     subtitle: t('nodePalette.nodes.map.subtitle'),
   },
   {
+    type: 'iterate',
+    title: t('nodePalette.nodes.iterate.title'),
+    subtitle: t('nodePalette.nodes.iterate.subtitle'),
+  },
+  {
+    type: 'subflow',
+    title: t('nodePalette.nodes.subflow.title'),
+    subtitle: t('nodePalette.nodes.subflow.subtitle'),
+  },
+  {
     type: 'output',
     title: t('nodePalette.nodes.output.title'),
     subtitle: t('nodePalette.nodes.output.subtitle'),
   },
 ])
+
+function nodeButtonClass(type: NodeType): string[] {
+  if (type === 'iterate') {
+    return ['node-button', 'node-button-iterate']
+  }
+
+  if (type === 'subflow') {
+    return ['node-button', 'node-button-subflow']
+  }
+
+  return ['node-button']
+}
 </script>
 
 <template>
@@ -65,7 +87,7 @@ const entries = computed<{ type: NodeType; title: string; subtitle: string }[]>(
 
     <ul>
       <li v-for="entry in entries" :key="entry.type">
-        <Button class="node-button" severity="secondary" outlined @click="store.addNodeByType(entry.type)">
+        <Button :class="nodeButtonClass(entry.type)" severity="secondary" outlined @click="store.addNodeByType(entry.type)">
           <span class="node-button-content">
             <strong>{{ entry.title }}</strong>
             <span>{{ entry.subtitle }}</span>
@@ -107,6 +129,35 @@ button {
 .node-button {
   width: 100%;
   justify-content: flex-start;
+}
+
+.node-button-iterate {
+  --container-accent: var(--flow-iterate-border);
+  --container-accent-soft: var(--flow-iterate-soft);
+}
+
+.node-button-subflow {
+  --container-accent: var(--flow-subflow-border);
+  --container-accent-soft: var(--flow-subflow-soft);
+}
+
+.node-button-iterate,
+.node-button-subflow {
+  border-color: var(--container-accent) !important;
+  background: linear-gradient(180deg, var(--container-accent-soft), rgba(15, 23, 42, 0.08)) !important;
+}
+
+.node-button-iterate strong {
+  color: var(--flow-iterate-text);
+}
+
+.node-button-subflow strong {
+  color: var(--flow-subflow-text);
+}
+
+.node-button-iterate :deep(.p-button-label),
+.node-button-subflow :deep(.p-button-label) {
+  width: 100%;
 }
 
 strong {

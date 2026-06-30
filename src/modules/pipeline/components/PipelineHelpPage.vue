@@ -110,6 +110,12 @@ function toggleLanguage(): void {
                 <RouterLink class="help-nav-link help-nav-link--sub" :to="{ name: 'help-example', params: { exampleId: 'dummyjson-auth-profile' } }">
                   {{ t('pipelineEditor.help.example3Title') }}
                 </RouterLink>
+                <RouterLink class="help-nav-link help-nav-link--sub" :to="{ name: 'help-example', params: { exampleId: 'iterate-current-item' } }">
+                  {{ t('pipelineEditor.help.example4Title') }}
+                </RouterLink>
+                <RouterLink class="help-nav-link help-nav-link--sub" :to="{ name: 'help-example', params: { exampleId: 'subflow-once' } }">
+                  {{ t('pipelineEditor.help.example5Title') }}
+                </RouterLink>
 
                 <p class="help-nav-title">{{ t('pipelineEditor.help.section3Title') }}</p>
                 <RouterLink class="help-nav-link help-nav-link--sub" :to="{ name: 'help-condition-array' }">

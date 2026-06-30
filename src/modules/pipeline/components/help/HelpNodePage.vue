@@ -30,6 +30,8 @@ const usageGuidance = computed(() => {
     filter: 'Parfait pour separer des listes volumineuses en lots acceptes/rejetes.',
     transform: 'Utilisez-le pour restructurer rapidement une charge utile avant output ou mapping final.',
     map: 'Approprie pour construire un schema cible propre a partir de donnees heterogenes.',
+    iterate: 'Utilisez-le pour executer un sous-pipeline sur chaque element d un tableau, en exploitant __currentItem et __currentIndex.',
+    subflow: 'Utilisez-le pour regrouper une sequence de traitement reutilisable executee une seule fois, sans source tableau.',
     output: 'A placer en fin de flux pour exposer clairement le resultat a consommer.',
   }
 
@@ -66,6 +68,14 @@ const bestPractices = computed(() => {
       'Traitez chaque champ cible independamment pour faciliter la maintenance.',
       'Ajoutez une fallbackValue sur les champs critiques.',
     ],
+    iterate: [
+      'Verifiez que sourcePath pointe bien vers un tableau non vide.',
+      'Placez uniquement la logique par element dans les noeuds enfants du conteneur Iterate.',
+    ],
+    subflow: [
+      'Decoupez la logique enfant en etapes courtes et explicites pour garder le sous-flux lisible.',
+      'Utilisez un Start interne unique comme point d entree clair du sous-pipeline.',
+    ],
     output: [
       'Conservez un outputPath final stable pour les consommateurs aval.',
       'Ajoutez une verification juste avant output sur les pipelines sensibles.',
@@ -84,6 +94,8 @@ const commonMistakes = computed(() => {
     filter: ['Filtrer sur un sourcePath qui ne pointe pas vers un tableau.'],
     transform: ['Ecrire vers un targetPath non desire en raison d une faute de chemin.'],
     map: ['Ne pas definir de fallback sur des champs potentiellement absents.'],
+    iterate: ['Tenter d utiliser __currentItem en dehors des noeuds enfants du conteneur Iterate.'],
+    subflow: ['Utiliser Subflow pour boucler sur une liste: dans ce cas, preferez Iterate.'],
     output: ['Sortir un objet incomplet faute de verification finale.'],
   }
 

@@ -73,6 +73,12 @@ const faqItems = computed(() => [
         <li>
           <RouterLink :to="{ name: 'help-example', params: { exampleId: 'dummyjson-auth-profile' } }">{{ t('pipelineEditor.help.example3Title') }}</RouterLink>
         </li>
+        <li>
+          <RouterLink :to="{ name: 'help-example', params: { exampleId: 'iterate-current-item' } }">{{ t('pipelineEditor.help.example4Title') }}</RouterLink>
+        </li>
+        <li>
+          <RouterLink :to="{ name: 'help-example', params: { exampleId: 'subflow-once' } }">{{ t('pipelineEditor.help.example5Title') }}</RouterLink>
+        </li>
       </ul>
     </section>
 

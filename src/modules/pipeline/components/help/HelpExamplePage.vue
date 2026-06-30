@@ -8,6 +8,8 @@ import HelpFaqSection from '@/modules/pipeline/components/help/HelpFaqSection.vu
 import {
   buildExampleOneSteps,
   buildExampleThreeSteps,
+  buildExampleFourSteps,
+  buildExampleFiveSteps,
   buildExampleTwoSteps,
   resolveHelpExampleSlug,
   resolveTemplateIdFromExampleSlug,
@@ -53,6 +55,14 @@ const exampleObjective = computed(() => {
     return t('pipelineEditor.help.example3Intro')
   }
 
+  if (exampleId.value === 'iterate-current-item') {
+    return t('pipelineEditor.help.example4Intro')
+  }
+
+  if (exampleId.value === 'subflow-once') {
+    return t('pipelineEditor.help.example5Intro')
+  }
+
   return t('pipelineEditor.help.example2Intro')
 })
 
@@ -63,6 +73,14 @@ const expectedOutcome = computed(() => {
 
   if (exampleId.value === 'dummyjson-auth-profile') {
     return 'Resultat attendu: le profil DummyJSON est récupéré en authentifié dans profile, avec profile.source pour tracer l origine.'
+  }
+
+  if (exampleId.value === 'iterate-current-item') {
+    return 'Resultat attendu: result.currentItem et result.currentIndex sont renseignes par le dernier passage Iterate, ce qui démontre l utilisation de __currentItem/__currentIndex.'
+  }
+
+  if (exampleId.value === 'subflow-once') {
+    return 'Resultat attendu: result.subflowStatus vaut "ok" après une exécution unique du sous-flux interne.'
   }
 
   return 'Resultat attendu: tous les objets de $.users contiennent active=true apres transformation.'
@@ -85,6 +103,22 @@ const vigilancePoints = computed(() => {
     ]
   }
 
+  if (exampleId.value === 'iterate-current-item') {
+    return [
+      'Le sourcePath du nœud Iterate doit pointer vers un tableau (ex: todos).',
+      'Les variables __currentItem et __currentIndex sont disponibles uniquement dans les nœuds enfants du conteneur Iterate.',
+      'Ce scénario montre la dernière valeur vue dans la boucle; pour agréger toutes les itérations, ajoutez une étape d accumulation dédiée.',
+    ]
+  }
+
+  if (exampleId.value === 'subflow-once') {
+    return [
+      'Le nœud Subflow ne boucle pas: il exécute ses enfants une seule fois.',
+      'Ajoutez un Start interne pour garder un point d entrée explicite dans le sous-flux.',
+      'Si vous avez besoin d un traitement par élément de tableau, utilisez Iterate à la place.',
+    ]
+  }
+
   return [
     'Le wildcard [*] doit cibler un tableau reel (ex: $.users[*].active).',
     'Verifier que le outputPath de la requete API pointe bien vers la liste attendue.',
@@ -99,6 +133,14 @@ const steps = computed<HelpStep[]>(() => {
 
   if (exampleId.value === 'dummyjson-auth-profile') {
     return buildExampleThreeSteps(t)
+  }
+
+  if (exampleId.value === 'iterate-current-item') {
+    return buildExampleFourSteps(t)
+  }
+
+  if (exampleId.value === 'subflow-once') {
+    return buildExampleFiveSteps(t)
   }
 
   return buildExampleTwoSteps(t)
@@ -127,6 +169,32 @@ const faqItems = computed(() => {
       {
         question: 'Pourquoi /auth/me et pas /users/123 ?',
         answer: 'L endpoint /auth/me utilise le token Bearer pour identifier l utilisateur: plus simple et plus securise.',
+      },
+    ]
+  }
+
+  if (exampleId.value === 'iterate-current-item') {
+    return [
+      {
+        question: 'Pourquoi __currentItem ne fonctionne-t-il pas hors du conteneur Iterate ?',
+        answer: 'Parce que cette variable runtime est injectée uniquement pendant l exécution des nœuds enfants d Iterate.',
+      },
+      {
+        question: 'Puis-je aussi utiliser __currentIndex ?',
+        answer: 'Oui. Il représente l indice courant de boucle et peut être utilisé comme n importe quelle valeur source dans Transform.',
+      },
+    ]
+  }
+
+  if (exampleId.value === 'subflow-once') {
+    return [
+      {
+        question: 'Quand choisir Subflow plutôt que Iterate ?',
+        answer: 'Choisissez Subflow pour encapsuler une séquence exécutée une fois. Choisissez Iterate pour une boucle sur tableau.',
+      },
+      {
+        question: 'Puis-je relier des nœuds enfants à des nœuds externes ?',
+        answer: 'Non, les connexions restent dans le même scope. Les enfants de Subflow doivent rester connectés entre eux.',
       },
     ]
   }
@@ -171,7 +239,11 @@ function loadTemplateInEditor(): void {
             ? t('pipelineEditor.help.example1Title')
             : (exampleId === 'list-wildcard-transform'
               ? t('pipelineEditor.help.example2Title')
-              : t('pipelineEditor.help.example3Title'))
+              : (exampleId === 'dummyjson-auth-profile'
+                ? t('pipelineEditor.help.example3Title')
+                : (exampleId === 'iterate-current-item'
+                  ? t('pipelineEditor.help.example4Title')
+                  : t('pipelineEditor.help.example5Title'))))
         }}
       </h2>
       <button 

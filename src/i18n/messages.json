@@ -1,15 +1,41 @@
 {
   "fr": {
     "common": {
-      "cancel": "Annuler",
-      "confirm": "Confirmer",
-      "close": "Fermer",
-      "delete": "Supprimer",
-      "duplicate": "Dupliquer",
-      "edit": "Modifier",
-      "save": "Enregistrer",
-      "loading": "Chargement...",
-      "error": "Erreur"
+      "actions": {
+        "cancel": "Annuler",
+        "confirm": "Confirmer",
+        "close": "Fermer",
+        "delete": "Supprimer",
+        "duplicate": "Dupliquer",
+        "edit": "Modifier",
+        "save": "Enregistrer",
+        "create": "Créer"
+      },
+      "ui": {
+        "loading": "Chargement...",
+        "error": "Erreur"
+      },
+      "labels": {
+        "help": "Aide",
+        "settings": "Paramètres",
+        "parameters": "Paramètres",
+        "variables": "Variables",
+        "nodeName": "Nom du nœud"
+      },
+      "nodes": {
+        "labels": {
+          "start": "Départ",
+          "api": "Requête API",
+          "setVariable": "Mise à jour de variable",
+          "condition": "Condition",
+          "filter": "Filtre",
+          "transform": "Transformation",
+          "map": "Map",
+          "iterate": "Iterate",
+          "subflow": "Subflow",
+          "output": "Sortie"
+        }
+      }
     },
     "pipelineEditor": {
       "eyebrow": "Expérience ETL",
@@ -17,7 +43,7 @@
         "actions": "Menu",
         "export": "Exporter",
         "file": "Fichier",
-        "help": "Aide",
+        "help": "@:common.labels.help",
         "import": "Importer",
         "load": "Charger",
         "newPipeline": "Nouveau pipeline",
@@ -25,12 +51,12 @@
         "running": "Exécution en cours...",
         "runPipeline": "Exécuter le pipeline",
         "save": "Sauvegarder",
-        "settings": "Paramètres"
+        "settings": "@:common.labels.settings"
       },
       "tabs": {
         "flow": "Flux",
         "console": "Console",
-        "variables": "Variables"
+        "variables": "@:common.labels.variables"
       },
       "language": {
         "switchToFr": "Passer au français",
@@ -66,20 +92,20 @@
       },
       "pipelineNameDialog": {
         "open": "Renommer le pipeline",
-        "renameTitle": "Renommer le pipeline",
+        "renameTitle": "@:pipelineEditor.pipelineNameDialog.open",
         "nameLabel": "Nom du pipeline",
-        "renameConfirm": "Enregistrer",
-        "cancel": "Annuler"
+        "renameConfirm": "@:common.actions.save",
+        "cancel": "@:common.actions.cancel"
       },
       "createDialog": {
         "title": "Créer un pipeline",
         "intro": "Choisissez un point de départ : pipeline vide ou modèle prêt à l'emploi.",
-        "nameLabel": "Nom du pipeline",
+        "nameLabel": "@:pipelineEditor.pipelineNameDialog.nameLabel",
         "emptyTitle": "Pipeline vide",
         "emptyDescription": "Commencer avec uniquement un nœud Départ.",
         "selectChoice": "Sélectionner",
-        "createConfirm": "Créer",
-        "cancel": "Annuler"
+        "createConfirm": "@:common.actions.create",
+        "cancel": "@:common.actions.cancel"
       },
       "settings": {
         "autoOpenConsoleOnRunEnd": "Ouvrir automatiquement l'onglet Console à la fin d'une exécution",
@@ -88,6 +114,7 @@
         "confirmDeleteNode": "Demander confirmation avant suppression d'un nœud",
         "autoFitOnOpen": "Ajuster automatiquement le pipeline à l'ouverture",
         "reopenLastPipelineOnLaunch": "Rouvrir automatiquement le dernier pipeline au lancement",
+        "nodeSelectionShortcutsEnabled": "Activer les raccourcis clavier de sélection de nœuds (copier/couper/coller/dupliquer)",
         "resetPreferences": "Réinitialiser les préférences utilisateur",
         "autoSaveBadgeOn": "Sauvegarde auto ON",
         "autoSaveBadgeOff": "Sauvegarde auto OFF",
@@ -101,9 +128,9 @@
         "valuePlaceholder": "Valeur",
         "environmentNamePlaceholder": "Nom de l'environnement",
         "add": "Ajouter",
-        "addEnvironment": "Créer",
+        "addEnvironment": "@:common.actions.create",
         "renameEnvironment": "Renommer",
-        "removeEnvironment": "Supprimer",
+        "removeEnvironment": "@:common.actions.delete",
         "remove": "Supprimer la variable",
         "environment": "Environnement actif",
         "cannotDeleteLastEnvironment": "Au moins un environnement est requis.",
@@ -111,10 +138,10 @@
         "empty": "Aucune variable pour le moment.",
         "nameDuplicate": "Ce nom de variable existe déjà.",
         "nameInvalid": "Le nom doit commencer par une lettre et ne contenir que des lettres, chiffres, _ ou -.",
-          "newVariable": "Nouvelle variable",
-          "lines": "lignes",
-          "title": "Variables",
-          "selectOrCreate": "Sélectionnez une variable ou créez-en une nouvelle"
+        "newVariable": "Nouvelle variable",
+        "lines": "lignes",
+        "title": "@:common.labels.variables",
+        "selectOrCreate": "Sélectionnez une variable ou créez-en une nouvelle"
       },
       "toast": {
         "executionSuccess": "Exécution réussie",
@@ -127,6 +154,18 @@
         "maxOutgoingConnectionsReachedDetail": "Le nœud \"{name}\" autorise au maximum {max} connexion(s) sortante(s).",
         "selfConnectionNotAllowed": "Auto-connexion non autorisée",
         "selfConnectionNotAllowedDetail": "Un nœud ne peut pas être connecté à lui-même.",
+        "crossScopeConnectionNotAllowed": "Connexion inter-scope non autorisée",
+        "crossScopeConnectionNotAllowedDetail": "Connectez uniquement des nœuds du même niveau (racine avec racine, enfant avec enfant du même conteneur).",
+        "nestedIterateNotAllowed": "Iterate imbriqué non autorisé",
+        "nestedIterateNotAllowedDetail": "Vous ne pouvez pas ajouter un nœud Iterate à l'intérieur d'un autre Iterate.",
+        "nestedContainerNotAllowed": "Conteneur imbriqué non autorisé",
+        "nestedContainerNotAllowedDetail": "Vous ne pouvez pas ajouter un nœud Iterate ou Subflow à l'intérieur d'un autre conteneur.",
+        "childNodeParentInvalid": "Parent invalide pour nœud enfant",
+        "childNodeParentInvalidDetail": "Les nœuds enfants ne peuvent être ajoutés que dans un conteneur Iterate ou Subflow.",
+        "childStartAlreadyExists": "Start interne déjà présent",
+        "childStartAlreadyExistsDetail": "Un seul nœud Start interne est autorisé par conteneur Iterate.",
+        "childNodeAdded": "Nœud enfant ajouté",
+        "childNodeAddedDetail": "Le nœud a été ajouté dans le conteneur Iterate.",
         "nodesCopied": "Nœud(s) copié(s)",
         "nodesCopiedDetail": "{count} nœud(s) copié(s) dans le presse-papiers.",
         "nodesPasted": "Nœud(s) collé(s)",
@@ -199,13 +238,21 @@
           "name": "📖 Liste + Wildcard Transform",
           "description": "Exemple documentaire : récupérer une liste et modifier une propriété sur tous les éléments avec [*]."
         },
+        "docIterateCurrentItem": {
+          "name": "📖 Iterate + __currentItem",
+          "description": "Exemple documentaire : boucler sur une liste avec Iterate et exposer __currentItem/__currentIndex dans la sortie."
+        },
+        "docSubflowOnce": {
+          "name": "📖 Subflow + exécution unique",
+          "description": "Exemple documentaire : encapsuler un sous-flux avec Subflow, exécuté une seule fois."
+        },
         "dummyJsonAuthProfile": {
           "name": "🔐 DummyJSON Auth + Profil",
           "description": "Login avec DummyJSON, extraction du token/userId, appel authentifié du profil, puis sortie enrichie."
         }
       },
       "help": {
-        "menuLabel": "Aide",
+        "menuLabel": "@:common.labels.help",
         "title": "Guide d'utilisation",
         "section1Title": "Les nœuds disponibles",
         "section2Title": "Exemples guidés",
@@ -214,8 +261,12 @@
         "example1Title": "Requête → Condition → Transformation",
         "example2Title": "Modifier une liste avec [*]",
         "example3Title": "Auth DummyJSON → Profil",
+        "example4Title": "Iterate → __currentItem / __currentIndex",
+        "example5Title": "Subflow → exécution unique",
         "example2Intro": "Récupérer une liste d'utilisateurs via une API, puis forcer une propriété sur chaque objet du tableau grâce au wildcard [*] dans un nœud Transform.",
         "example3Intro": "S'authentifier sur DummyJSON, extraire token et userId dans des variables, puis récupérer le profil avec un header Bearer dynamique.",
+        "example4Intro": "Parcourir un tableau avec Iterate et exploiter les variables runtime __currentItem et __currentIndex dans des nœuds enfants.",
+        "example5Intro": "Exécuter un sous-flux une seule fois avec Subflow pour encapsuler une séquence interne sans boucle sur tableau.",
         "exampleLabel": "Exemple",
         "conditionArray": {
           "intro": "Quand le chemin gauche contient le segment *, la condition est évaluée pour chaque élément du tableau.",
@@ -229,7 +280,7 @@
         },
         "guidesTitle": "Guides d'utilisation",
         "concepts": {
-          "navTitle": "Concevoir un pipeline",
+          "navTitle": "@:pipelineEditor.help.concepts.title",
           "title": "Concevoir un pipeline",
           "subtitle": "Comprenez les principes de conception avant d'entrer dans les détails de configuration des nœuds.",
           "narrativeTitle": "Le fil conducteur",
@@ -297,7 +348,7 @@
           "closing": "Si vous pouvez expliquer votre pipeline en moins d'une minute à un collègue, vous êtes généralement sur une très bonne architecture."
         },
         "multiselection": {
-          "navTitle": "Multi-sélection et contrôles",
+          "navTitle": "@:pipelineEditor.help.multiselection.title",
           "title": "Multi-sélection et contrôles",
           "subtitle": "Gérez plusieurs nœuds efficacement avec la sélection, les opérations d'édition et les raccourcis clavier.",
           "selectionTitle": "Comment sélectionner les nœuds",
@@ -319,19 +370,19 @@
           "tip3": "Cliquer sur le canvas vide ou une edge désélectionne tous les nœuds.",
           "learnMore": "En savoir plus",
           "basicExample": "Exemple basique",
-          "basicExampleIntro": "Voici un workflow simple pour dupliquer une séquence de nœuds:",
-          "basicExampleStep1": "Crée un pipeline avec: Start → API → Output",
+          "basicExampleIntro": "Voici un workflow simple pour dupliquer une séquence de nœuds :",
+          "basicExampleStep1": "Crée un pipeline avec : Start → API → Output",
           "basicExampleStep2": "Clique sur API, puis Shift+Clic sur Output pour sélectionner le bloc à dupliquer (sans Start)",
           "basicExampleStep3": "Appuie sur Ctrl+D (Duplicate) pour créer une copie",
           "basicExampleStep4": "Les nœuds dupliqués apparaissent décalés avec leurs connexions préservées",
           "basicExampleStep5": "Tu peux maintenant avoir deux pipelines parallèles!",
-          "basicExampleTip": "Les connections internes restent intactes. La copie est totalement indépendante de l'original.",
+          "basicExampleTip": "Les connexions internes restent intactes. La copie est totalement indépendante de l'original.",
           "learnMoreNodes": "En savoir plus sur les nœuds →",
           "learnMoreExamples": "Voir un exemple guidé complet →",
           "useCasesTitle": "Cas d'usage pratiques",
-          "useCasesDesc": "Découvrez comment la multi-sélection facilite le construction de pipelines complexes:",
+          "useCasesDesc": "Découvrez comment la multi-sélection facilite la construction de pipelines complexes :",
           "useCase1Title": "Dupliquer un motif de traitement",
-          "useCase1Desc": "Vous avez un bloc de traitement qui fonctionne bien (requête + filtre + transformation). Au lieu de le reconstruire manuellement, dupliquez-le et adaptez-le pour un autre source de données.",
+          "useCase1Desc": "Vous avez un bloc de traitement qui fonctionne bien (requête + filtre + transformation). Au lieu de le reconstruire manuellement, dupliquez-le et adaptez-le pour une autre source de données.",
           "useCase1Action": "Sélectionnez tous les nœuds du bloc (Shift+Click), dupliquez (Ctrl+D), puis reconnectez à une nouvelle source.",
           "useCase2Title": "Créer des variantes parallèles",
           "useCase2Desc": "Vous testez deux approches différentes pour traiter les mêmes données. Dupliquez une branche complète après le nœud Départ (source + traitement + sortie) pour créer une seconde variante sans rien perdre.",
@@ -339,7 +390,7 @@
           "useCase3Title": "Nettoyer et réorganiser",
           "useCase3Desc": "Vous devez supprimer un ancien bloc de nœuds qui ne fonctionne plus ou une branche expérimentale. Sélectionnez tout le bloc et supprimez d'un seul coup.",
           "useCase3Action": "Sélectionnez les nœuds à supprimer (Ctrl+Click pour multi-sélection), appuyez sur Suppr pour tout enlever avec les connexions.",
-          "benefitsTitle": "Pourquoi c'est utile?",
+          "benefitsTitle": "Pourquoi c'est utile ?",
           "benefit1Title": "⏱️ Gain de temps",
           "benefit1Desc": "Au lieu de créer ou modifier 10 nœuds individuellement, sélectionnez-les tous, dupliquez et adaptez. Réduction de 70% du temps de construction.",
           "benefit2Title": "🎯 Moins d'erreurs",
@@ -366,21 +417,21 @@
             "pasteDesc": "Colle les nœuds depuis le presse-papiers à une position décalée. Les connexions internes sont préservées.",
             "cut": "Couper",
             "cutDesc": "Combine copier et supprimer : les nœuds sélectionnés sont copiés puis supprimés du canvas.",
-            "duplicate": "Dupliquer",
+            "duplicate": "@:common.actions.duplicate",
             "duplicateDesc": "Crée une copie immédiate des nœuds sélectionnés avec connexions préservées.",
-            "delete": "Supprimer",
+            "delete": "@:common.actions.delete",
             "deleteDesc": "Supprime les nœuds sélectionnés et toutes leurs connexions."
           }
         },
         "nodes": {
           "start": {
-            "title": "Départ",
+            "title": "@:common.nodes.labels.start",
             "desc": "Point d'entrée obligatoire du pipeline. Aucune configuration requise. L'exécution démarre toujours depuis ce nœud.",
             "example": "Placez-le au début du flux et reliez-le au premier nœud actif.",
             "noFields": "Ce nœud n'a aucun champ à configurer. Il sert uniquement de point de départ du flux."
           },
           "api": {
-            "title": "Requête API",
+            "title": "@:common.nodes.labels.api",
             "desc": "Effectue un appel HTTP (GET ou POST) vers une URL. La réponse JSON est stockée dans le chemin de sortie et accessible dans les nœuds suivants.",
             "example": "URL : https://jsonplaceholder.typicode.com/todos/1 | Méthode : GET | Chemin de sortie : $.todo",
             "fields": {
@@ -392,7 +443,7 @@
             }
           },
           "setVariable": {
-            "title": "Mise à jour de variable",
+            "title": "@:common.nodes.labels.setVariable",
             "desc": "Extrait une ou plusieurs valeurs depuis les données du pipeline et met à jour les variables déjà définies dans les paramètres.",
             "example": "Extraction : $.api.result.token -> authToken",
             "fields": {
@@ -402,7 +453,7 @@
             }
           },
           "condition": {
-            "title": "Condition",
+            "title": "@:common.nodes.labels.condition",
             "desc": "Évalue une expression logique sur une valeur unique (objet/champ) des données du pipeline. Pour filtrer un tableau entier, utilisez le nœud Filtre. Le chemin gauche accepte le wildcard * pour parcourir un tableau (ex: $.users.*.age). Selon le résultat, le flux est dirigé vers la branche « vrai » ou « faux ».",
             "example": "Chemin gauche : $.users.*.age | Opérateur : supérieur à | Agrégation : Au moins un | Valeur : 18",
             "fields": {
@@ -414,21 +465,21 @@
             }
           },
           "filter": {
-            "title": "Filtre",
+            "title": "@:common.nodes.labels.filter",
             "desc": "Filtre les éléments d'un tableau selon une condition. Pour une comparaison simple sur un objet/une valeur unique, utilisez plutôt le nœud Condition. Les éléments qui respectent la condition sont écrits dans le chemin de sortie (filtrés), les autres dans le chemin des rejetés. Les deux branches s'exécutent en parallèle.",
             "example": "Source : api.result | Chemin élément : age | Opérateur : supérieur à | Valeur : 18 | Sortie : result.adults | Rejetés : result.minors",
             "fields": {
               "sourcePath": "Chemin JSONPath vers le tableau à filtrer dans les données du pipeline (ex : api.result).",
               "itemPath": "Chemin relatif à chaque élément du tableau sur lequel appliquer la comparaison (ex : age, status). Laisser vide pour comparer l'élément entier.",
               "operator": "L'opération de comparaison à appliquer sur chaque élément : égal, différent, supérieur, inférieur, contient ou existe.",
-              "rightType": "Type de la valeur de référence : texte, nombre, booléen ou nul.",
+              "rightType": "@:pipelineEditor.help.nodes.condition.fields.rightType",
               "rightValue": "La valeur à comparer avec chaque élément. Doit correspondre au type sélectionné.",
               "outputPath": "Chemin JSONPath où stocker les éléments qui respectent la condition (filtrés).",
               "outputPathRejected": "Chemin JSONPath où stocker les éléments qui ne respectent pas la condition (rejetés)."
             }
           },
           "transform": {
-            "title": "Transformation",
+            "title": "@:common.nodes.labels.transform",
             "desc": "Modifie ou réorganise les données. Mode « Extraire » : copie une valeur d'un chemin vers un autre. Mode « Valeur fixe » : assigne directement une constante. Le wildcard [*] permet d'appliquer la transformation sur chaque objet d'un tableau (ex. $.users[*].active).",
             "example": "Mode : Valeur fixe | Valeur : true | Chemin cible : $.users[*].active (active tous les utilisateurs de la liste)",
             "modeExamples": {
@@ -444,7 +495,7 @@
             }
           },
           "map": {
-            "title": "Map",
+            "title": "@:common.nodes.labels.map",
             "desc": "Transforme un tableau en appliquant une série de mappings à chaque élément. Utilise une syntaxe template {chemin} pour les champs d'élément et {#variable} pour les variables globales du pipeline. Les chemins introuvables peuvent utiliser une valeur de secours.",
             "example": "Source : api.users | Cible sortie : result.transformed | Mapping : id={id}, fullName=Name: {firstName} {lastName}, status=active",
             "templateExamples": {
@@ -466,8 +517,22 @@
               "fallbackValue": "Valeur de secours si un chemin du template est introuvable. Utilisée seulement si au moins un chemin manque."
             }
           },
+          "iterate": {
+            "title": "@:common.nodes.labels.iterate",
+            "desc": "Exécute un sous-pipeline pour chaque élément d'un tableau. Les nœuds enfants du conteneur accèdent aux variables runtime __currentItem (élément courant) et __currentIndex (indice courant).",
+            "example": "Source : todos | Dans un enfant Transform : sourcePath=__currentItem, targetPath=result.currentItem",
+            "fields": {
+              "sourcePath": "Chemin JSONPath vers le tableau à parcourir (ex : todos, $.users). Chaque élément déclenche une exécution du sous-pipeline enfant."
+            }
+          },
+          "subflow": {
+            "title": "@:common.nodes.labels.subflow",
+            "desc": "Exécute un sous-pipeline une seule fois, sans source d'entrée tableau. Les nœuds enfants sont exécutés dans l'ordre du sous-flux interne.",
+            "example": "Utilisez-le pour encapsuler une séquence réutilisable : Start interne -> Transform -> SetVariable.",
+            "noFields": "Ce nœud n'a pas de paramètres obligatoires. Configurez la logique dans ses nœuds enfants."
+          },
           "output": {
-            "title": "Sortie",
+            "title": "@:common.nodes.labels.output",
             "desc": "Nœud terminal du pipeline. Expose la valeur finale via le chemin configuré dans la console d'exécution.",
             "example": "Chemin de sortie : $.result",
             "fields": {
@@ -476,8 +541,8 @@
           }
         },
         "exampleSteps": {
-          "branchTrue": "vrai ✓",
-          "branchFalse": "faux ✗",
+          "branchTrue": "@:engine.condition.trueLabel",
+          "branchFalse": "@:engine.condition.falseLabel",
           "noConfig": "Aucune configuration requise.",
           "empty": "(vide)",
           "taskNotDone": "Tâche non terminée"
@@ -490,42 +555,56 @@
       "description": "Ajoutez des briques puis reliez-les dans le canevas.",
       "nodes": {
         "start": {
-          "title": "Départ",
+          "title": "@:common.nodes.labels.start",
           "subtitle": "Point d'entrée"
         },
         "api": {
-          "title": "Requête API",
+          "title": "@:common.nodes.labels.api",
           "subtitle": "GET / POST / PUT / PATCH / DELETE",
           "retry": "Tentatives"
         },
         "setVariable": {
-          "title": "Mise à jour de variable",
+          "title": "@:common.nodes.labels.setVariable",
           "subtitle": "Extraire et stocker en variable"
         },
         "condition": {
-          "title": "Condition",
+          "title": "@:common.nodes.labels.condition",
           "subtitle": "Objet/valeur unique"
         },
         "filter": {
-          "title": "Filtre",
+          "title": "@:common.nodes.labels.filter",
           "subtitle": "Filtrer un tableau"
         },
         "transform": {
-          "title": "Transformation",
+          "title": "@:common.nodes.labels.transform",
           "subtitle": "Correspondance ou valeur fixe"
         },
         "map": {
-          "title": "Map",
+          "title": "@:common.nodes.labels.map",
           "subtitle": "Transformer chaque élément"
         },
+        "iterate": {
+          "title": "@:common.nodes.labels.iterate",
+          "subtitle": "Boucler sur un tableau"
+        },
+        "subflow": {
+          "title": "@:common.nodes.labels.subflow",
+          "subtitle": "Exécuter un sous-flux une fois"
+        },
         "output": {
-          "title": "Sortie",
+          "title": "@:common.nodes.labels.output",
           "subtitle": "Résultat final"
         }
       }
     },
     "pipelineCanvas": {
-      "nodeNamePlaceholder": "Nom du nœud",
+      "nodeNamePlaceholder": "@:common.labels.nodeName",
+      "containerTypeIterate": "Iterate: boucle",
+      "containerTypeSubflow": "Subflow: unique",
+      "iterateHint": "Les nœuds à l'intérieur sont exécutés pour chaque élément du tableau.",
+      "subflowHint": "Les nœuds à l'intérieur sont exécutés une seule fois.",
+      "addChildNode": "Ajouter enfant",
+      "addChildStart": "Ajouter Start",
       "deleteNodeConfirm": "Voulez-vous vraiment supprimer le nœud \"{name}\" ?",
       "deleteNodesConfirm": "Voulez-vous vraiment supprimer ces {count} nœud(s) ?"
     },
@@ -533,14 +612,14 @@
       "title": "Inspecteur",
       "emptySelection": "Sélectionne un nœud pour éditer sa configuration.",
       "tabs": {
-        "parameters": "Paramètres",
+        "parameters": "@:common.labels.parameters",
         "actions": "Actions",
         "request": "Requête",
         "response": "Réponse"
       },
       "fields": {
         "nodeName": "Nom",
-        "nodeNamePlaceholder": "Nom du nœud",
+        "nodeNamePlaceholder": "@:common.labels.nodeName",
         "method": "Méthode",
         "retryMaxRetries": "Nombre de tentatives",
         "retryDelayMs": "Délai entre tentatives (ms)",
@@ -550,7 +629,8 @@
         "headersJson": "En-têtes JSON",
         "bodyJson": "Corps JSON",
         "valueExtractPath": "Chemin d'extraction de la valeur",
-        "variableName": "Nom de la variable",
+        "sourceType": "Source",
+        "variableName": "@:pipelineEditor.variables.namePlaceholder",
         "leftPath": "Chemin gauche",
         "operator": "Opérateur",
         "aggregation": "Agrégation",
@@ -568,7 +648,9 @@
       "hints": {
         "targetPathWildcard": "Astuce : utilisez [*] pour modifier chaque élément d'un tableau (ex. $.users[*].active).",
         "transformTemplateSyntax": "Format à utiliser : {chemin} depuis le contexte, {#variable}. Ex. {user.name} ({#env}).",
-        "templateSyntax": "Format à utiliser : {chemin} depuis le contexte, {#variable}. Ex. {firstName} ({#env})."
+        "templateSyntax": "Format à utiliser : {chemin} depuis le contexte, {#variable}. Ex. {firstName} ({#env}).",
+        "iterateRuntimeVars": "Dans les nœuds enfants d'Iterate, vous pouvez utiliser __currentItem et __currentIndex.",
+        "subflowBehavior": "Le sous-pipeline s'exécute une seule fois. Pour une exécution par élément d'un tableau, utilisez Iterate."
       },
       "buttons": {
         "testApi": "Tester l'API",
@@ -580,6 +662,7 @@
       "messages": {
         "noApiResult": "Aucun résultat disponible.",
         "startNoConfig": "Le nœud Départ n'a pas de configuration obligatoire.",
+        "subflowNoConfig": "Le nœud Subflow n'a pas de configuration obligatoire.",
         "headersEmpty": "Aucun en-tête configuré.",
         "headersEmptyKey": "Attention : au moins une clé d'en-tête est vide.",
         "headersValid": "{count} en-tête(s) configuré(s).",
@@ -601,9 +684,15 @@
         "outputPathEmpty": "Le chemin de sortie est vide. Cela exposera toutes les données du pipeline."
       },
       "placeholders": {
-        "setVariableVariableName": "Choisir une variable paramètre"
+        "setVariableVariableName": "Choisir une variable paramètre",
+        "setVariableExtractPath": "ex: api.result.token",
+        "setVariableLiteralValue": "ex: bla bla, [1,2,3,4], true"
       },
       "options": {
+        "setVariableSourceType": {
+          "path": "Chemin",
+          "literal": "@:inspector.fields.literalValue"
+        },
         "conditionOperator": {
           "equals": "Égal à",
           "notEquals": "Différent de",
@@ -629,7 +718,7 @@
         }
       },
       "prefix": {
-        "error": "Erreur"
+        "error": "@:common.ui.error"
       },
       "warnings": {
         "unresolvedVariables": "Variables manquantes"
@@ -637,26 +726,31 @@
     },
     "runConsole": {
       "title": "Console d'exécution",
-      "eventCount": "{count} événement(s)",
+      "eventCount": "@:pipelineEditor.history.eventCount",
       "subtitleWithLogs": "Logs d'exécution les plus récents.",
       "subtitleEmpty": "Aucune exécution pour le moment.",
       "emptyMessage": "Aucune exécution enregistrée.",
       "showDetails": "Détails",
+      "entryLabel": "Entrée",
+      "iterationLabel": "Itération {index}",
+      "executionLabel": "Exécution {index}",
       "environment": "Variables d'environnement",
-      "activeEnvironment": "Environnement actif",
+      "activeEnvironment": "@:pipelineEditor.variables.environment",
       "totalDuration": "Durée totale"
     },
     "defaults": {
       "pipelineName": "Pipeline API de démonstration",
       "nodeLabel": {
-        "start": "Départ",
-        "api": "Requête API",
-        "setVariable": "Mise à jour de variable",
-        "condition": "Condition",
-        "filter": "Filtre",
-        "transform": "Transformation",
-        "map": "Map",
-        "output": "Sortie"
+        "start": "@:common.nodes.labels.start",
+        "api": "@:common.nodes.labels.api",
+        "setVariable": "@:common.nodes.labels.setVariable",
+        "condition": "@:common.nodes.labels.condition",
+        "filter": "@:common.nodes.labels.filter",
+        "transform": "@:common.nodes.labels.transform",
+        "map": "@:common.nodes.labels.map",
+        "iterate": "@:common.nodes.labels.iterate",
+        "subflow": "@:common.nodes.labels.subflow",
+        "output": "@:common.nodes.labels.output"
       },
       "edge": {
         "true": "vrai",
@@ -699,6 +793,12 @@
       "map": {
         "result": "Map: {sourcePath} -> {outputPath} ({count} élément(s) produits)."
       },
+      "iterate": {
+        "result": "Iterate: {sourcePath} ({count} élément(s))."
+      },
+      "subflow": {
+        "result": "Subflow: {count} nœud(s) enfant détecté(s)."
+      },
       "output": {
         "resolved": "Sortie résolue depuis le chemin \"{path}\"."
       },
@@ -721,15 +821,41 @@
   },
   "en": {
     "common": {
-      "cancel": "Cancel",
-      "confirm": "Confirm",
-      "close": "Close",
-      "delete": "Delete",
-      "duplicate": "Duplicate",
-      "edit": "Edit",
-      "save": "Save",
-      "loading": "Loading...",
-      "error": "Error"
+      "actions": {
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "close": "Close",
+        "delete": "Delete",
+        "duplicate": "Duplicate",
+        "edit": "Edit",
+        "save": "Save",
+        "create": "Create"
+      },
+      "ui": {
+        "loading": "Loading...",
+        "error": "Error"
+      },
+      "labels": {
+        "help": "Help",
+        "settings": "Settings",
+        "parameters": "Parameters",
+        "variables": "Variables",
+        "nodeName": "Node name"
+      },
+      "nodes": {
+        "labels": {
+          "start": "Start",
+          "api": "API Request",
+          "setVariable": "Update variable",
+          "condition": "Condition",
+          "filter": "Filter",
+          "transform": "Transform",
+          "map": "Map",
+          "iterate": "Iterate",
+          "subflow": "Subflow",
+          "output": "Output"
+        }
+      }
     },
     "pipelineEditor": {
       "eyebrow": "ETL Experience",
@@ -737,20 +863,20 @@
         "actions": "Menu",
         "export": "Export",
         "file": "File",
-        "help": "Help",
+        "help": "@:common.labels.help",
         "import": "Import",
         "load": "Load",
         "newPipeline": "New pipeline",
         "reset": "Reset",
         "running": "Running...",
         "runPipeline": "Run Pipeline",
-        "save": "Save",
-        "settings": "Settings"
+        "save": "@:common.actions.save",
+        "settings": "@:common.labels.settings"
       },
       "tabs": {
         "flow": "Flow",
         "console": "Console",
-        "variables": "Variables"
+        "variables": "@:common.labels.variables"
       },
       "language": {
         "switchToFr": "Switch to French",
@@ -786,20 +912,20 @@
       },
       "pipelineNameDialog": {
         "open": "Rename pipeline",
-        "renameTitle": "Rename pipeline",
+        "renameTitle": "@:pipelineEditor.pipelineNameDialog.open",
         "nameLabel": "Pipeline name",
-        "renameConfirm": "Save",
-        "cancel": "Cancel"
+        "renameConfirm": "@:common.actions.save",
+        "cancel": "@:common.actions.cancel"
       },
       "createDialog": {
         "title": "Create a pipeline",
         "intro": "Choose a starting point: empty pipeline or ready-made template.",
-        "nameLabel": "Pipeline name",
+        "nameLabel": "@:pipelineEditor.pipelineNameDialog.nameLabel",
         "emptyTitle": "Empty pipeline",
         "emptyDescription": "Start with only a Start node.",
         "selectChoice": "Select",
-        "createConfirm": "Create",
-        "cancel": "Cancel"
+        "createConfirm": "@:common.actions.create",
+        "cancel": "@:common.actions.cancel"
       },
       "settings": {
         "autoOpenConsoleOnRunEnd": "Automatically open the Console tab when execution ends",
@@ -808,6 +934,7 @@
         "confirmDeleteNode": "Ask confirmation before deleting a node",
         "autoFitOnOpen": "Auto-fit pipeline on open",
         "reopenLastPipelineOnLaunch": "Automatically reopen last pipeline on launch",
+        "nodeSelectionShortcutsEnabled": "Enable node selection keyboard shortcuts (copy/cut/paste/duplicate)",
         "resetPreferences": "Reset user preferences",
         "autoSaveBadgeOn": "Auto-save ON",
         "autoSaveBadgeOff": "Auto-save OFF",
@@ -821,9 +948,9 @@
         "valuePlaceholder": "Value",
         "environmentNamePlaceholder": "Environment name",
         "add": "Add",
-        "addEnvironment": "Create",
+        "addEnvironment": "@:common.actions.create",
         "renameEnvironment": "Rename",
-        "removeEnvironment": "Delete",
+        "removeEnvironment": "@:common.actions.delete",
         "remove": "Remove variable",
         "environment": "Active environment",
         "cannotDeleteLastEnvironment": "At least one environment is required.",
@@ -831,10 +958,10 @@
         "empty": "No variables yet.",
         "nameDuplicate": "This variable name already exists.",
         "nameInvalid": "Name must start with a letter and only contain letters, digits, _ or -.",
-          "newVariable": "New variable",
-          "lines": "lines",
-          "title": "Variables",
-          "selectOrCreate": "Select a variable or create a new one"
+        "newVariable": "New variable",
+        "lines": "lines",
+        "title": "@:common.labels.variables",
+        "selectOrCreate": "Select a variable or create a new one"
       },
       "toast": {
         "executionSuccess": "Execution successful",
@@ -847,6 +974,18 @@
         "maxOutgoingConnectionsReachedDetail": "Node \"{name}\" allows a maximum of {max} outgoing connection(s).",
         "selfConnectionNotAllowed": "Self-connection not allowed",
         "selfConnectionNotAllowedDetail": "A node cannot be connected to itself.",
+        "crossScopeConnectionNotAllowed": "Cross-scope connection not allowed",
+        "crossScopeConnectionNotAllowedDetail": "Only connect nodes at the same level (root to root, child to child in the same container).",
+        "nestedIterateNotAllowed": "Nested Iterate not allowed",
+        "nestedIterateNotAllowedDetail": "You cannot add an Iterate node inside another Iterate node.",
+        "nestedContainerNotAllowed": "Nested container not allowed",
+        "nestedContainerNotAllowedDetail": "You cannot add an Iterate or Subflow node inside another container.",
+        "childNodeParentInvalid": "Invalid parent for child node",
+        "childNodeParentInvalidDetail": "Child nodes can only be added inside an Iterate or Subflow container.",
+        "childStartAlreadyExists": "Internal Start already exists",
+        "childStartAlreadyExistsDetail": "Only one internal Start node is allowed per Iterate container.",
+        "childNodeAdded": "Child node added",
+        "childNodeAddedDetail": "The node was added inside the Iterate container.",
         "nodesCopied": "Node(s) copied",
         "nodesCopiedDetail": "{count} node(s) copied to clipboard.",
         "nodesPasted": "Node(s) pasted",
@@ -919,13 +1058,21 @@
           "name": "📖 List + Wildcard Transform",
           "description": "Documentation example: fetch a list and modify a property on all items using [*]."
         },
+        "docIterateCurrentItem": {
+          "name": "📖 Iterate + __currentItem",
+          "description": "Documentation example: iterate over an array and expose __currentItem/__currentIndex in the output."
+        },
+        "docSubflowOnce": {
+          "name": "📖 Subflow + single run",
+          "description": "Documentation example: encapsulate a child flow with Subflow, executed once."
+        },
         "dummyJsonAuthProfile": {
           "name": "🔐 DummyJSON Auth + Profile",
           "description": "Login with DummyJSON, extract token/userId, fetch profile with auth header, then output enriched data."
         }
       },
       "help": {
-        "menuLabel": "Help",
+        "menuLabel": "@:common.labels.help",
         "title": "User Guide",
         "section1Title": "Available nodes",
         "section2Title": "Guided examples",
@@ -934,8 +1081,12 @@
         "example1Title": "Request → Condition → Transform",
         "example2Title": "Update a list with [*]",
         "example3Title": "DummyJSON Auth → Profile",
+        "example4Title": "Iterate → __currentItem / __currentIndex",
+        "example5Title": "Subflow → single run",
         "example2Intro": "Fetch a list of users from an API, then force a property on every object in the array using the [*] wildcard in a Transform node.",
         "example3Intro": "Authenticate on DummyJSON, extract token and userId into variables, then fetch the profile with a dynamic Bearer header.",
+        "example4Intro": "Loop through an array with Iterate and use runtime variables __currentItem and __currentIndex inside child nodes.",
+        "example5Intro": "Run a child flow once with Subflow to encapsulate internal steps without array iteration.",
         "exampleLabel": "Example",
         "conditionArray": {
           "intro": "When the left path contains the * segment, the condition is evaluated for each array item.",
@@ -949,7 +1100,7 @@
         },
         "guidesTitle": "Usage guides",
         "concepts": {
-          "navTitle": "Pipeline design fundamentals",
+          "navTitle": "@:pipelineEditor.help.concepts.title",
           "title": "Pipeline design fundamentals",
           "subtitle": "Understand core design principles before going into node-by-node configuration details.",
           "narrativeTitle": "The guiding thread",
@@ -1017,7 +1168,7 @@
           "closing": "If you can explain your pipeline to a teammate in under a minute, you are usually very close to a strong architecture."
         },
         "multiselection": {
-          "navTitle": "Multi-selection and controls",
+          "navTitle": "@:pipelineEditor.help.multiselection.title",
           "title": "Multi-selection and controls",
           "subtitle": "Manage multiple nodes efficiently with selection, editing operations, and keyboard shortcuts.",
           "selectionTitle": "How to select nodes",
@@ -1086,21 +1237,21 @@
             "pasteDesc": "Pastes nodes from clipboard at an offset position. Internal connections are preserved.",
             "cut": "Cut",
             "cutDesc": "Combines copy and delete: selected nodes are copied then removed from the canvas.",
-            "duplicate": "Duplicate",
+            "duplicate": "@:common.actions.duplicate",
             "duplicateDesc": "Creates an immediate copy of selected nodes with connections preserved.",
-            "delete": "Delete",
+            "delete": "@:common.actions.delete",
             "deleteDesc": "Deletes selected nodes and all their connections."
           }
         },
         "nodes": {
           "start": {
-            "title": "Start",
+            "title": "@:common.nodes.labels.start",
             "desc": "Mandatory entry point. No configuration required. Execution always begins from this node.",
             "example": "Place it at the beginning of the flow and connect it to the first active node.",
             "noFields": "This node has no fields to configure. It only serves as the entry point of the flow."
           },
           "api": {
-            "title": "API Request",
+            "title": "@:common.nodes.labels.api",
             "desc": "Performs an HTTP call (GET or POST) to a URL. The JSON response is stored at the output path and accessible in subsequent nodes.",
             "example": "URL: https://jsonplaceholder.typicode.com/todos/1 | Method: GET | Output path: $.todo",
             "fields": {
@@ -1112,7 +1263,7 @@
             }
           },
           "setVariable": {
-            "title": "Update variable",
+            "title": "@:common.nodes.labels.setVariable",
             "desc": "Extracts one or more values from pipeline data and updates variables already defined in pipeline parameters.",
             "example": "Extraction: $.api.result.token -> authToken",
             "fields": {
@@ -1122,7 +1273,7 @@
             }
           },
           "condition": {
-            "title": "Condition",
+            "title": "@:common.nodes.labels.condition",
             "desc": "Evaluates a logical expression on a single value (object/field) in pipeline data. To filter a full array, use the Filter node instead. The left path supports wildcard * to iterate over arrays (e.g. $.users.*.age). Routes the flow to the 'true' or 'false' branch based on the result.",
             "example": "Left path: $.users.*.age | Operator: greater than | Aggregation: Any | Value: 18",
             "fields": {
@@ -1134,21 +1285,21 @@
             }
           },
           "filter": {
-            "title": "Filter",
+            "title": "@:common.nodes.labels.filter",
             "desc": "Filters items from an array based on a condition. For a simple comparison on a single object/value, use the Condition node instead. Items matching the condition are written to the output path (filtered), others to the rejected path. Both branches execute in parallel.",
             "example": "Source: api.result | Item path: age | Operator: greater than | Value: 18 | Output: result.adults | Rejected: result.minors",
             "fields": {
               "sourcePath": "JSONPath to the array to filter in the pipeline data (e.g. api.result).",
               "itemPath": "Path relative to each array item on which to apply the comparison (e.g. age, status). Leave empty to compare the whole item.",
               "operator": "The comparison operation to apply on each item: equals, not equals, greater than, less than, contains, or exists.",
-              "rightType": "Type of the reference value: string, number, boolean, or null.",
+              "rightType": "@:pipelineEditor.help.nodes.condition.fields.rightType",
               "rightValue": "The value to compare each item against. Must match the selected type.",
               "outputPath": "JSONPath where items matching the condition (filtered) will be stored.",
               "outputPathRejected": "JSONPath where items not matching the condition (rejected) will be stored."
             }
           },
           "transform": {
-            "title": "Transform",
+            "title": "@:common.nodes.labels.transform",
             "desc": "Modifies or reorganizes data. 'Pick path' mode: copies a value from one path to another. 'Literal' mode: assigns a constant directly. The [*] wildcard applies the transformation to every object in an array (e.g. $.users[*].active).",
             "example": "Mode: Assign literal | Value: true | Target path: $.users[*].active (activates every user in the list)",
             "modeExamples": {
@@ -1164,7 +1315,7 @@
             }
           },
           "map": {
-            "title": "Map",
+            "title": "@:common.nodes.labels.map",
             "desc": "Transforms an array by applying a series of mappings to each item. Uses template syntax {path} for item fields and {#variable} for global pipeline variables. Missing paths can use a fallback value.",
             "example": "Source: api.users | Output target: result.transformed | Mapping: id={id}, fullName=Name: {firstName} {lastName}, status=active",
             "templateExamples": {
@@ -1186,8 +1337,22 @@
               "fallbackValue": "Fallback value if a path in the template is missing. Used only if at least one path is not found."
             }
           },
+          "iterate": {
+            "title": "@:common.nodes.labels.iterate",
+            "desc": "Runs a child sub-pipeline for each item in an array. Child nodes can use runtime variables __currentItem (current item) and __currentIndex (current index).",
+            "example": "Source: todos | In a child Transform: sourcePath=__currentItem, targetPath=result.currentItem",
+            "fields": {
+              "sourcePath": "JSONPath to the array to iterate on (e.g. todos, $.users). Each item triggers one child sub-pipeline execution."
+            }
+          },
+          "subflow": {
+            "title": "@:common.nodes.labels.subflow",
+            "desc": "Runs a child sub-pipeline once, without requiring an input array source. Child nodes execute in the internal sub-flow order.",
+            "example": "Use it to encapsulate a reusable sequence: internal Start -> Transform -> SetVariable.",
+            "noFields": "This node has no required parameters. Configure the behavior inside its child nodes."
+          },
           "output": {
-            "title": "Output",
+            "title": "@:common.nodes.labels.output",
             "desc": "Terminal node. Exposes the final value via the configured path in the execution console.",
             "example": "Output path: $.result",
             "fields": {
@@ -1196,8 +1361,8 @@
           }
         },
         "exampleSteps": {
-          "branchTrue": "true ✓",
-          "branchFalse": "false ✗",
+          "branchTrue": "@:engine.condition.trueLabel",
+          "branchFalse": "@:engine.condition.falseLabel",
           "noConfig": "No configuration required.",
           "empty": "(empty)",
           "taskNotDone": "Task not completed"
@@ -1210,42 +1375,56 @@
       "description": "Add blocks and connect them on the canvas.",
       "nodes": {
         "start": {
-          "title": "Start",
+          "title": "@:common.nodes.labels.start",
           "subtitle": "Entry point"
         },
         "api": {
-          "title": "API Request",
+          "title": "@:common.nodes.labels.api",
           "subtitle": "GET / POST / PUT / PATCH / DELETE",
           "retry": "Attempts"
         },
         "setVariable": {
-          "title": "Update variable",
+          "title": "@:common.nodes.labels.setVariable",
           "subtitle": "Extract and store in variable"
         },
         "condition": {
-          "title": "Condition",
+          "title": "@:common.nodes.labels.condition",
           "subtitle": "Single object/value"
         },
         "filter": {
-          "title": "Filter",
+          "title": "@:common.nodes.labels.filter",
           "subtitle": "Filter an array"
         },
         "transform": {
-          "title": "Transform",
+          "title": "@:common.nodes.labels.transform",
           "subtitle": "Mapping or fixed value"
         },
         "map": {
-          "title": "Map",
+          "title": "@:common.nodes.labels.map",
           "subtitle": "Transform each item"
         },
+        "iterate": {
+          "title": "@:common.nodes.labels.iterate",
+          "subtitle": "Loop over an array"
+        },
+        "subflow": {
+          "title": "@:common.nodes.labels.subflow",
+          "subtitle": "Run a child flow once"
+        },
         "output": {
-          "title": "Output",
+          "title": "@:common.nodes.labels.output",
           "subtitle": "Final result"
         }
       }
     },
     "pipelineCanvas": {
-      "nodeNamePlaceholder": "Node name",
+      "nodeNamePlaceholder": "@:common.labels.nodeName",
+      "containerTypeIterate": "Iterate: loop",
+      "containerTypeSubflow": "Subflow: once",
+      "iterateHint": "Nodes inside are executed once for each item in the array.",
+      "subflowHint": "Nodes inside are executed once.",
+      "addChildNode": "Add child",
+      "addChildStart": "Add Start",
       "deleteNodeConfirm": "Are you sure you want to delete node \"{name}\"?",
       "deleteNodesConfirm": "Are you sure you want to delete these {count} node(s)?"
     },
@@ -1253,14 +1432,14 @@
       "title": "Inspector",
       "emptySelection": "Select a node to edit its configuration.",
       "tabs": {
-        "parameters": "Parameters",
+        "parameters": "@:common.labels.parameters",
         "actions": "Actions",
         "request": "Request",
         "response": "Response"
       },
       "fields": {
         "nodeName": "Name",
-        "nodeNamePlaceholder": "Node name",
+        "nodeNamePlaceholder": "@:common.labels.nodeName",
         "method": "Method",
         "retryMaxRetries": "Number of attempts",
         "retryDelayMs": "Delay between attempts (ms)",
@@ -1268,8 +1447,11 @@
         "outputPath": "Output path",
         "outputPathRejected": "Rejected output path",
         "headersJson": "Headers JSON",
-        "bodyJson": "Body JSON",        "valueExtractPath": "Value extract path",
-        "variableName": "Variable name",        "leftPath": "Left path",
+        "bodyJson": "Body JSON",
+        "valueExtractPath": "Value extract path",
+        "sourceType": "Source",
+        "variableName": "@:pipelineEditor.variables.namePlaceholder",
+        "leftPath": "Left path",
         "operator": "Operator",
         "aggregation": "Aggregation",
         "itemPath": "Item path",
@@ -1286,7 +1468,9 @@
       "hints": {
         "targetPathWildcard": "Tip: use [*] to modify every element in an array (e.g. $.users[*].active).",
         "transformTemplateSyntax": "Format to use: {path} from context, {#variable}. E.g. {user.name} ({#env}).",
-        "templateSyntax": "Format to use: {path} from context, {#variable}. E.g. {firstName} ({#env})."
+        "templateSyntax": "Format to use: {path} from context, {#variable}. E.g. {firstName} ({#env}).",
+        "iterateRuntimeVars": "Inside Iterate child nodes, you can use __currentItem and __currentIndex.",
+        "subflowBehavior": "The sub-pipeline runs once. For per-item execution over an array, use Iterate."
       },
       "buttons": {
         "testApi": "Test API",
@@ -1298,6 +1482,7 @@
       "messages": {
         "noApiResult": "No result available.",
         "startNoConfig": "The Start node has no required configuration.",
+        "subflowNoConfig": "The Subflow node has no required configuration.",
         "headersEmpty": "No headers configured.",
         "headersEmptyKey": "Warning: at least one header key is empty.",
         "headersValid": "{count} header(s) configured.",
@@ -1319,9 +1504,15 @@
         "outputPathEmpty": "The output path is empty. This will expose all pipeline data."
       },
       "placeholders": {
-        "setVariableVariableName": "Select a parameter variable"
+        "setVariableVariableName": "Select a parameter variable",
+        "setVariableExtractPath": "e.g. api.result.token",
+        "setVariableLiteralValue": "e.g. bla bla, [1,2,3,4], true"
       },
       "options": {
+        "setVariableSourceType": {
+          "path": "Path",
+          "literal": "@:inspector.fields.literalValue"
+        },
         "conditionOperator": {
           "equals": "Equals",
           "notEquals": "Not equals",
@@ -1347,7 +1538,7 @@
         }
       },
       "prefix": {
-        "error": "Error"
+        "error": "@:common.ui.error"
       },
       "warnings": {
         "unresolvedVariables": "Missing variables"
@@ -1355,26 +1546,31 @@
     },
     "runConsole": {
       "title": "Execution console",
-      "eventCount": "{count} event(s)",
+      "eventCount": "@:pipelineEditor.history.eventCount",
       "subtitleWithLogs": "Most recent execution logs.",
       "subtitleEmpty": "No execution yet.",
       "emptyMessage": "No execution recorded.",
       "showDetails": "Details",
+      "entryLabel": "Entry",
+      "iterationLabel": "Iteration {index}",
+      "executionLabel": "Execution {index}",
       "environment": "Environment variables",
-      "activeEnvironment": "Active environment",
+      "activeEnvironment": "@:pipelineEditor.variables.environment",
       "totalDuration": "Total duration"
     },
     "defaults": {
       "pipelineName": "API demo pipeline",
       "nodeLabel": {
-        "start": "Start",
-        "api": "API Request",
-        "setVariable": "Update variable",
-        "condition": "Condition",
-        "filter": "Filter",
-        "transform": "Transform",
-        "map": "Map",
-        "output": "Output"
+        "start": "@:common.nodes.labels.start",
+        "api": "@:common.nodes.labels.api",
+        "setVariable": "@:common.nodes.labels.setVariable",
+        "condition": "@:common.nodes.labels.condition",
+        "filter": "@:common.nodes.labels.filter",
+        "transform": "@:common.nodes.labels.transform",
+        "map": "@:common.nodes.labels.map",
+        "iterate": "@:common.nodes.labels.iterate",
+        "subflow": "@:common.nodes.labels.subflow",
+        "output": "@:common.nodes.labels.output"
       },
       "edge": {
         "true": "true",
@@ -1416,6 +1612,12 @@
       },
       "map": {
         "result": "Map: {sourcePath} -> {outputPath} ({count} produced item(s))."
+      },
+      "iterate": {
+        "result": "Iterate: {sourcePath} ({count} item(s))."
+      },
+      "subflow": {
+        "result": "Subflow: {count} child node(s) detected."
       },
       "output": {
         "resolved": "Output resolved from path \"{path}\"."

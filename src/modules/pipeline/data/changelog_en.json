@@ -1,4 +1,33 @@
 {
+  "v 0.1.0": {
+    "date": "June 29, 2026",
+    "sections": [
+      {
+        "title": "Iterate and Subflow Nodes",
+        "features": [
+          "Added the new Subflow node to encapsulate a child flow executed once",
+          "Added automatic container resizing for Iterate/Subflow based on child nodes",
+          "Improved Iterate/Subflow visuals (inner surface + type indicator)",
+          "Added explicit runtime variable guidance for __currentItem and __currentIndex in the inspector for Iterate scopes"
+        ]
+      },
+      {
+        "title": "Documentation and examples",
+        "features": [
+          "Added Iterate and Subflow node documentation in the Help guide (usage, fields, examples)",
+          "Added dedicated guided examples: Iterate → __currentItem / __currentIndex and Subflow → single execution",
+          "Updated Help navigation to include these new examples"
+        ]
+      },
+      {
+        "title": "Templates",
+        "features": [
+          "Added the official \"📖 Iterate + __currentItem\" template",
+          "Template is ready to run to demonstrate __currentItem and __currentIndex usage in an Iterate sub-pipeline"
+        ]
+      }
+    ]
+  },
   "v 0.0.10": {
     "date": "June 26, 2026",
     "sections": [

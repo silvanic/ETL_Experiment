@@ -17,7 +17,7 @@ src/
     ├── components/                        # Composants Vue
     │   ├── PipelineEditorPage.vue        # Page principale (3-colonne layout)
     │   ├── PipelineHelpPage.vue          # Page d'aide dédiée (documentation)
-    │   ├── PipelineHelpContent.vue       # Contenu d'aide partagé
+    │   ├── help/                         # Pages aide (overview, node, example, FAQ)
     │   ├── PipelineCanvas.vue            # Canvas Vue Flow + gestion nœuds/arêtes
     │   ├── NodePalette.vue               # Palette nœuds draggables
     │   ├── InspectorPanel.vue            # Éditeur config nœud sélectionné
@@ -37,7 +37,7 @@ src/
     │
     ├── engine/                            # Moteur d'exécution
     │   ├── runPipeline.ts                 # Orchestration exécution (boucle + état)
-    │   ├── nodeExecutors.ts               # 7 exécuteurs typés (1 par type nœud)
+    │   ├── nodeExecutors.ts               # Exécuteurs typés (1 par type de nœud)
     │   ├── pathUtils.ts                   # Accès path JSON (get/set)
     │   ├── variableContext.ts             # Contexte variables pendant exécution
     │   ├── executorTypes.ts               # Types exécuteurs
@@ -67,7 +67,7 @@ src/
   type: string                    // Doit correspondre à NodeType
   position: { x: number; y: number }
   data: {
-    type: NodeType              // Start|Api|SetVariable|Condition|Filter|Transform|Map|Output
+    type: NodeType              // start|api|setVariable|condition|filter|transform|map|iterate|subflow|output
     label: string               // Affichage
     name?: string               // Optional custom name
     config: NodeConfigMap[T]    // Config typée selon type
@@ -120,7 +120,7 @@ src/
 
 ---
 
-## Types de nœuds (8 types)
+## Types de nœuds (10 types)
 
 | Type | Rôle | Config | Sortie |
 |------|------|--------|--------|
@@ -131,6 +131,8 @@ src/
 | **filter** | Filtre array | sourcePath, itemPath, operator, outputPath/rejected | 2 arêtes: filtered/rejected |
 | **transform** | Transformation données | mode (pickPath\|assignLiteral), paths | Contexte modifié |
 | **map** | Mapping tableau | sourcePath, outputPath, mappings[] | Tableau transformé |
+| **iterate** | Boucle conteneur | `sourcePath` (tableau) | Exécute les enfants pour chaque item |
+| **subflow** | Conteneur mono-run | Pas de config obligatoire | Exécute les enfants une seule fois |
 | **output** | Résultat final | `outputPath: string` | Terminal (aucune sortie) |
 
 ---
@@ -142,35 +144,43 @@ src/
    ↓
 2. Validation schéma + initialisation ExecutionContext
    ↓
-3. Boucle d'exécution:
-   queue = {START.id}
-   visited = new Set()
+3. Boucle d'exécution par scope:
+  queue = [START.id]
+   guard = MAX_EXECUTION_STEPS
    
-   while (queue.length > 0) {
+   while (queue.length > 0 && success) {
      nodeId = queue.shift()
-     if (visited.has(nodeId)) continue  // Évite cycles
-     visited.add(nodeId)
      
      node = findNode(nodeId)
      executor = executorByType[node.data.type]
-     result = executor(node, context, edges)
+    result = executor(node, context, graph, executionState)
      
      context = result.context
-     logs.push(...result.logs)
-     queue.push(...result.nextNodeIds)
+
+     if (node.type === 'iterate') {
+       // scope enfant exécuté pour chaque item
+       // variables runtime disponibles: __currentItem / __currentIndex
+     }
+
+     if (node.type === 'subflow') {
+       // scope enfant exécuté une seule fois
+     }
+
+     queue.push(nextNodesSelonBranchEtScope)
    }
    ↓
 4. Retourne ExecutionRun avec logs et résultat final
    ↓
 5. Store.currentRun = result
 6. RunConsole affiche logs temps réel
-7. UI met à jour status + affiche résultat
+7. UI met à jour le statut + affiche le résultat
 ```
 
 **Branchement**:
 - Condition retourne 2 nextNodeIds (true branch + false branch)
 - Filter retourne 2 nextNodeIds (filtered branch + rejected branch)
 - Autres types retournent 1 ou 0 nextNodeIds
+- Les enfants d'un conteneur sont exécutés dans le scope du parent (`parentNode`)
 
 ---
 
@@ -202,7 +212,7 @@ Persistance localStorage avec index maintenu:
 - `savePipeline(def)` — sauvegarde + met à jour index
 - `loadSavedPipeline(id)` — charge par ID
 - `listSavedPipelines()` — retourne sommaires triés par date desc
-- Support héritage format legacy via Zod transform
+- Support héritage format legacy via Zod transform (dont ancien type `subPipeline` migré en `subflow`)
 
 **Clés localStorage**:
 ```
@@ -212,10 +222,11 @@ etl-experiment.pipelines.entry.v1.{id}   // Contenu pipeline
 ```
 
 ### pathUtils.ts
-Accès paths JSON (like lodash get/set):
+Accès paths JSON (type lodash get/set):
 - `getValueByPath(obj, path)` — récupère valeur nested
 - `setValueByPath(obj, path, value)` — assigne valeur nested
 - Support notation pointée (ex: `result.data.items[0].name`)
+- Support bracket dynamique (ex: `result[__currentIndex].name`)
 
 ### variables.ts
 Gestion variables pipeline:
@@ -243,7 +254,7 @@ Layout 3-colonnes:
 
 ### InspectorPanel
 Dialogue config conditionnelle par type nœud:
-- 7 dialogues de config (1 par type)
+- Config dédiée pour types classiques + infos conteneur (`iterate` et `subflow`)
 - Validation Zod client
 - Update store on change
 
@@ -253,38 +264,52 @@ Affichage logs ExecutionRun:
 - Détails dépliables (payload/erreurs)
 - Affichage des variables effectives et de l'environnement actif
 
+### Systeme de couleurs conteneur (Iterate/Subflow)
+
+Le projet utilise un systeme de tokens CSS centralises pour les conteneurs afin d'eviter la duplication de couleurs entre composants.
+
+Point d'entree:
+- `src/style.css` definit les tokens globaux `--flow-iterate-*` et `--flow-subflow-*`.
+
+Responsabilites par composant:
+- `PipelineCanvas.vue`: rend les badges de type conteneur et les boutons d'ajout d'enfant avec les tokens de conteneur.
+- `NodePalette.vue`: applique les accents visuels Iterate/Subflow pour les entrees de palette.
+- `RunConsole.vue`: applique les couleurs de conteneur sur les sections et propage la teinte aux niveaux internes (panels/logs/durees/group-id) via une variable locale de section.
+
+Principe de propagation dans la console:
+- Chaque section conteneur definit `--container-info-border` a partir du token global (`--flow-iterate-panel-border` ou `--flow-subflow-panel-border`).
+- Les sous-elements internes reutilisent cette variable pour conserver une coherence de niveau 1 a n.
+
+Regle d'evolution:
+- Toute nouvelle couleur specifique Iterate/Subflow doit etre creee d'abord dans `src/style.css`, puis consommee dans les composants via `var(...)`.
+- Eviter les valeurs hardcodees dans les SFC pour ces deux types.
+
 ---
 
 ## Moteur d'exécution (engine/)
 
 ### nodeExecutors.ts
-7 exécuteurs typés:
+Exécuteurs typés par type de nœud:
 ```ts
 type NodeExecutor<T extends NodeType> = (
   node: PipelineNode<T>,
   context: ExecutionContext,
-  edges: PipelineEdge[]
-) => ExecutionResult
-
-interface ExecutionResult {
-  success: boolean
-  context: ExecutionContext    // Updated
-  nextNodeIds: string[]        // Next nodes à exécuter
-  logs: ExecutionLog[]         // Generated logs
-}
+  graph: ExecutionGraph,
+  scope: ExecutionScope
+) => ExecutorResult
 ```
 
 Chaque exécuteur:
 1. Valide config nœud
 2. Effectue logique métier
-3. Retourne contexte mis à jour + nextNodeIds
+3. Retourne metadata (`message`, `details`, `nextBranch`, `scopedData`) pour l'orchestrateur
 
 ### runPipeline.ts
 Orchestration:
-- Gère queue + visitedNodes set
-- Évite cycles infinis
+- Gère queue par scope + garde-fou `MAX_EXECUTION_STEPS`
+- Évite boucles infinies via guard (journalise erreur système)
 - Error handling avec logging
-- Snapshots données pour viewing
+- Snapshots données pour viewing (hors clés internes `__*`)
 
 ---
 
@@ -299,16 +324,19 @@ Orchestration:
 - Templates (Map/Transform): `{chemin}` et `{#variable}`
 - Validation: identifiant valide (alphanumérique + _ + $)
 - Scope: Variables changent à SetVariable node
+- Iterate expose `__currentItem` et `__currentIndex` dans ses enfants
 
 ### Paths JSON
 - Notation pointée: `response.data.items[0].value`
+- Notation bracket: `response.data.items[0].name`
+- Bracket dynamique: `result[__currentIndex].name`
 - Implémentation custom (pas lodash)
-- Peut silent fail si path invalide
+- Peut échouer silencieusement si le path est invalide
 
 ### Arêtes condition/filter
 - Label: `data.branch` → 'true'/'false' ou 'filtered'/'rejected'
 - Ordre: Pas garanti pour multiple branches
-- Validation: Doit avoir 1+ sortant (pas enforcé)
+- Validation: Doit avoir 1+ sortant (pas encore forcé)
 
 ### localStorage
 - Limite: ~5-10MB dépend navigateur

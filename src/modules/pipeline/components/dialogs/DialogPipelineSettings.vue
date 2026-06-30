@@ -10,6 +10,7 @@ interface Props {
   confirmDeleteNode: boolean
   autoFitOnOpen: boolean
   reopenLastPipelineOnLaunch: boolean
+  nodeSelectionShortcutsEnabled: boolean
 }
 
 const props = defineProps<Props>()
@@ -21,6 +22,7 @@ const emit = defineEmits<{
   'update:confirmDeleteNode': [value: boolean]
   'update:autoFitOnOpen': [value: boolean]
   'update:reopenLastPipelineOnLaunch': [value: boolean]
+  'update:nodeSelectionShortcutsEnabled': [value: boolean]
   'reset-preferences': []
 }>()
 
@@ -56,6 +58,11 @@ const reopenLastPipelineOnLaunch = computed({
   set: (value: boolean) => emit('update:reopenLastPipelineOnLaunch', value),
 })
 
+const nodeSelectionShortcutsEnabled = computed({
+  get: () => props.nodeSelectionShortcutsEnabled,
+  set: (value: boolean) => emit('update:nodeSelectionShortcutsEnabled', value),
+})
+
 function resetPreferences(): void {
   emit('reset-preferences')
 }
@@ -88,6 +95,10 @@ function resetPreferences(): void {
       <label class="settings-option">
         <input v-model="reopenLastPipelineOnLaunch" type="checkbox" />
         <span>{{ t('pipelineEditor.settings.reopenLastPipelineOnLaunch') }}</span>
+      </label>
+      <label class="settings-option">
+        <input v-model="nodeSelectionShortcutsEnabled" type="checkbox" />
+        <span>{{ t('pipelineEditor.settings.nodeSelectionShortcutsEnabled') }}</span>
       </label>
       <p class="settings-description">{{ t('pipelineEditor.settings.variablesMoved') }}</p>
       <button type="button" class="reset-preferences-button" @click="resetPreferences">

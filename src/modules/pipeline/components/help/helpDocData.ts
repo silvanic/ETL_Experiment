@@ -1,6 +1,6 @@
-export type HelpNodeKey = 'start' | 'api' | 'setVariable' | 'condition' | 'filter' | 'transform' | 'map' | 'output'
-export type HelpExampleId = 'example1' | 'example2' | 'example3'
-export type HelpExampleSlug = 'request-condition-transform' | 'list-wildcard-transform' | 'dummyjson-auth-profile'
+export type HelpNodeKey = 'start' | 'api' | 'setVariable' | 'condition' | 'filter' | 'transform' | 'map' | 'iterate' | 'subflow' | 'output'
+export type HelpExampleId = 'example1' | 'example2' | 'example3' | 'example4' | 'example5'
+export type HelpExampleSlug = 'request-condition-transform' | 'list-wildcard-transform' | 'dummyjson-auth-profile' | 'iterate-current-item' | 'subflow-once'
 
 export interface HelpFieldDef {
   labelKey: string
@@ -18,25 +18,29 @@ export interface HelpBranch {
 }
 
 export interface HelpStep {
-  type: 'start' | 'api' | 'setVariable' | 'condition' | 'transform' | 'output'
+  type: 'start' | 'api' | 'setVariable' | 'condition' | 'transform' | 'iterate' | 'subflow' | 'output'
   title: string
   noConfig?: boolean
   fields?: HelpField[]
   branches?: { true: HelpBranch; false: HelpBranch }
 }
 
-export const helpNodeKeys: HelpNodeKey[] = ['start', 'api', 'setVariable', 'condition', 'filter', 'transform', 'map', 'output']
+export const helpNodeKeys: HelpNodeKey[] = ['start', 'api', 'setVariable', 'condition', 'filter', 'transform', 'map', 'iterate', 'subflow', 'output']
 
 export function isHelpNodeKey(value: string): value is HelpNodeKey {
   return helpNodeKeys.includes(value as HelpNodeKey)
 }
 
 export function isHelpExampleId(value: string): value is HelpExampleId {
-  return value === 'example1' || value === 'example2' || value === 'example3'
+  return value === 'example1' || value === 'example2' || value === 'example3' || value === 'example4' || value === 'example5'
 }
 
 export function isHelpExampleSlug(value: string): value is HelpExampleSlug {
-  return value === 'request-condition-transform' || value === 'list-wildcard-transform' || value === 'dummyjson-auth-profile'
+  return value === 'request-condition-transform'
+    || value === 'list-wildcard-transform'
+    || value === 'dummyjson-auth-profile'
+    || value === 'iterate-current-item'
+    || value === 'subflow-once'
 }
 
 export function resolveHelpExampleSlug(value: string): HelpExampleSlug | null {
@@ -54,6 +58,14 @@ export function resolveHelpExampleSlug(value: string): HelpExampleSlug | null {
 
   if (value === 'example3') {
     return 'dummyjson-auth-profile'
+  }
+
+  if (value === 'example4') {
+    return 'iterate-current-item'
+  }
+
+  if (value === 'example5') {
+    return 'subflow-once'
   }
 
   return null
@@ -102,6 +114,10 @@ export const helpNodeFieldDefs: Record<HelpNodeKey, HelpFieldDef[]> = {
     { labelKey: 'inspector.fields.literalValue', descKey: 'pipelineEditor.help.nodes.map.fields.literalValue' },
     { labelKey: 'inspector.fields.fallbackValue', descKey: 'pipelineEditor.help.nodes.map.fields.fallbackValue' },
   ],
+  iterate: [
+    { labelKey: 'inspector.fields.sourcePath', descKey: 'pipelineEditor.help.nodes.iterate.fields.sourcePath' },
+  ],
+  subflow: [],
   output: [
     { labelKey: 'inspector.fields.outputPath', descKey: 'pipelineEditor.help.nodes.output.fields.outputPath' },
   ],
@@ -251,6 +267,84 @@ export function buildExampleThreeSteps(t: (key: string) => string): HelpStep[] {
   ]
 }
 
+export function buildExampleFourSteps(t: (key: string) => string): HelpStep[] {
+  return [
+    {
+      type: 'start',
+      title: t('pipelineEditor.help.nodes.start.title'),
+      noConfig: true,
+    },
+    {
+      type: 'api',
+      title: t('pipelineEditor.help.nodes.api.title'),
+      fields: [
+        { label: t('inspector.fields.method'), value: 'GET' },
+        { label: 'URL', value: 'https://jsonplaceholder.typicode.com/todos' },
+        { label: t('inspector.fields.outputPath'), value: 'todos' },
+      ],
+    },
+    {
+      type: 'iterate',
+      title: t('pipelineEditor.help.nodes.iterate.title'),
+      fields: [
+        { label: t('inspector.fields.sourcePath'), value: 'todos' },
+      ],
+    },
+    {
+      type: 'transform',
+      title: t('pipelineEditor.help.nodes.transform.title'),
+      fields: [
+        { label: t('inspector.fields.mode'), value: t('inspector.options.transformMode.pickPath') },
+        { label: t('inspector.fields.sourcePath'), value: '__currentItem' },
+        { label: t('inspector.fields.targetPath'), value: 'result.currentItem' },
+      ],
+    },
+    {
+      type: 'transform',
+      title: t('pipelineEditor.help.nodes.transform.title'),
+      fields: [
+        { label: t('inspector.fields.mode'), value: t('inspector.options.transformMode.pickPath') },
+        { label: t('inspector.fields.sourcePath'), value: '__currentIndex' },
+        { label: t('inspector.fields.targetPath'), value: 'result.currentIndex' },
+      ],
+    },
+    {
+      type: 'output',
+      title: t('pipelineEditor.help.nodes.output.title'),
+      fields: [{ label: t('inspector.fields.outputPath'), value: 'result' }],
+    },
+  ]
+}
+
+export function buildExampleFiveSteps(t: (key: string) => string): HelpStep[] {
+  return [
+    {
+      type: 'start',
+      title: t('pipelineEditor.help.nodes.start.title'),
+      noConfig: true,
+    },
+    {
+      type: 'subflow',
+      title: t('pipelineEditor.help.nodes.subflow.title'),
+      noConfig: true,
+    },
+    {
+      type: 'transform',
+      title: t('pipelineEditor.help.nodes.transform.title'),
+      fields: [
+        { label: t('inspector.fields.mode'), value: t('inspector.options.transformMode.assignLiteral') },
+        { label: t('inspector.fields.literalValue'), value: 'ok' },
+        { label: t('inspector.fields.targetPath'), value: 'result.subflowStatus' },
+      ],
+    },
+    {
+      type: 'output',
+      title: t('pipelineEditor.help.nodes.output.title'),
+      fields: [{ label: t('inspector.fields.outputPath'), value: 'result.subflowStatus' }],
+    },
+  ]
+}
+
 /**
  * Maps help example slugs to their corresponding template IDs
  * so users can load examples directly into the editor
@@ -263,6 +357,10 @@ export function resolveTemplateIdFromExampleSlug(slug: HelpExampleSlug | null): 
       return 'doc-list-wildcard-transform'
     case 'dummyjson-auth-profile':
       return 'dummyjson-auth-profile'
+    case 'iterate-current-item':
+      return 'doc-iterate-current-item'
+    case 'subflow-once':
+      return 'doc-subflow-once'
     default:
       return null
   }

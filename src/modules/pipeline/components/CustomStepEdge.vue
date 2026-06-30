@@ -13,6 +13,33 @@ const props = defineProps<EdgeProps>()
 
 const store = usePipelineEditorStore()
 const isHovered = ref(false)
+const isInnerIterateEdge = computed(() => {
+  const sourceNode = store.nodes.find((node) => node.id === props.source)
+  const targetNode = store.nodes.find((node) => node.id === props.target)
+
+  if (!sourceNode || !targetNode) {
+    return false
+  }
+
+  const sourceParent = sourceNode.parentNode ?? null
+  const targetParent = targetNode.parentNode ?? null
+
+  return sourceParent !== null && sourceParent === targetParent
+})
+
+const edgeStyle = computed(() => {
+  const baseStyle = (props.style ?? {}) as Record<string, unknown>
+  if (!isInnerIterateEdge.value) {
+    return baseStyle
+  }
+
+  return {
+    ...baseStyle,
+    stroke: '#60a5fa',
+    strokeWidth: 2.2,
+  }
+})
+
 const edgeLabel = computed(() => {
   if (typeof props.label === 'string') {
     return props.label.trim()
@@ -52,7 +79,7 @@ function deleteEdge(): void {
   <BaseEdge
     :path="path[0]"
     :marker-end="markerEnd"
-    :style="style"
+    :style="edgeStyle"
     @mouseenter="isHovered = true"
     @mouseleave="isHovered = false"
   />

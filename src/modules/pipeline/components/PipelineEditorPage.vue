@@ -63,11 +63,13 @@ const autoSaveEnabledStorageKey = 'pipeline.editor.autoSaveEnabled'
 const confirmDeleteNodeStorageKey = 'pipeline.editor.confirmDeleteNode'
 const autoFitOnOpenStorageKey = 'pipeline.editor.autoFitOnOpen'
 const reopenLastPipelineOnLaunchStorageKey = 'pipeline.editor.reopenLastPipelineOnLaunch'
+const nodeSelectionShortcutsEnabledStorageKey = 'pipeline.editor.nodeSelectionShortcutsEnabled'
 const autoOpenConsoleOnRunEnd = ref(localStorage.getItem(autoOpenConsoleOnRunEndStorageKey) === 'true' || true)
 const autoSaveEnabled = ref(localStorage.getItem(autoSaveEnabledStorageKey) !== 'false')
 const confirmDeleteNode = ref(localStorage.getItem(confirmDeleteNodeStorageKey) !== 'false')
 const autoFitOnOpen = ref(localStorage.getItem(autoFitOnOpenStorageKey) !== 'false')
 const reopenLastPipelineOnLaunch = ref(localStorage.getItem(reopenLastPipelineOnLaunchStorageKey) !== 'false')
+const nodeSelectionShortcutsEnabled = ref(localStorage.getItem(nodeSelectionShortcutsEnabledStorageKey) !== 'false')
 
 const inspectorWidthStorageKey = 'pipeline.editor.inspectorWidth'
 const inspectorMinWidth = 280
@@ -522,6 +524,10 @@ watch(reopenLastPipelineOnLaunch, (enabled) => {
   localStorage.setItem(reopenLastPipelineOnLaunchStorageKey, String(enabled))
 })
 
+watch(nodeSelectionShortcutsEnabled, (enabled) => {
+  localStorage.setItem(nodeSelectionShortcutsEnabledStorageKey, String(enabled))
+})
+
 function resetPreferences(): void {
   const keys = [
     autoOpenConsoleOnRunEndStorageKey,
@@ -529,6 +535,7 @@ function resetPreferences(): void {
     confirmDeleteNodeStorageKey,
     autoFitOnOpenStorageKey,
     reopenLastPipelineOnLaunchStorageKey,
+    nodeSelectionShortcutsEnabledStorageKey,
     inspectorWidthStorageKey,
   ]
 
@@ -709,6 +716,7 @@ if (!reopenLastPipelineOnLaunch.value) {
       v-model:confirm-delete-node="confirmDeleteNode"
       v-model:auto-fit-on-open="autoFitOnOpen"
       v-model:reopen-last-pipeline-on-launch="reopenLastPipelineOnLaunch"
+      v-model:node-selection-shortcuts-enabled="nodeSelectionShortcutsEnabled"
       @reset-preferences="resetPreferences"
     />
 
@@ -845,6 +853,7 @@ if (!reopenLastPipelineOnLaunch.value) {
             <NodePalette />
             <PipelineCanvas
               :auto-fit-on-open="autoFitOnOpen"
+              :selection-shortcuts-enabled="nodeSelectionShortcutsEnabled"
             />
             <div class="inspector-wrapper" :style="store.selectedNode ? { width: inspectorWidth + 'px' } : {}">
               <div class="inspector-resize-handle" @mousedown="startInspectorResize" />

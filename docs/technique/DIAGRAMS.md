@@ -18,7 +18,7 @@ graph TB
     
     subgraph Engine["⚙️ Execution Layer"]
         RP["runPipeline<br/>(orchestration)"]
-        NE["nodeExecutors<br/>(7 exécuteurs)"]
+        NE["nodeExecutors<br/>(exécuteurs typés)"]
     end
     
     subgraph Domain["📋 Domain Layer"]
@@ -76,21 +76,21 @@ sequenceDiagram
     Engine->>Engine: validate schema
     Engine->>Engine: initialize context = {}
     Engine->>Engine: queue = [START_ID]
-    Engine->>Engine: visited = new Set()
+    Engine->>Engine: guard = MAX_EXECUTION_STEPS
     
-    loop while queue.length > 0
+    loop while queue.length > 0 && success
         Engine->>Engine: nodeId = queue.shift()
-        alt visited.has(nodeId)
-            Engine->>Engine: continue (skip cycle)
-        else
-            Engine->>Engine: visited.add(nodeId)
-            Engine->>Exec: executor = executorByType[type]
-            Exec->>Exec: validate config
-            Exec->>Exec: execute logic
-            Exec->>Log: createLog(success)
-            Exec-->>Engine: {success, context, nextNodeIds, logs}
-            Engine->>Engine: queue.push(...nextNodeIds)
+        Engine->>Exec: executor = executorByType[type]
+        Exec->>Exec: validate config
+        Exec->>Exec: execute logic
+        Exec->>Log: createLog(success)
+        Exec-->>Engine: {message, details, nextBranch, scopedData}
+        alt type == iterate
+            Engine->>Engine: execute scope enfant pour chaque item
+        else type == subflow
+            Engine->>Engine: execute scope enfant une fois
         end
+        Engine->>Engine: queue.push(next edge(s))
     end
     
     Engine-->>Store: ExecutionRun {success, logs, context}
@@ -111,6 +111,9 @@ graph TD
     Cond["🔀 CONDITION"]
     Filter["🔍 FILTER"]
     Transform["🔄 TRANSFORM"]
+    Map["🧩 MAP"]
+    Iterate["🔁 ITERATE"]
+    Subflow["🗂️ SUBFLOW"]
     Output["🔴 OUTPUT"]
     
     Start -->|toujours 1 seul| Api
@@ -118,7 +121,10 @@ graph TD
     SetVar --> Cond
     Cond -->|true| Transform
     Cond -->|false| Filter
-    Filter -->|filtered| Output
+    Filter -->|filtered| Map
+    Map --> Iterate
+    Iterate --> Subflow
+    Subflow --> Output
     Filter -->|rejected| Transform
     Transform -->|optionnel| Output
 ```
@@ -324,14 +330,20 @@ graph LR
     Dispatch -->|condition| Cond["executeCondition()"]
     Dispatch -->|filter| Filter["executeFilter()"]
     Dispatch -->|transform| Transform["executeTransform()"]
+    Dispatch -->|map| Map["executeMap()"]
+    Dispatch -->|iterate| Iterate["executeIterate()"]
+    Dispatch -->|subflow| Subflow["executeSubflow()"]
     Dispatch -->|output| Output["executeOutput()"]
     
-    Start --> Result["ExecutionResult<br/>{success, context, nextNodeIds, logs}"]
+    Start --> Result["ExecutorResult<br/>{message, details, nextBranch, scopedData, ...}"]
     Api --> Result
     SetVar --> Result
     Cond --> Result
     Filter --> Result
     Transform --> Result
+    Map --> Result
+    Iterate --> Result
+    Subflow --> Result
     Output --> Result
 ```
 

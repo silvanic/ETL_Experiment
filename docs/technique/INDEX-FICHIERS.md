@@ -28,6 +28,14 @@
 **Rôle**: Styles globaux  
 **À modifier**: Thème global ou overrides PrimeVue
 
+**Convention conteneurs Iterate/Subflow**:
+- Source unique des tokens visuels `--flow-iterate-*` et `--flow-subflow-*`.
+- Voir aussi: [PATTERNS-CONVENTIONS.md](./PATTERNS-CONVENTIONS.md) section "Tokens visuels centralisés".
+- Impact direct sur:
+	- `PipelineCanvas.vue` (badges + bouton ajout enfant)
+	- `NodePalette.vue` (accents visuels conteneurs)
+	- `RunConsole.vue` (bordures de sections, niveaux enfants, durées)
+
 ### `src/modules/pipeline/components/`
 
 #### `PipelineEditorPage.vue` ⭐
@@ -55,12 +63,12 @@
 
 #### `NodePalette.vue`
 **Rôle**: Palette nœuds draggables  
-**Contient**: 7 boutons nœuds (draggable)  
+**Contient**: 10 entrées nœuds (dont conteneurs `iterate` et `subflow`)  
 **À modifier**: Si ajout type nœud ou UI palette
 
 #### `InspectorPanel.vue` ⭐
 **Rôle**: Éditeur config nœud sélectionné  
-**Contient**: Switch 7 dialogues config (1 par type)  
+**Contient**: Formulaires de config + panneaux d'information pour conteneurs  
 **À modifier**: Ajouter champ config, UI éditeur, validations
 
 #### `RunConsole.vue`
@@ -87,9 +95,14 @@
 **Contient**: Header navigation + intégration du contenu d'aide  
 **Trigger**: Menu Help depuis l'éditeur
 
-#### `PipelineHelpContent.vue`
-**Rôle**: Contenu détaillé de la documentation (nœuds + exemples)  
-**Contient**: Tables de champs, exemples guidés, section wildcard/agrégation
+#### `help/` (dossier)
+**Rôle**: Pages d'aide modulaire (nœuds, concepts, exemples, FAQ)  
+**Contient**:
+- `HelpOverviewPage.vue`
+- `HelpNodePage.vue`
+- `HelpExamplePage.vue`
+- `HelpFaqSection.vue`
+- `helpDocData.ts`
 
 ---
 
@@ -98,8 +111,8 @@
 #### `types.ts` ⭐
 **Taille**: 300+ lignes  
 **Contient**:
-- `NodeType = 'start' | 'api' | 'setVariable' | 'condition' | 'filter' | 'transform' | 'output'`
-- 7 config interfaces (StartNodeConfig, ApiNodeConfig, etc.)
+- `NodeType = 'start' | 'api' | 'setVariable' | 'condition' | 'filter' | 'transform' | 'map' | 'iterate' | 'subflow' | 'output'`
+- Config interfaces par type (dont `MapNodeConfig`, `IterateNodeConfig`, `SubflowNodeConfig`)
 - PipelineNode, PipelineEdge, PipelineDefinition
 - ExecutionRun, ExecutionLog, ExecutionContext
 - Variables pipeline
@@ -150,7 +163,7 @@
 
 #### `runPipeline.ts` ⭐
 **Rôle**: Orchestration exécution pipeline  
-**Contient**: Boucle principale, gestion queue, visitedNodes, error handling  
+**Contient**: Boucle principale, gestion queue/scopes, garde-fou anti-boucle, error handling  
 **Entrée**: PipelineDefinition  
 **Sortie**: ExecutionRun
 
@@ -158,10 +171,11 @@
 **À modifier**: Ajouter logique branchement ou error handling
 
 #### `nodeExecutors.ts` ⭐
-**Rôle**: 7 exécuteurs typés (1 par type nœud)  
+**Rôle**: Exécuteurs typés (1 par type nœud)  
 **Contient**:
-- `executeStart()`, `executeApi()`, `executeSetVariable()`, `executeCondition()`, `executeFilter()`, `executeTransform()`, `executeOutput()`
+- `start`, `api`, `setVariable`, `condition`, `filter`, `transform`, `map`, `iterate`, `subflow`, `output`
 - Map `executorByType`
+- Résolution dynamique des chemins (dont index de tableau via bracket dynamique)
 
 **À consulter**: Pour comprendre logique chaque nœud  
 **À modifier**: Ajouter logique exécution nœud
@@ -169,7 +183,7 @@
 #### `pathUtils.ts`
 **Rôle**: Accès path JSON (like lodash get/set)  
 **Contient**: `getValueByPath()`, `setValueByPath()`  
-**Support**: Notation pointée (ex: `result.data.items[0].name`)
+**Support**: Notation pointée + bracket + wildcard (ex: `result.data.items[0].name`, `result[__currentIndex].name`)
 
 **À consulter**: Avant manipuler paths  
 **À modifier**: Enrichir support paths complexes
@@ -180,7 +194,7 @@
 
 #### `executorTypes.ts`
 **Rôle**: Types exécuteurs  
-**Contient**: `NodeExecutor<T>`, `ExecutionResult`
+**Contient**: `NodeExecutor`, `ExecutorResult`, `ExecutionGraph`, `ExecutionState`
 
 #### Tests
 - `nodeExecutors.spec.ts` — tests tous exécuteurs
@@ -272,6 +286,8 @@ etl-experiment.pipelines.entry.v1.{id} // Contenu pipeline
 5. ✏️ `InspectorPanel.vue` — Ajouter dialogue config
 6. ✏️ `messages.json` — Ajouter traductions
 7. ✏️ `NodePalette.vue` — Ajouter bouton draggable
+8. ✏️ Pages help (`components/help/*`) — Documenter le nœud
+9. ✏️ Template(s) éventuel(s) (`data/templates.ts`) — Exemple guidé
 
 ### 🔧 Modifier config nœud
 
@@ -280,6 +296,14 @@ etl-experiment.pipelines.entry.v1.{id} // Contenu pipeline
 3. ✏️ `defaults.ts` — Ajouter valeur défaut
 4. ✏️ Dialogue config (`InspectorPanel.vue` ou `dialogs/*.vue`) — Ajouter champ UI
 5. ✏️ `nodeExecutors.ts` — Utiliser champ config si besoin
+
+### 🎨 Harmoniser couleurs conteneur
+
+1. ✏️ `src/style.css` — Ajouter/ajuster token `--flow-...`
+2. ✏️ `PipelineCanvas.vue` — Appliquer token sur badges/actions conteneur
+3. ✏️ `NodePalette.vue` — Appliquer token sur accent et labels
+4. ✏️ `RunConsole.vue` — Propager la couleur via `--container-info-border` pour tous les niveaux
+5. ✅ Vérifier qu'il n'y a plus de hardcode couleur Iterate/Subflow dans les composants
 
 ### 🐛 Debug exécution pipeline
 
@@ -299,8 +323,8 @@ etl-experiment.pipelines.entry.v1.{id} // Contenu pipeline
 | `nodeExecutors.ts` | ~400 | Exécuteurs |
 | `runPipeline.ts` | ~150 | Orchestration |
 | `pipelineEditorStore.ts` | ~300 | Pinia store |
-| `PipelineCanvas.vue` | ~200 | Canvas interactions |
-| `InspectorPanel.vue` | ~150 | Config UI |
+| `PipelineCanvas.vue` | ~700 | Canvas interactions + toolbar + conteneurs |
+| `InspectorPanel.vue` | ~1500 | Config UI + validation + help contextuelle |
 
 ---
 

@@ -100,17 +100,35 @@ const mapConfigSchema = z.object({
   ).min(1),
 })
 
+const iterateConfigSchema = z.object({
+  sourcePath: z.string().min(1),
+})
+
+const subflowConfigSchema = z.object({}).default({})
+
 const outputConfigSchema = z.object({
   outputPath: z.string().min(1),
 })
 
+const setVariableExtractionSchema = z
+  .object({
+    sourceType: z.enum(['path', 'literal']).default('path'),
+    extractPath: z.string().default(''),
+    literalValue: z.string().default(''),
+    variableName: z.string().min(1),
+  })
+  .superRefine((extraction, ctx) => {
+    if (extraction.sourceType === 'path' && !extraction.extractPath.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['extractPath'],
+        message: 'extractPath is required when sourceType is path',
+      })
+    }
+  })
+
 const setVariableConfigSchema = z.object({
-  extractions: z.array(
-    z.object({
-      extractPath: z.string().min(1),
-      variableName: z.string().min(1),
-    })
-  ).min(1),
+  extractions: z.array(setVariableExtractionSchema).min(1),
 })
 
 const nodeDataSchema = z.discriminatedUnion('type', [
@@ -121,6 +139,14 @@ const nodeDataSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('filter'), label: z.string(), name: z.string().optional(), config: filterConfigSchema }),
   z.object({ type: z.literal('transform'), label: z.string(), name: z.string().optional(), config: transformConfigSchema }),
   z.object({ type: z.literal('map'), label: z.string(), name: z.string().optional(), config: mapConfigSchema }),
+  z.object({ type: z.literal('iterate'), label: z.string(), name: z.string().optional(), config: iterateConfigSchema }),
+  z.object({ type: z.literal('subflow'), label: z.string(), name: z.string().optional(), config: subflowConfigSchema }),
+  z.object({ type: z.literal('subPipeline'), label: z.string(), name: z.string().optional(), config: z.object({}).default({}) })
+    .transform((data) => ({
+      ...data,
+      type: 'subflow' as const,
+      config: {},
+    })),
   z.object({ type: z.literal('output'), label: z.string(), name: z.string().optional(), config: outputConfigSchema }),
 ])
 
@@ -129,6 +155,7 @@ const nodeSchema = z.object({
   type: z.string().default('default'),
   position: positionSchema,
   data: nodeDataSchema,
+  parentNode: z.string().min(1).optional(),
   sourcePosition: z.nativeEnum(Position).default(Position.Right),
   targetPosition: z.nativeEnum(Position).default(Position.Left),
 })

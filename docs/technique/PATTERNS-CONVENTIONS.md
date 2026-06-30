@@ -21,7 +21,7 @@ const TRACED_TYPES_IN = new Set(['condition', 'filter', 'transform'])
 // PascalCase toujours
 interface PipelineNode { }
 type NodeType = 'start' | 'api' | ...
-type ExecutionResult = { ... }
+type ExecutorResult = { ... }
 
 // Config par type nœud: {Type}NodeConfig
 interface StartNodeConfig { }
@@ -46,6 +46,35 @@ pathUtils.spec.ts
 
 // Types/schémas: types.ts, schema.ts, defaults.ts
 ```
+
+### Traductions i18n
+
+```json
+// Structure recommandée dans src/i18n/messages.json
+{
+  "fr": {
+    "common": {
+      "actions": { "save": "Enregistrer", "cancel": "Annuler" },
+      "labels": { "variables": "Variables" },
+      "ui": { "error": "Erreur" },
+      "nodes": { "labels": { "api": "Requête API" } }
+    }
+  }
+}
+```
+
+Règles:
+- Centraliser dans `common` uniquement les libellés vraiment transverses.
+- Préférer les références liées Vue i18n (`@:...`) plutôt que dupliquer la même chaîne.
+- Conserver les clés contextuelles quand la sémantique peut diverger plus tard.
+- Garder la même arborescence entre `fr` et `en`.
+- En cas de refactor global, valider systématiquement avec `npm run build`.
+
+Exemples:
+- `@:common.actions.save`
+- `@:common.labels.variables`
+- `@:common.ui.error`
+- `@:common.nodes.labels.api`
 
 ### Classes et enums
 ```ts
@@ -93,21 +122,20 @@ try {
 function executeNewType<T extends NodeType>(
   node: PipelineNode<T>,
   context: ExecutionContext,
-  edges: PipelineEdge[]
-): ExecutionResult {
+  graph: ExecutionGraph,
+  executionState: ExecutionState,
+): Promise<ExecutorResult> {
   const config = node.data.config as NodeConfigMap[T]
-  const logs: ExecutionLog[] = []
   
   // 1. Valider config
   try {
     // nodeConfigSchema[T].parse(config)
   } catch (error) {
-    return {
-      success: false,
-      context,
-      nextNodeIds: [],
-      logs: [createLog(node, 'error', 'Invalid config', error)]
-    }
+    return Promise.resolve({
+      message: 'Invalid config',
+      details: error,
+      exitMode: 'break',
+    })
   }
   
   // 2. Exécuter logique
@@ -116,29 +144,16 @@ function executeNewType<T extends NodeType>(
     const result = await doSomething(config)
     
     // 3. Mettre à jour contexte
-    const newContext = {
-      ...context,
-      data: setValueByPath(context.data, config.outputPath, result)
-    }
-    
-    // 4. Logger snapshot
-    logs.push(createLog(node, 'info', 'Executed', snapshotData(newContext.data)))
-    
-    // 5. Retourner nextNodeIds
-    const nextNodeIds = findOutgoingEdges(edges, node.id).map(e => e.target)
-    
     return {
-      success: true,
-      context: newContext,
-      nextNodeIds,
-      logs
+      message: 'Executed',
+      dataOut: result,
+      // Optionnel: nextBranch, childrenNodeIds, scopedData
     }
   } catch (error) {
     return {
-      success: false,
-      context,
-      nextNodeIds: [],
-      logs: [createLog(node, 'error', 'Execution failed', error)]
+      message: 'Execution failed',
+      details: error,
+      exitMode: 'break',
     }
   }
 }
@@ -150,6 +165,24 @@ export const executorByType: Record<NodeType, NodeExecutor> = {
   // ...
 }
 ```
+
+### Pattern: Nœuds conteneurs (`iterate`, `subflow`)
+
+```ts
+// Conteneur = nœud parent avec enfants (parentNode)
+// Iterate: exécute les enfants pour chaque item
+// Subflow: exécute les enfants une seule fois
+
+function isContainerNodeType(type: NodeType): boolean {
+  return type === 'iterate' || type === 'subflow'
+}
+```
+
+Règles:
+- Ne pas connecter directement un enfant de conteneur vers un nœud hors scope.
+- Créer un `start` interne lors de la création du conteneur.
+- Interdire les conteneurs imbriqués si la règle métier/store l'impose.
+- Pour Iterate, les variables runtime `__currentItem` et `__currentIndex` sont disponibles uniquement dans le scope enfant.
 
 ### Pattern: Store Pinia actions
 
@@ -288,24 +321,28 @@ const apiConfigSchema = z
 ### Traversal ordre
 
 ```ts
-// BFS (Breadth-First Search) via queue
-// NOT DFS (qui causerait stack overflow sur gros pipelines)
+// Traversal par queue + exécution par scope
+// Protection anti-boucle via garde-fou global
 
 const queue = [START_ID]
-const visited = new Set()
+let guard = 0
+const MAX_EXECUTION_STEPS = 2000
 
-while (queue.length > 0) {
+while (queue.length > 0 && guard < MAX_EXECUTION_STEPS) {
+  guard += 1
   const nodeId = queue.shift()
-  if (visited.has(nodeId)) continue  // Cycle detection
-  visited.add(nodeId)
   
-  // Execute node, get nextNodeIds
-  queue.push(...nextNodeIds)
+  // Execute node, puis pousser les nœuds suivants
+  // iterate/subflow déclenchent un scope enfant
 }
 
-// ✅ RÈGLE: BFS toujours pour éviter stack overflow
-// ✅ RÈGLE: visited set obligatoire pour cycle detection
+// ✅ RÈGLE: garder un garde-fou global
+// ✅ RÈGLE: respecter les scopes parent/enfant
 ```
+
+Note importante:
+- L'orchestrateur actuel combine exécution par queue + exécution de scopes enfants.
+- La sécurité anti-boucle repose sur un garde-fou (`MAX_EXECUTION_STEPS`) et non uniquement sur `visited`.
 
 ### Branchement logique
 
@@ -423,6 +460,37 @@ describe('InspectorPanel', () => {
 ---
 
 ## 🎨 Patterns UI
+
+### Pattern: Tokens visuels centralises (Iterate/Subflow)
+
+Objectif:
+- Eviter les couleurs hardcodees dans les composants.
+- Garantir une coherence visuelle entre palette, canvas et console d'execution.
+- Faciliter les ajustements de theme en un seul point.
+
+Source unique:
+- Les tokens sont definis dans `src/style.css` sous `:root`.
+
+Tokens disponibles:
+- Iterate: `--flow-iterate-text`, `--flow-iterate-border`, `--flow-iterate-badge-bg`, `--flow-iterate-button-bg`, `--flow-iterate-button-bg-hover`, `--flow-iterate-button-border`, `--flow-iterate-button-border-hover`, `--flow-iterate-soft`, `--flow-iterate-panel-border`.
+- Subflow: `--flow-subflow-text`, `--flow-subflow-border`, `--flow-subflow-badge-bg`, `--flow-subflow-button-bg`, `--flow-subflow-button-bg-hover`, `--flow-subflow-button-border`, `--flow-subflow-button-border-hover`, `--flow-subflow-soft`, `--flow-subflow-panel-border`.
+
+Consommation actuelle:
+- `PipelineCanvas.vue`: badges de type conteneur + boutons d'ajout enfant.
+- `NodePalette.vue`: accent des cartes Iterate/Subflow + couleur des labels.
+- `RunConsole.vue`: bordures des sections conteneur, bordures des niveaux enfants, badges de duree, identifiants de groupe dans les sections conteneur.
+
+Regles:
+- Ne pas utiliser de valeur hex/RGB/RGBA en dur pour Iterate/Subflow dans les composants.
+- Toujours passer par `var(--flow-...)` pour les couleurs de conteneur.
+- En cas de nouvelle surface UI conteneur, ajouter d'abord le token dans `src/style.css`, puis consommer le token dans le composant.
+- Pour la console, propager la couleur de conteneur via une variable locale (ex: `--container-info-border`) afin d'aligner les niveaux imbriques.
+
+Checklist rapide avant merge (UI conteneur):
+- [ ] Aucun hardcode couleur Iterate/Subflow dans le composant.
+- [ ] Les styles utilisent des tokens `--flow-*`.
+- [ ] Le rendu est coherent entre `NodePalette`, `PipelineCanvas` et `RunConsole`.
+- [ ] Le fallback neutre reste lisible (accent/texte soft) hors contexte conteneur.
 
 ### Button styling (PrimeVue)
 

@@ -5,6 +5,7 @@ import type {
   ConditionNodeConfig,
   ExecutionContext,
   FilterNodeConfig,
+  IterateNodeConfig,
   MapNodeConfig,
   OutputNodeConfig,
   PipelineNode,
@@ -110,6 +111,22 @@ function createMapNode(overrides: Partial<MapNodeConfig> = {}): PipelineNode<'ma
           { targetField: 'id', literalValue: '{id}', fallbackValue: '' },
           { targetField: 'profile.name', literalValue: '{name}', fallbackValue: '' },
         ],
+        ...overrides,
+      },
+    },
+  }
+}
+
+function createIterateNode(overrides: Partial<IterateNodeConfig> = {}): PipelineNode<'iterate'> {
+  return {
+    id: 'iterate-node',
+    type: 'default',
+    position: { x: 0, y: 0 },
+    data: {
+      type: 'iterate',
+      label: 'Iterate',
+      config: {
+        sourcePath: 'items',
         ...overrides,
       },
     },
@@ -704,6 +721,62 @@ describe('map executor', () => {
   })
 })
 
+describe('iterate executor', () => {
+  it('coerces a JSON array string into iterable items', async () => {
+    const context: ExecutionContext = {
+      data: {
+        __variables: {
+          values: '[1,2,3,4]',
+        },
+      },
+      logs: [],
+    }
+
+    const node = createIterateNode({
+      sourcePath: '#values',
+    })
+
+    const result = await executorByType.iterate(node, context)
+
+    expect(result.scopedData).toEqual({
+      iterateItems: [1, 2, 3, 4],
+    })
+    expect(result.details).toEqual(
+      expect.objectContaining({
+        sourcePath: '#values',
+        count: 4,
+      }),
+    )
+  })
+
+  it('keeps non-array strings as empty iterate items', async () => {
+    const context: ExecutionContext = {
+      data: {
+        __variables: {
+          values: 'not-an-array',
+        },
+      },
+      logs: [],
+    }
+
+    const node = createIterateNode({
+      sourcePath: '#values',
+    })
+
+    const result = await executorByType.iterate(node, context)
+
+    expect(result.scopedData).toEqual({
+      iterateItems: [],
+    })
+    expect(result.details).toEqual(
+      expect.objectContaining({
+        sourcePath: '#values',
+        count: 0,
+      }),
+    )
+  })
+})
+
 describe('condition executor', () => {
   let context: ExecutionContext
 
@@ -789,6 +862,30 @@ describe('transform executor', () => {
         result: {
           label: 'User: Ada Lovelace (env=prod)',
         },
+      }),
+    )
+  })
+
+  it('supports dynamic bracket index in pickPath mode', async () => {
+    const context: ExecutionContext = {
+      data: {
+        result: [{ name: 'Ada' }, { name: 'Bob' }],
+        __currentIndex: 1,
+      },
+      logs: [],
+    }
+
+    const node = createTransformNode({
+      mode: 'pickPath',
+      sourcePath: 'result[__currentIndex].name',
+      targetPath: 'currentName',
+    })
+
+    await executorByType.transform(node, context)
+
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        currentName: 'Bob',
       }),
     )
   })
@@ -950,6 +1047,46 @@ describe('setVariable executor', () => {
     })
 
     await expect(executorByType.setVariable(node, context)).rejects.toThrow(/newVariable/)
+  })
+
+  it('supports literal text assignment', async () => {
+    const node = createSetVariableNode({
+      extractions: [
+        {
+          sourceType: 'literal',
+          extractPath: '',
+          literalValue: 'bla bla',
+          variableName: 'authToken',
+        },
+      ],
+    })
+
+    await executorByType.setVariable(node, context)
+
+    expect(context.data.__variables).toEqual({
+      authToken: 'bla bla',
+      userId: 0,
+    })
+  })
+
+  it('supports literal JSON array assignment', async () => {
+    const node = createSetVariableNode({
+      extractions: [
+        {
+          sourceType: 'literal',
+          extractPath: '',
+          literalValue: '[1,2,3,4]',
+          variableName: 'authToken',
+        },
+      ],
+    })
+
+    await executorByType.setVariable(node, context)
+
+    expect(context.data.__variables).toEqual({
+      authToken: [1, 2, 3, 4],
+      userId: 0,
+    })
   })
 })
 

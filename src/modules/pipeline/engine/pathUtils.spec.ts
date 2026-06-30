@@ -18,6 +18,15 @@ describe('getByPath', () => {
     expect(getByPath({ items: ['a', 'b', 'c'] }, 'items.1')).toBe('b')
   })
 
+  it('accède à un élément avec notation à crochets', () => {
+    expect(getByPath({ items: ['a', 'b', 'c'] }, 'items[1]')).toBe('b')
+  })
+
+  it('accède à un chemin imbriqué avec index entre crochets', () => {
+    const data = { result: [{ name: 'Ada' }, { name: 'Bob' }] }
+    expect(getByPath(data, 'result[1].name')).toBe('Bob')
+  })
+
   describe('wildcard [*]', () => {
     it('retourne un tableau des valeurs mappées', () => {
       const data = { items: [{ name: 'Alice' }, { name: 'Bob' }] }
@@ -57,6 +66,16 @@ describe('setByPath', () => {
     const data: Record<string, unknown> = { score: 10 }
     setByPath(data, 'score', 99)
     expect(data).toEqual({ score: 99 })
+  })
+
+  it('définit une valeur via index entre crochets', () => {
+    const data: Record<string, unknown> = {
+      items: [{ name: 'Alice' }, { name: 'Bob' }],
+    }
+    setByPath(data, 'items[1].name', 'Robert')
+    expect(data).toEqual({
+      items: [{ name: 'Alice' }, { name: 'Robert' }],
+    })
   })
 
   describe('wildcard [*]', () => {
