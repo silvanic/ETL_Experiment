@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { MenuItem } from 'primevue/menuitem'
 import {
   Handle,
@@ -22,14 +22,20 @@ import CustomStepEdge from './CustomStepEdge.vue'
 import MdiIcon from '@/components/MdiIcon.vue'
 import Button from 'primevue/button'
 import Menu from 'primevue/menu'
+import Dialog from 'primevue/dialog'
+import InputText from 'primevue/inputtext'
 import { useConfirm } from 'primevue/useconfirm'
 import {
   mdiPlay,
+  mdiPlus,
   mdiContentCopy,
   mdiContentPaste,
   mdiContentCut,
   mdiContentDuplicate,
   mdiDelete,
+  mdiAlignVerticalCenter,
+  mdiAlignHorizontalLeft,
+  mdiDistributeHorizontalCenter,
 } from '@mdi/js'
 
 import '@vue-flow/core/dist/style.css'
@@ -41,11 +47,13 @@ import { t } from '@/i18n'
 interface Props {
   autoFitOnOpen?: boolean
   selectionShortcutsEnabled?: boolean
+  fitTriggerTick?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   autoFitOnOpen: true,
   selectionShortcutsEnabled: true,
+  fitTriggerTick: 0,
 })
 
 const store = usePipelineEditorStore()
@@ -59,11 +67,15 @@ type PaneState = {
 
 const paneState = ref<PaneState | null>(null)
 const pendingNodeCreationFit = ref(false)
+const pendingPipelineLoadFit = ref(false)
 const nodesInitialized = useNodesInitialized()
 const iterateChildMenu = ref<{ toggle: (event: Event) => void } | null>(null)
 const activeIterateNodeId = ref<string | null>(null)
 const panelElement = ref<HTMLElement | null>(null)
+const addNodeSearchInput = ref<HTMLInputElement | null>(null)
 const canvasHasFocus = ref(false)
+const showAddNodeCommand = ref(false)
+const addNodeQuery = ref('')
 const isMacPlatform = /Mac|iPhone|iPad|iPod/.test(navigator.platform)
 
 const selectedCount = computed(() => store.selectedNodeIds.size)
@@ -168,9 +180,58 @@ const iterateChildMenuItems = computed<MenuItem[]>(() => {
   }))
 })
 
+type NodeCommandItem = {
+  type: NodeType
+  label: string
+  subtitle: string
+}
+
+const nodeCommandItems = computed<NodeCommandItem[]>(() => {
+  const commands: NodeCommandItem[] = [
+    { type: 'start', label: nodeTypeLabel('start'), subtitle: t('nodePalette.nodes.start.subtitle') },
+    { type: 'api', label: nodeTypeLabel('api'), subtitle: t('nodePalette.nodes.api.subtitle') },
+    { type: 'setVariable', label: nodeTypeLabel('setVariable'), subtitle: t('nodePalette.nodes.setVariable.subtitle') },
+    { type: 'condition', label: nodeTypeLabel('condition'), subtitle: t('nodePalette.nodes.condition.subtitle') },
+    { type: 'filter', label: nodeTypeLabel('filter'), subtitle: t('nodePalette.nodes.filter.subtitle') },
+    { type: 'transform', label: nodeTypeLabel('transform'), subtitle: t('nodePalette.nodes.transform.subtitle') },
+    { type: 'map', label: nodeTypeLabel('map'), subtitle: t('nodePalette.nodes.map.subtitle') },
+    { type: 'iterate', label: nodeTypeLabel('iterate'), subtitle: t('nodePalette.nodes.iterate.subtitle') },
+    { type: 'subflow', label: nodeTypeLabel('subflow'), subtitle: t('nodePalette.nodes.subflow.subtitle') },
+    { type: 'output', label: nodeTypeLabel('output'), subtitle: t('nodePalette.nodes.output.subtitle') },
+  ]
+
+  return commands
+})
+
+const filteredNodeCommandItems = computed<NodeCommandItem[]>(() => {
+  const query = addNodeQuery.value.trim().toLowerCase()
+  if (!query) {
+    return nodeCommandItems.value
+  }
+
+  return nodeCommandItems.value.filter((item) => {
+    return item.label.toLowerCase().includes(query) || item.subtitle.toLowerCase().includes(query)
+  })
+})
+
 function openIterateChildMenu(event: Event, iterateNodeId: string): void {
   activeIterateNodeId.value = iterateNodeId
   iterateChildMenu.value?.toggle(event)
+}
+
+function openAddNodeCommand(): void {
+  addNodeQuery.value = ''
+  showAddNodeCommand.value = true
+
+  void nextTick(() => {
+    addNodeSearchInput.value?.focus()
+  })
+}
+
+function selectNodeCommand(type: NodeType): void {
+  store.addNodeByType(type)
+  showAddNodeCommand.value = false
+  focusCanvasPanel()
 }
 
 async function fitAfterNodeCreation(): Promise<void> {
@@ -178,11 +239,50 @@ async function fitAfterNodeCreation(): Promise<void> {
     return
   }
 
-  await paneState.value.fitView({
-    padding: 0.18,
-    duration: 250,
+  const didFit = await forceRecenterFlow(6)
+  if (didFit) {
+    pendingNodeCreationFit.value = false
+  }
+}
+
+async function fitAfterPipelineLoad(): Promise<void> {
+  if (!pendingPipelineLoadFit.value || !paneState.value || !props.autoFitOnOpen) {
+    return
+  }
+
+  const didFit = await forceRecenterFlow(8)
+  if (didFit) {
+    pendingPipelineLoadFit.value = false
+  }
+}
+
+function waitForAnimationFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve())
   })
-  pendingNodeCreationFit.value = false
+}
+
+async function forceRecenterFlow(maxAttempts = 6): Promise<boolean> {
+  if (!paneState.value) {
+    return false
+  }
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    await nextTick()
+    await waitForAnimationFrame()
+
+    const didFit = await paneState.value.fitView({
+      padding: 0.18,
+      duration: attempt === 0 ? 250 : 0,
+    })
+
+    if (didFit) {
+      syncNodeCreationCenter(paneState.value.viewport)
+      return true
+    }
+  }
+
+  return false
 }
 
 function syncNodeCreationCenter(viewport: ViewportState): void {
@@ -334,6 +434,19 @@ function onKeyDown(event: KeyboardEvent): void {
     store.duplicateSelectedNodes()
     return
   }
+
+  // /: Open add-node command menu
+  if (!isCtrlOrCmd && key === '/') {
+    event.preventDefault()
+    openAddNodeCommand()
+    return
+  }
+
+  // Ctrl/Cmd+K: Open add-node command menu
+  if (isCtrlOrCmd && key === 'k') {
+    event.preventDefault()
+    openAddNodeCommand()
+  }
 }
 
 onMounted(() => {
@@ -385,6 +498,14 @@ function onPaneReady(event: unknown): void {
   const pane = event as PaneState
   paneState.value = pane
   syncNodeCreationCenter(pane.viewport)
+
+  if (pendingPipelineLoadFit.value) {
+    void fitAfterPipelineLoad()
+  }
+
+  if (pendingNodeCreationFit.value) {
+    void fitAfterNodeCreation()
+  }
 }
 
 function onMove(event: { flowTransform: ViewportState }): void {
@@ -411,6 +532,10 @@ function duplicateSelectedNodes(): void {
   store.duplicateSelectedNodes()
 }
 
+function alignSelectedNodes(mode: 'centerY' | 'left' | 'distributeX'): void {
+  store.alignSelectedNodes(mode)
+}
+
 function confirmDeleteSelectedNodes(): void {
   const count = store.selectedNodeIds.size
   if (count === 0) {
@@ -426,6 +551,8 @@ function confirmDeleteSelectedNodes(): void {
   confirm.require({
     message: t('pipelineCanvas.deleteNodesConfirm', { count }),
     header: t('common.confirm'),
+    acceptLabel: t('common.confirm'),
+    rejectLabel: t('common.actions.cancel'),
     icon: 'pi pi-exclamation-triangle',
     accept: () => {
       store.deleteSelectedNodes()
@@ -444,6 +571,8 @@ function confirmDeleteNode(nodeId: string, nodeName?: string, nodeLabel?: string
   confirm.require({
     message: t('pipelineCanvas.deleteNodeConfirm', { name: displayName }),
     header: t('common.confirm'),
+    acceptLabel: t('common.confirm'),
+    rejectLabel: t('common.actions.cancel'),
     icon: 'pi pi-exclamation-triangle',
     accept: () => {
       store.removeNode(nodeId)
@@ -472,7 +601,25 @@ watch(nodesInitialized, (isInitialized) => {
   }
 
   void fitAfterNodeCreation()
+  void fitAfterPipelineLoad()
 })
+
+watch(
+  () => props.fitTriggerTick,
+  (nextTickCount, previousTickCount) => {
+    if (nextTickCount <= previousTickCount) {
+      return
+    }
+
+    pendingPipelineLoadFit.value = true
+
+    if (nodesInitialized.value) {
+      void nextTick(async () => {
+        await fitAfterPipelineLoad()
+      })
+    }
+  },
+)
 </script>
 
 <template>
@@ -483,6 +630,40 @@ watch(nodesInitialized, (isInitialized) => {
     @mousedown.capture="onPanelMouseDown"
   >
     <Menu ref="iterateChildMenu" :model="iterateChildMenuItems" popup />
+    <Dialog
+      v-model:visible="showAddNodeCommand"
+      :header="t('pipelineCanvas.addNodeCommandTitle')"
+      :modal="true"
+      :draggable="false"
+      :dismissable-mask="true"
+      style="width: min(560px, 94vw)"
+    >
+      <div class="add-node-command">
+        <InputText
+          ref="addNodeSearchInput"
+          v-model="addNodeQuery"
+          :placeholder="t('pipelineCanvas.addNodeCommandPlaceholder')"
+          autocomplete="off"
+          @keydown.enter.prevent="filteredNodeCommandItems[0] && selectNodeCommand(filteredNodeCommandItems[0].type)"
+        />
+        <div class="add-node-shortcut-hint">{{ t('pipelineCanvas.addNodeShortcutHint') }}</div>
+        <div v-if="filteredNodeCommandItems.length === 0" class="add-node-empty">
+          {{ t('pipelineCanvas.addNodeCommandEmpty') }}
+        </div>
+        <div v-else class="add-node-results">
+          <button
+            v-for="item in filteredNodeCommandItems"
+            :key="item.type"
+            type="button"
+            class="add-node-result-item"
+            @click="selectNodeCommand(item.type)"
+          >
+            <span class="add-node-result-title">{{ item.label }}</span>
+            <span class="add-node-result-subtitle">{{ item.subtitle }}</span>
+          </button>
+        </div>
+      </div>
+    </Dialog>
     <VueFlow
       :nodes="flowNodes"
       :edges="store.edges"
@@ -491,6 +672,8 @@ watch(nodesInitialized, (isInitialized) => {
       :delete-key-code="null"
       :class="['canvas', 'dark']"
       :snap-to-grid="true"
+      :elevate-nodes-on-select="false"
+      :elevate-edges-on-select="true"
       @nodes-change="onNodesChange"
       @edges-change="onEdgesChange"
       @connect="onConnect"
@@ -505,11 +688,19 @@ watch(nodesInitialized, (isInitialized) => {
       </template>
       <Background :gap="20" :size="1.1" />
       <Controls position="top-left" :show-interactive="false">
+        <ControlButton key="add-node-button">
+          <MdiIcon
+            :path="mdiPlus"
+            size="20"
+            @click="openAddNodeCommand"
+            v-tooltip.right="t('pipelineCanvas.addNode')"
+            style="cursor: pointer"
+          />
+        </ControlButton>
         <ControlButton key="run-button">
           <MdiIcon
             :path="mdiPlay"
-            size="24"
-            color="black"
+            size="20"
             @click="runCurrentPipeline"
             v-tooltip.right="t('pipelineEditor.menu.runPipeline')"
             style="cursor: pointer"
@@ -518,8 +709,7 @@ watch(nodesInitialized, (isInitialized) => {
         <ControlButton v-if="hasSelection" key="copy-button">
           <MdiIcon
             :path="mdiContentCopy"
-            size="24"
-            color="black"
+            size="20"
             @click="copySelectedNodes"
             v-tooltip.right="t('pipelineEditor.multiselect.copy')"
             style="cursor: pointer"
@@ -528,8 +718,7 @@ watch(nodesInitialized, (isInitialized) => {
         <ControlButton v-if="canPaste" key="paste-button">
           <MdiIcon
             :path="mdiContentPaste"
-            size="24"
-            color="black"
+            size="20"
             @click="pasteNodes"
             v-tooltip.right="t('pipelineEditor.multiselect.paste')"
             style="cursor: pointer"
@@ -538,8 +727,7 @@ watch(nodesInitialized, (isInitialized) => {
         <ControlButton v-if="hasSelection" key="cut-button">
           <MdiIcon
             :path="mdiContentCut"
-            size="24"
-            color="black"
+            size="20"
             @click="cutSelectedNodes"
             v-tooltip.right="t('pipelineEditor.multiselect.cut')"
             style="cursor: pointer"
@@ -548,8 +736,7 @@ watch(nodesInitialized, (isInitialized) => {
         <ControlButton v-if="hasSelection" key="duplicate-button">
           <MdiIcon
             :path="mdiContentDuplicate"
-            size="24"
-            color="black"
+            size="20"
             @click="duplicateSelectedNodes"
             v-tooltip.right="t('pipelineEditor.multiselect.duplicate')"
             style="cursor: pointer"
@@ -558,10 +745,36 @@ watch(nodesInitialized, (isInitialized) => {
         <ControlButton v-if="hasSelection" key="delete-button">
           <MdiIcon
             :path="mdiDelete"
-            size="24"
-            color="black"
+            size="20"
             @click="confirmDeleteSelectedNodes"
             v-tooltip.right="t('pipelineEditor.multiselect.delete')"
+            style="cursor: pointer"
+          />
+        </ControlButton>
+        <ControlButton v-if="selectedCount > 1" key="align-centerY-button">
+          <MdiIcon
+            :path="mdiAlignVerticalCenter"
+            size="20"
+            @click="alignSelectedNodes('centerY')"
+            v-tooltip.right="t('pipelineEditor.multiselect.alignCenterY')"
+            style="cursor: pointer"
+          />
+        </ControlButton>
+        <ControlButton v-if="selectedCount > 1" key="align-left-button">
+          <MdiIcon
+            :path="mdiAlignHorizontalLeft"
+            size="20"
+            @click="alignSelectedNodes('left')"
+            v-tooltip.right="t('pipelineEditor.multiselect.alignLeft')"
+            style="cursor: pointer"
+          />
+        </ControlButton>
+        <ControlButton v-if="selectedCount > 1" key="distribute-x-button">
+          <MdiIcon
+            :path="mdiDistributeHorizontalCenter"
+            size="20"
+            @click="alignSelectedNodes('distributeX')"
+            v-tooltip.right="t('pipelineEditor.multiselect.distributeX')"
             style="cursor: pointer"
           />
         </ControlButton>
@@ -657,7 +870,7 @@ watch(nodesInitialized, (isInitialized) => {
 }
 
 .etl-node-label {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-soft);
@@ -665,6 +878,7 @@ watch(nodesInitialized, (isInitialized) => {
 
 .etl-node-title {
   font-size: 0.92rem;
+  font-weight: 600;
 }
 
 .iterate-container-header {
@@ -808,5 +1022,59 @@ watch(nodesInitialized, (isInitialized) => {
   padding: 8px;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.add-node-command {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.add-node-shortcut-hint {
+  font-size: 0.76rem;
+  color: var(--text-soft);
+}
+
+.add-node-results {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.add-node-result-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: inherit;
+  padding: 0.6rem 0.7rem;
+  cursor: pointer;
+  text-align: left;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.add-node-result-item:hover {
+  border-color: var(--primary-color, #0ea5e9);
+  background: color-mix(in srgb, var(--panel) 86%, var(--primary-color, #0ea5e9) 14%);
+}
+
+.add-node-result-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.add-node-result-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.add-node-empty {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  color: var(--text-soft);
+  text-align: center;
+  font-size: 0.85rem;
 }
 </style>

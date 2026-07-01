@@ -1,4 +1,37 @@
 {
+  "v 0.1.2": {
+    "date": "30 juin 2026",
+    "sections": [
+      {
+        "title": "Améliorations Canvas & UI",
+        "features": [
+          "Interface revue pour gagner un peu de place et rendre l'édition plus confortable",
+          "Ajout de 3 boutons d'alignement pour organiser plus vite une multi-sélection de nœuds",
+          "Les liens entre nœuds restent bien visibles même quand on sélectionne un conteneur Iterate/Subflow",
+          "Les icônes de la barre de contrôle sont maintenant lisibles en mode sombre",
+          "Les labels de formulaire dans l'inspecteur ont été renforcés pour une lecture plus claire",
+          "Ajout de séparateurs visuels entre les sections En-têtes et Extractions dans l'inspecteur",
+          "Ajustement de la teinte du fond secondaire en mode sombre pour un meilleur confort visuel",
+          "Les titres des nœuds dans le canvas sont plus lisibles",
+          "Messages d'erreur de validation plus visibles grâce à une bordure colorée"
+        ]
+      }
+    ]
+  },
+  "v 0.1.1": {
+    "date": "30 juin 2026",
+    "sections": [
+      {
+        "title": "Mise à jour UI (Inspecteur)",
+        "features": [
+          "Preview inline des variables généralisée dans l'inspecteur (plus seulement les champs commençant par #)",
+          "Support correct des templates avec accolades pour les variables, y compris les cas comme [{#env}]",
+          "Correction de la prévisualisation pour afficher les valeurs résolues sans conserver les accolades autour des variables",
+          "Mise en place d'un éditeur de texte pour la saisie des variables et du body API"
+        ]
+      }
+    ]
+  },
   "v 0.1.0": {
     "date": "29 juin 2026",
     "sections": [

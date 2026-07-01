@@ -61,16 +61,42 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: var(--shadow);
+  padding: 2px;
+  gap: 2px;
 }
 
 .vue-flow__controls button {
-  background: var(--panel-soft);
+  background: color-mix(in srgb, var(--panel) 60%, var(--bg) 40%);
   color: var(--text);
-  border-color: var(--border);
+  border-color: transparent;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.vue-flow__controls button svg {
+  fill: var(--text);
 }
 
 .vue-flow__controls button:hover {
-  background: var(--vf-controls-btn-bg-hover);
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel) 82%);
+  color: var(--accent);
+}
+
+.vue-flow__controls button:hover svg {
+  fill: var(--accent);
+}
+
+/* Séparateur visuel après le 1er bouton (Run) */
+.vue-flow__controls button:first-child {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+  padding-bottom: 4px;
+  border-radius: 6px 6px 0 0;
 }
 
 /* Vue Flow background styling */

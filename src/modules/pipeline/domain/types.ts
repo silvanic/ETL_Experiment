@@ -145,6 +145,7 @@ export interface PipelineVariable {
   id: string
   name: string
   value: string
+  secret?: boolean
   type?: 'string' | 'number' | 'json' | 'object'
 }
 

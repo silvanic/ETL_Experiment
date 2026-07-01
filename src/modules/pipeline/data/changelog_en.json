@@ -1,4 +1,37 @@
 {
+  "v 0.1.2": {
+    "date": "June 30, 2026",
+    "sections": [
+      {
+        "title": "Canvas & UI improvements",
+        "features": [
+          "Interface revisited to save some space and make editing more comfortable",
+          "Added 3 alignment buttons to organize multi-selected nodes faster",
+          "Edges now stay visible when selecting an Iterate/Subflow container node",
+          "Control bar icons are now readable in dark mode",
+          "Inspector form labels were strengthened for clearer reading",
+          "Added visual separators between the Headers and Extractions sections in the inspector",
+          "Adjusted the secondary panel shade in dark mode for better visual comfort",
+          "Canvas node titles are now easier to read",
+          "Validation errors are easier to spot thanks to a colored border"
+        ]
+      }
+    ]
+  },
+  "v 0.1.1": {
+    "date": "June 30, 2026",
+    "sections": [
+      {
+        "title": "UI update (Inspector)",
+        "features": [
+          "Inline variable preview was generalized in the inspector (not limited to fields starting with #)",
+          "Added correct support for brace templates with variables, including cases like [{#env}]",
+          "Fixed preview rendering to show resolved values without keeping curly braces around variables",
+          "Added a text editor for variable input and API body editing"
+        ]
+      }
+    ]
+  },
   "v 0.1.0": {
     "date": "June 29, 2026",
     "sections": [

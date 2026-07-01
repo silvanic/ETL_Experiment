@@ -129,11 +129,112 @@ src/
 | **setVariable** | Extrait variables | `{extractPath, variableName}[]` | Variables mises à jour |
 | **condition** | Branchement logique | leftPath, operator, rightType/rightValue | 2 arêtes: true/false |
 | **filter** | Filtre array | sourcePath, itemPath, operator, outputPath/rejected | 2 arêtes: filtered/rejected |
-| **transform** | Transformation données | mode (pickPath\|assignLiteral), paths | Contexte modifié |
+| **transform** | Transformation données | mode (pickPath / assignLiteral), paths | Contexte modifié |
 | **map** | Mapping tableau | sourcePath, outputPath, mappings[] | Tableau transformé |
 | **iterate** | Boucle conteneur | `sourcePath` (tableau) | Exécute les enfants pour chaque item |
 | **subflow** | Conteneur mono-run | Pas de config obligatoire | Exécute les enfants une seule fois |
 | **output** | Résultat final | `outputPath: string` | Terminal (aucune sortie) |
+
+### Descriptions détaillées des nœuds
+
+#### 1. Start
+- **Rôle**: Point d'entrée obligatoire du pipeline
+- **Config**: `note?: string` (optionnel, pour documentation)
+- **Sortie**: Initialise contexte vide `{}`
+- **Comportement**: Un seul nœud start requis; toujours le point de départ
+
+#### 2. API
+- **Rôle**: Effectue une requête HTTP et stocke le résultat
+- **Config**:
+  - `url: string` — URL complète avec support variable (`#var`)
+  - `method: 'GET'|'POST'|'PUT'|'DELETE'|'PATCH'`
+  - `headers: Array<{key, value}>` — support variable
+  - `bodyRaw: string` — JSON brut (optionnel)
+  - `outputPath: string` — chemin cible pour stocker la réponse
+  - `retryConfig?: {maxRetries, delayMs}` — retry automatique
+- **Sortie**: Contexte mis à jour avec réponse JSON à `outputPath`
+- **Comportement**: Si erreur HTTP, log erreur et continue (ne bloque pas)
+
+#### 3. SetVariable
+- **Rôle**: Extrait valeurs du contexte et les enregistre comme variables de pipeline
+- **Config**: `extractions: Array<{extractPath, variableName}>`
+  - `extractPath` — path JSON du contexte à extraire
+  - `variableName` — nom variable (validation alphanumérique + _)
+  - Support literal values optionnels
+- **Sortie**: Variables pipeline mises à jour (accessibles via `#varName`)
+- **Comportement**: Variables persistent jusqu'à la fin du pipeline; réutilisables dans templates
+
+#### 4. Condition
+- **Rôle**: Branchement conditionnel (vrai / faux)
+- **Config**:
+  - `leftPath: string` — path du contexte à évaluer
+  - `operator: 'equals'|'notEquals'|'greaterThan'|'lessThan'|'contains'|'exists'`
+  - `aggregation: 'any'|'all'|'none'` — si leftPath est array
+  - `rightType: 'string'|'number'|'boolean'|'null'` — type comparaison
+  - `rightValue: string` — valeur comparaison (convertie selon rightType)
+- **Sortie**: 2 arêtes étiquetées "true" et "false"
+- **Branchement**: Condition vraie vers arête 'true'; sinon vers arête 'false'
+
+#### 5. Filter
+- **Rôle**: Filtre items d'un array selon critères
+- **Config**:
+  - `sourcePath: string` — path array source
+  - `itemPath: string` — path dans item à tester
+  - `operator, rightType, rightValue` — même que Condition
+  - `outputPath: string` — où stocker items acceptés
+  - `outputPathRejected: string` — où stocker items rejetés
+- **Sortie**: 2 arêtes étiquetées "filtered" et "rejected"
+- **Comportement**: Items correspondant vers `outputPath`; autres vers `outputPathRejected`
+
+#### 6. Transform
+- **Rôle**: Transformation de données (copie ou assignation)
+- **Config**:
+  - `mode: 'pickPath' | 'assignLiteral'`
+  - `sourcePath: string` — (pickPath) path à copier OU ignoré en assignLiteral
+  - `targetPath: string` — path destination
+  - `literalValue: string` — (assignLiteral) valeur/template à assigner
+- **Sortie**: Contexte mis à jour
+- **Comportement**: 
+  - Mode pickPath: copie `sourcePath` vers `targetPath`
+  - Mode assignLiteral: assigne literal ou résultat template à `targetPath`
+  - Support templates: `{chemin}` et `{#variable}`
+
+#### 7. Map
+- **Rôle**: Transformation structurelle d'un array (extraction / renommage / templating champs)
+- **Config**:
+  - `sourcePath: string` — array source à transformer
+  - `outputPath: string` — où stocker array transformé
+  - `mappings: Array<{targetField, literalValue, fallbackValue?}>` — champs extraction
+    - `targetField: string` — nom champ destination dans chaque item
+    - `literalValue: string` — template ou valeur statique (`{id}`, `Name: {first} {last}`, `active`)
+    - `fallbackValue?: string` — valeur si template path manquant
+- **Sortie**: Array avec champs mappés
+- **Templating**: Support `{path}` retourne raw value (préserve type); multi-path concaténé en string
+
+#### 8. Iterate (Conteneur)
+- **Rôle**: Boucle: exécute sous-graphe une fois par item du array
+- **Config**:
+  - `sourcePath: string` — array source à itérer
+- **Variables runtime**: Exposées aux enfants
+  - `__currentItem` — item courant (objet / valeur)
+  - `__currentIndex` — index numérique (0-based)
+  - `__currentKey` — clé de l'item (pour objets mappés)
+- **Sortie**: Contexte accumule les modifications de tous les items
+- **Comportement**: Conteneur logique; enfants exécutés par scope d'item
+- **Limitation**: Iterate imbriqués peuvent créer collisions de contexte (design courant global)
+
+#### 9. Subflow (Conteneur)
+- **Rôle**: Conteneur logique: exécute sous-graphe une seule fois
+- **Config**: Aucune config obligatoire
+- **Usage**: Regrouper sous-graphes complexes pour lisibilité
+- **Sortie**: Contexte modifié par les enfants
+- **Comportement**: Aucune spécificité d'exécution; enfants exécutés en scope partagé avec parent
+
+#### 10. Output
+- **Rôle**: Extrait et finalise résultat du pipeline
+- **Config**: `outputPath: string` — path à extraire du contexte
+- **Sortie**: Aucune sortie (nœud terminal)
+- **Comportement**: Termine pipeline; valeur extraite stockée dans ExecutionRun.logs et UI
 
 ---
 
@@ -212,6 +313,8 @@ Persistance localStorage avec index maintenu:
 - `savePipeline(def)` — sauvegarde + met à jour index
 - `loadSavedPipeline(id)` — charge par ID
 - `listSavedPipelines()` — retourne sommaires triés par date desc
+- `deleteSavedPipeline(id)` — supprime un pipeline
+- `deleteAllPipelines()` — vide tous les pipelines
 - Support héritage format legacy via Zod transform (dont ancien type `subPipeline` migré en `subflow`)
 
 **Clés localStorage**:
@@ -259,10 +362,23 @@ Dialogue config conditionnelle par type nœud:
 - Update store on change
 
 ### RunConsole
-Affichage logs ExecutionRun:
+Affichage logs ExecutionRun avec 3 sections principales:
+
+**1. Environnement actif** (section collapsible)
+- Affiche le nom de l'environnement actif en cours d'exécution
+- Clarifie la provenance des variables (base ou override)
+
+**2. Variables d'environnement** (section collapsible)
+- Liste toutes les variables de pipeline avec leurs valeurs résolues
+- Format: `nom_variable: valeur`
+- Utile pour déboguer résolution de variables et substitutions
+- Tag affiche le nombre total de variables
+
+**3. Logs d'exécution** (section principale)
 - Groupement des logs par nœud exécuté
-- Détails dépliables (payload/erreurs)
-- Affichage des variables effectives et de l'environnement actif
+- Détails dépliables (payload / erreurs)
+- Timestamps, niveaux (info / warning / error)
+- Support filtrage / export future
 
 ### Systeme de couleurs conteneur (Iterate/Subflow)
 
@@ -365,6 +481,12 @@ Orchestration:
 
 **5. Sauvegarde**
    → Store.saveCurrentPipeline() → pipelineStorage → localStorage + index
+
+**6. Gestion pipelines sauvegardés**
+   → Click Ouvrir → DialogPipelineLoad
+   → Sélection d'un ou plusieurs pipelines
+   → Barre de gestion (Sélectionner tous, Supprimer, Vider tout)
+   → Confirmation avant suppression → localStorage nettoyé
 
 ---
 

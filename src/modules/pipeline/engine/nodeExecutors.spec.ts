@@ -629,6 +629,34 @@ describe('map executor', () => {
     )
   })
 
+  it('parses JSON array literal values in mapping rows', async () => {
+    const context: ExecutionContext = {
+      data: {
+        users: [{ id: 1, name: 'Ada' }],
+      },
+      logs: [],
+    }
+
+    const node = createMapNode({
+      mappings: [
+        { targetField: 'id', literalValue: '{id}', fallbackValue: '' },
+        { targetField: 'meta.tags', literalValue: '["test"]', fallbackValue: '' },
+      ],
+    })
+
+    await executorByType.map(node, context)
+
+    expect(context.data).toEqual(
+      expect.objectContaining({
+        result: {
+          usersSlim: [
+            { id: 1, meta: { tags: ['test'] } },
+          ],
+        },
+      }),
+    )
+  })
+
   it('uses fallback value when path is missing', async () => {
     const context: ExecutionContext = {
       data: {

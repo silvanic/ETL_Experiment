@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditorStore'
 import Panel from 'primevue/panel'
 import AutoComplete from 'primevue/autocomplete'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
-import Textarea from 'primevue/textarea'
 import Message from 'primevue/message'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import CodeEditorField from '@/components/CodeEditorField.vue'
+import PreviewDialog from '@/components/PreviewDialog.vue'
 import { resolveValueWithVariables, findUnresolvedVariables } from '@/modules/pipeline/domain/variables'
+import { getByPath, setByPath } from '@/modules/pipeline/engine/pathUtils'
 import type {
   ApiNodeConfig,
   ConditionNodeConfig,
@@ -120,6 +122,9 @@ const setVariableSourceTypeOptions = computed<{ label: string; value: 'path' | '
 
 const isApiLoading = ref(false)
 const isApiResultDialogVisible = ref(false)
+const isMapPreviewDialogVisible = ref(false)
+const isTransformPreviewDialogVisible = ref(false)
+const isApiBodyPreviewMode = ref(false)
 const lastApiResult = ref<unknown | null>(null)
 const lastApiError = ref<string | null>(null)
 const lastApiRequest = ref<{
@@ -178,6 +183,247 @@ const templateVariableSuggestions = computed(() => {
 const globalVariableSuggestions = computed(() => {
   // For non-template fields: suggest #variable (without braces)
   return store.pipeline.variables.map((variable) => `#${variable.name}`)
+})
+
+const apiBodyEditorSuggestions = computed(() => getTemplateFieldSuggestions('api.bodyRaw'))
+const apiBodyEditorSnippets = computed(() => [
+  {
+    label: 'JSON object',
+    insertText: '{\n  "$1": "$2"\n}',
+    detail: 'Insert a JSON object skeleton',
+  },
+  {
+    label: 'JSON array',
+    insertText: '[\n  "$1"\n]',
+    detail: 'Insert a JSON array skeleton',
+  },
+  {
+    label: 'Pipeline variable token',
+    insertText: '#${1:variableName}',
+    detail: 'Insert a #variable token',
+  },
+])
+
+const PREVIEW_MAX_CHARS = 1600
+
+function truncatePreview(value: string, maxChars = PREVIEW_MAX_CHARS): string {
+  if (value.length <= maxChars) {
+    return value
+  }
+
+  return `${value.slice(0, maxChars)}\n... (preview tronque)`
+}
+
+function buildPrimitiveSummary(value: unknown): string {
+  if (value === null) {
+    return 'null'
+  }
+
+  if (Array.isArray(value)) {
+    return `array (${value.length} elements)`
+  }
+
+  if (typeof value === 'object') {
+    return `object (${Object.keys(value as Record<string, unknown>).length} cles)`
+  }
+
+  if (typeof value === 'string') {
+    return `string (${value.length} chars)`
+  }
+
+  return typeof value
+}
+
+function buildPreviewTooltip(rawValue: string): string {
+  const resolved = resolveInlineTemplateValue(rawValue)
+  const trimmed = resolved.trim()
+
+  if (!trimmed) {
+    return 'Preview: valeur vide'
+  }
+
+  const unresolved = findUnresolvedVariables(rawValue, variableMap.value)
+
+  try {
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      const parsed = JSON.parse(trimmed)
+      const pretty = truncatePreview(JSON.stringify(parsed, null, 2))
+      const unresolvedLine = unresolved.length > 0
+        ? `\nVariables non resolues: ${unresolved.join(', ')}`
+        : ''
+      return `Type: ${buildPrimitiveSummary(parsed)}${unresolvedLine}\n\n${pretty}`
+    }
+  } catch {
+    // Keep string preview fallback when JSON parsing fails.
+  }
+
+  const unresolvedLine = unresolved.length > 0
+    ? ` | Variables non resolues: ${unresolved.join(', ')}`
+    : ''
+  return `Type: ${buildPrimitiveSummary(resolved)}${unresolvedLine}\n${truncatePreview(resolved)}`
+}
+
+function resolveInlineTemplateValue(value: string): string {
+  const braceTokenRegex = /\{([^}]+)\}/g
+  const resolvedTemplate = value.replace(braceTokenRegex, (fullMatch, token: string) => {
+    const normalizedToken = String(token ?? '').trim()
+    if (!normalizedToken.includes('#')) {
+      return fullMatch
+    }
+
+    return resolveWithPipelineVariables(normalizedToken)
+  })
+
+  return resolveWithPipelineVariables(resolvedTemplate)
+}
+
+const transformLiteralPreviewContent = computed(() => {
+  if (!transformConfig.value || transformConfig.value.mode !== 'assignLiteral') {
+    return 'Preview indisponible'
+  }
+
+  return buildPreviewTooltip(transformConfig.value.literalValue)
+})
+
+function parseJsonValue(raw: string): unknown {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return undefined
+  }
+}
+
+function parseStructuredJsonLiteral(raw: string): unknown {
+  const trimmed = raw.trim()
+  const isStructuredJson =
+    (trimmed.startsWith('{') && trimmed.endsWith('}'))
+    || (trimmed.startsWith('[') && trimmed.endsWith(']'))
+
+  if (!isStructuredJson) {
+    return raw
+  }
+
+  const parsed = parseJsonValue(trimmed)
+  return parsed === undefined ? raw : parsed
+}
+
+function resolveMapTemplateToken(token: string, item: unknown): unknown {
+  const normalizedToken = token.trim()
+  if (!normalizedToken) {
+    return undefined
+  }
+
+  if (normalizedToken.includes('#')) {
+    return resolveWithPipelineVariables(normalizedToken)
+  }
+
+  return getByPath(item, normalizedToken)
+}
+
+function resolveMapTemplatePreview(template: string, item: unknown): unknown {
+  const regex = /\{([^}]+)\}/g
+  const matches = Array.from(template.matchAll(regex))
+
+  if (matches.length === 0) {
+    const resolvedRaw = resolveWithPipelineVariables(template)
+    return parseStructuredJsonLiteral(resolvedRaw)
+  }
+
+  if (matches.length === 1 && matches[0][0] === template) {
+    const singleValue = resolveMapTemplateToken(matches[0][1], item)
+    if (singleValue === undefined || singleValue === null) {
+      return template
+    }
+    return singleValue
+  }
+
+  return template.replace(regex, (fullMatch: string, token: string) => {
+    const resolvedToken = resolveMapTemplateToken(token, item)
+    if (resolvedToken === undefined || resolvedToken === null) {
+      return fullMatch
+    }
+
+    return String(resolvedToken)
+  })
+}
+
+function mapPreviewSampleItem(): { item: unknown; note: string } {
+  if (!mapConfig.value) {
+    return { item: {}, note: t('inspector.messages.mapPreviewUnavailable') }
+  }
+
+  const rawSourcePath = mapConfig.value.sourcePath.trim()
+  const resolvedSourcePath = resolveWithPipelineVariables(rawSourcePath)
+
+  if (rawSourcePath.startsWith('#') || resolvedSourcePath.startsWith('[') || resolvedSourcePath.startsWith('{')) {
+    const parsed = parseJsonValue(resolvedSourcePath)
+    if (Array.isArray(parsed)) {
+      return {
+        item: parsed[0] ?? {},
+        note: parsed.length > 0
+          ? t('inspector.messages.mapPreviewSourceArrayFirst')
+          : t('inspector.messages.mapPreviewSourceArrayEmpty'),
+      }
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      return {
+        item: parsed,
+        note: t('inspector.messages.mapPreviewSourceObject'),
+      }
+    }
+  }
+
+  return {
+    item: {},
+    note: t('inspector.messages.mapPreviewSourceFallback'),
+  }
+}
+
+const mapFinalObjectPreviewMeta = computed(() => {
+  if (!mapConfig.value) {
+    return {
+      note: t('inspector.messages.mapPreviewUnavailable'),
+      unresolvedVariables: [] as string[],
+      previewObject: {} as Record<string, unknown>,
+    }
+  }
+
+  const { item, note } = mapPreviewSampleItem()
+  const previewObject: Record<string, unknown> = {}
+
+  for (const mapping of mapConfig.value.mappings) {
+    if (!mapping.targetField?.trim()) {
+      continue
+    }
+
+    const resolvedValue = resolveMapTemplatePreview(mapping.literalValue ?? '', item)
+    setByPath(previewObject, mapping.targetField, resolvedValue)
+  }
+
+  const unresolvedVariables = Array.from(new Set(mapConfig.value.mappings.flatMap((mapping) =>
+    findUnresolvedVariables(mapping.literalValue ?? '', variableMap.value),
+  )))
+
+  return {
+    note,
+    unresolvedVariables,
+    previewObject,
+  }
+})
+
+const mapFinalObjectPreviewJson = computed(() => {
+  return JSON.stringify(mapFinalObjectPreviewMeta.value.previewObject, null, 2)
+})
+
+const mapFinalObjectPreviewUnresolvedText = computed(() => {
+  if (mapFinalObjectPreviewMeta.value.unresolvedVariables.length === 0) {
+    return ''
+  }
+
+  return t('inspector.messages.mapPreviewUnresolvedVariables', {
+    variables: mapFinalObjectPreviewMeta.value.unresolvedVariables.join(', '),
+  })
 })
 
 function getTemplateFieldSuggestions(fieldKey: string): string[] {
@@ -423,6 +669,18 @@ const hasApiResponse = computed(() => {
   return lastApiResult.value !== null
 })
 
+const apiBodyEditorValue = computed(() => {
+  if (!apiConfig.value) {
+    return ''
+  }
+
+  if (!isApiBodyPreviewMode.value) {
+    return apiConfig.value.bodyRaw
+  }
+
+  return resolveWithPipelineVariables(apiConfig.value.bodyRaw)
+})
+
 const prettyApiRequest = computed(() => {
   if (!lastApiRequest.value) {
     return t('inspector.messages.noApiResult')
@@ -661,33 +919,37 @@ function handleSuggestionSelect(fieldKey: string, event: { value?: unknown }): v
 }
 
 function isVariableTokenInput(value: string | undefined): boolean {
-  return String(value ?? '').trim().startsWith('#')
-}
-
-function extractVariableNameFromToken(value: string): string {
-  const match = value.trim().match(/^#([a-zA-Z][a-zA-Z0-9_-]*)/)
-  return match?.[1] ?? ''
+  return String(value ?? '').includes('#')
 }
 
 function variableTokenHint(value: string | undefined): string {
   const rawValue = String(value ?? '').trim()
-  if (!rawValue.startsWith('#')) {
+  if (!rawValue.includes('#')) {
     return ''
   }
 
-  const variableName = extractVariableNameFromToken(rawValue)
-  if (!variableName) {
+  const extractedVariableNames = Array.from(new Set(rawValue.match(/#([a-zA-Z][a-zA-Z0-9_-]*)/g)?.map((token) => token.slice(1)) ?? []))
+
+  if (extractedVariableNames.length === 0) {
     return t('inspector.messages.variableTokenInvalid')
   }
 
-  const resolvedValue = variableMap.value[variableName]
-  if (resolvedValue === undefined) {
-    return t('inspector.messages.variableTokenUnknown', { name: variableName })
+  const unresolvedVariable = extractedVariableNames.find((name) => variableMap.value[name] === undefined)
+  if (unresolvedVariable) {
+    return t('inspector.messages.variableTokenUnknown', { name: unresolvedVariable })
   }
 
-  return t('inspector.messages.variableTokenValue', {
-    name: variableName,
-    value: resolvedValue,
+  if (extractedVariableNames.length === 1 && rawValue === `#${extractedVariableNames[0]}`) {
+    return t('inspector.messages.variableTokenValue', {
+      name: extractedVariableNames[0],
+      value: variableMap.value[extractedVariableNames[0]],
+    })
+  }
+
+  const resolvedValue = resolveInlineTemplateValue(rawValue)
+
+  return t('inspector.messages.variableTemplatePreview', {
+    value: truncatePreview(resolvedValue, 220),
   })
 }
 
@@ -786,6 +1048,31 @@ async function runApiCall(): Promise<void> {
 function openApiResultDialog(): void {
   isApiResultDialogVisible.value = true
 }
+
+function openMapPreviewDialog(): void {
+  isMapPreviewDialogVisible.value = true
+}
+
+function openTransformPreviewDialog(): void {
+  if (!transformConfig.value || transformConfig.value.mode !== 'assignLiteral') {
+    return
+  }
+
+  isTransformPreviewDialogVisible.value = true
+}
+
+function toggleApiBodyPreviewMode(): void {
+  isApiBodyPreviewMode.value = !isApiBodyPreviewMode.value
+}
+
+watch(
+  () => selectedType.value,
+  (type) => {
+    if (type !== 'api') {
+      isApiBodyPreviewMode.value = false
+    }
+  },
+)
 
 </script>
 
@@ -959,16 +1246,33 @@ function openApiResultDialog(): void {
                     {{ apiHeadersValidation.text }}
                   </Message>
                 </div>
-                <label>
-                  {{ t('inspector.fields.bodyJson') }}
-                  <Textarea
+                <div class="field-group">
+                  <span class="field-with-preview">
+                    <span class="field-title">{{ t('inspector.fields.bodyJson') }}</span>
+                    <Button
+                      size="small"
+                      text
+                      severity="secondary"
+                      class="preview-toggle"
+                      :label="isApiBodyPreviewMode ? t('inspector.buttons.editBodyJson') : t('inspector.buttons.previewBodyJson')"
+                      :icon="isApiBodyPreviewMode ? 'pi pi-pencil' : 'pi pi-eye'"
+                      @click.stop="toggleApiBodyPreviewMode"
+                    />
+                  </span>
+                  <CodeEditorField
                     id="api_bodyRaw "
-                    rows="5"
-                    cols="30"
-                    auto-resize
-                    :model-value="apiConfig.bodyRaw"
-                    @update:model-value="patchConfig({ bodyRaw: String($event) })"
+                    :model-value="apiBodyEditorValue"
+                    language="json"
+                    :height="220"
+                    :read-only="isApiBodyPreviewMode"
+                    :suggestions="isApiBodyPreviewMode ? [] : apiBodyEditorSuggestions"
+                    :snippets="isApiBodyPreviewMode ? [] : apiBodyEditorSnippets"
+                    @update:model-value="isApiBodyPreviewMode ? undefined : patchConfig({ bodyRaw: String($event) })"
                   />
+                  <p class="hint">{{ t('inspector.hints.bodyJsonEditor') }}</p>
+                  <p v-if="isApiBodyPreviewMode" class="hint hint--info">
+                    {{ t('inspector.hints.bodyJsonPreviewMode') }}
+                  </p>
                   <Message
                     v-if="apiBodyValidation"
                     class="body-validation-message"
@@ -977,7 +1281,7 @@ function openApiResultDialog(): void {
                   >
                     {{ apiBodyValidation.text }}
                   </Message>
-                </label>
+                </div>
               </div>
             </TabPanel>
             <TabPanel value="actions">
@@ -1339,7 +1643,19 @@ function openApiResultDialog(): void {
           </p>
         </label>
         <label v-if="transformConfig.mode === 'assignLiteral'">
-          {{ t('inspector.fields.literalValue') }}
+          <span class="field-with-preview">
+            {{ t('inspector.fields.literalValue') }}
+            <Button
+              size="small"
+              :label="t('inspector.buttons.previewBodyJson')"
+              icon="pi pi-eye"
+              text
+              severity="secondary"
+              class="preview-toggle"
+              :aria-label="t('inspector.buttons.previewLiteralValue')"
+              @click="openTransformPreviewDialog"
+            />
+          </span>
           <AutoComplete
             input-id="transform.literalValue"
             :model-value="transformConfig.literalValue"
@@ -1410,12 +1726,24 @@ function openApiResultDialog(): void {
         </label>
         <div class="extractions-section">
           <div class="extractions-header">
-            <Button
-              size="small"
-              :label="t('inspector.buttons.addMapping')"
-              icon="pi pi-plus"
-              @click="patchConfig({ mappings: [...(mapConfig.mappings || []), { targetField: '', literalValue: '', fallbackValue: '' }] })"
-            />
+            <div class="map-actions">
+              <Button
+                size="small"
+                :label="t('inspector.buttons.addMapping')"
+                icon="pi pi-plus"
+                @click="patchConfig({ mappings: [...(mapConfig.mappings || []), { targetField: '', literalValue: '', fallbackValue: '' }] })"
+              />
+              <Button
+                size="small"
+                :label="t('inspector.buttons.previewBodyJson')"
+                icon="pi pi-eye"
+                text
+                severity="secondary"
+                class="preview-toggle"
+                :aria-label="t('inspector.buttons.previewFinalMappedObject')"
+                @click="openMapPreviewDialog"
+              />
+            </div>
           </div>
           <DataTable
             :value="mapConfig.mappings || []"
@@ -1449,12 +1777,14 @@ function openApiResultDialog(): void {
                 </div>
               </template>
               <template #body="slotProps">
-                <InputText
-                  :model-value="slotProps.data.literalValue"
-                  @update:model-value="slotProps.data.literalValue = $event; patchConfig({ mappings: mapConfig.mappings })"
-                  placeholder="ex: Name: {firstName} {lastName}"
-                  class="w-full"
-                />
+                <div class="map-literal-cell">
+                  <InputText
+                    :model-value="slotProps.data.literalValue"
+                    @update:model-value="slotProps.data.literalValue = $event; patchConfig({ mappings: mapConfig.mappings })"
+                    placeholder="ex: Name: {firstName} {lastName}"
+                    class="w-full"
+                  />
+                </div>
               </template>
             </Column>
             <Column :header="t('inspector.fields.fallbackValue')" style="width: 14%">
@@ -1584,6 +1914,24 @@ function openApiResultDialog(): void {
         </TabPanels>
       </Tabs>
     </Dialog>
+
+    <PreviewDialog
+      v-model:visible="isMapPreviewDialogVisible"
+      :title="t('inspector.dialog.mapPreview')"
+      :subtitle="mapFinalObjectPreviewMeta.note"
+      :warning="mapFinalObjectPreviewUnresolvedText"
+      :content="mapFinalObjectPreviewJson"
+      language="json"
+      :height="360"
+    />
+
+    <PreviewDialog
+      v-model:visible="isTransformPreviewDialogVisible"
+      :title="t('inspector.dialog.transformPreview')"
+      :content="transformLiteralPreviewContent"
+      language="plaintext"
+      :height="320"
+    />
   </Panel>
 </template>
 
@@ -1613,12 +1961,12 @@ p {
 
 .form-grid {
   display: grid;
-  gap: 0.7rem;
+  gap: 0.85rem;
 }
 
 .tab-content {
   display: grid;
-  gap: 0.7rem;
+  gap: 0.85rem;
 }
 
 .tab-actions {
@@ -1656,7 +2004,20 @@ label {
   display: grid;
   gap: 0.35rem;
   font-size: 0.84rem;
-  color: var(--text-soft);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.field-group {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.field-title {
+  display: inline-block;
 }
 
 .hint {
@@ -1671,7 +2032,7 @@ label {
 .hint--info {
   color: var(--text-soft);
   font-style: normal;
-  font-size: 0.78rem;
+  font-size: 0.84rem;
 }
 
 .map-template-header {
@@ -1685,6 +2046,40 @@ label {
   height: 1.15rem;
   min-width: 1.15rem;
   padding: 0;
+}
+
+.preview-help {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-width: 1.15rem;
+  padding: 0;
+}
+
+.field-with-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.preview-toggle {
+  padding-inline: 0.4rem;
+}
+
+.map-literal-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+:deep(.preview-tooltip-content) {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: min(70vw, 540px);
+  max-height: 45vh;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .api-result {
@@ -1708,6 +2103,8 @@ label {
 .headers-section {
   display: grid;
   gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
 }
 
 .headers-header {
@@ -1738,6 +2135,24 @@ label {
 .extractions-header{
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
 }
+
+.map-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+:deep(.p-message.p-message-error) {
+  border-left: 3px solid var(--danger);
+  font-weight: 500;
+}
+
+:deep(.p-message.p-message-warn) {
+  border-left: 3px solid color-mix(in srgb, var(--danger) 50%, #f59e0b);
+}
+
 </style>
 

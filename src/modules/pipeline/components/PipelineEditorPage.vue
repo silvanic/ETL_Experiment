@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import NodePalette from '@/modules/pipeline/components/NodePalette.vue'
 import PipelineCanvas from '@/modules/pipeline/components/PipelineCanvas.vue'
@@ -11,6 +11,7 @@ import AutoSaveIcon from '@/modules/pipeline/components/AutoSaveIcon.vue'
 import { pipelineTemplates } from '@/modules/pipeline/data/templates'
 import PipelineRunDialog from '@/modules/pipeline/components/dialogs/DialogPipelineRun.vue'
 import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditorStore'
+import { deleteSavedPipeline } from '@/modules/pipeline/services/pipelineStorage'
 import { setLocale, type AppLocale } from '@/i18n'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
@@ -20,11 +21,6 @@ import SplitButton from 'primevue/splitbutton'
 import Message from 'primevue/message'
 import Menubar from 'primevue/menubar'
 import Dialog from 'primevue/dialog'
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
 import Tag from 'primevue/tag'
 import Badge from 'primevue/badge'
 import type { MenuItem } from 'primevue/menuitem'
@@ -33,10 +29,12 @@ import type { ExecutionRun } from '@/modules/pipeline/domain/types'
 import { isValidVariableName } from '@/modules/pipeline/domain/variables'
 import changelogFr from '@/modules/pipeline/data/changelog_fr.json'
 import changelogEn from '@/modules/pipeline/data/changelog_en.json'
+import CodeEditorField from '@/components/CodeEditorField.vue'
 
 const store = usePipelineEditorStore()
 const router = useRouter()
-const activeTab = ref('flow')
+const showVariablesDialog = ref(false)
+const showConsoleDock = ref(false)
 const showSettingsDialog = ref(false)
 const showRunDialog = ref(false)
 const showLoadDialog = ref(false)
@@ -45,6 +43,7 @@ const showRenameDialog = ref(false)
 const showWhatsNewDialog = ref(false)
 const showRenameEnvironmentDialog = ref(false)
 const showAddEnvironmentDialog = ref(false)
+const consoleDockRef = ref<HTMLElement | null>(null)
 const importFileInput = ref<HTMLInputElement | null>(null)
 const selectedRunId = ref<string | null>(null)
 const selectedSavedPipelineId = ref<string | null>(null)
@@ -55,9 +54,12 @@ const createPipelineName = ref('')
 const selectedCreateSource = ref<'empty' | string>('empty')
 const newTabVariableName = ref('')
 const newTabVariableValue = ref('')
+const newTabVariableSecret = ref(false)
 const tabVariableError = ref<string | null>(null)
 const selectedTabVariableId = ref<string | null>(null)
 const isAddingTabVariable = ref(false)
+const variableEditorModeStorageKey = 'pipeline.editor.variableEditorAdvanced'
+const isAdvancedVariableEditor = ref(localStorage.getItem(variableEditorModeStorageKey) !== 'false')
 const autoOpenConsoleOnRunEndStorageKey = 'pipeline.editor.autoOpenConsoleOnRunEnd'
 const autoSaveEnabledStorageKey = 'pipeline.editor.autoSaveEnabled'
 const confirmDeleteNodeStorageKey = 'pipeline.editor.confirmDeleteNode'
@@ -81,6 +83,16 @@ const inspectorWidth = ref(
   ),
 )
 
+const consoleHeightStorageKey = 'pipeline.editor.consoleHeight'
+const consoleMinHeight = 180
+const consoleMaxHeight = 640
+const consoleHeight = ref(
+  Math.min(
+    consoleMaxHeight,
+    Math.max(consoleMinHeight, parseInt(localStorage.getItem(consoleHeightStorageKey) ?? '280', 10)),
+  ),
+)
+
 function startInspectorResize(event: MouseEvent): void {
   event.preventDefault()
   const startX = event.clientX
@@ -95,6 +107,26 @@ function startInspectorResize(event: MouseEvent): void {
     document.removeEventListener('mousemove', onMouseMove)
     document.removeEventListener('mouseup', onMouseUp)
     localStorage.setItem(inspectorWidthStorageKey, String(inspectorWidth.value))
+  }
+
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+}
+
+function startConsoleResize(event: MouseEvent): void {
+  event.preventDefault()
+  const startY = event.clientY
+  const startHeight = consoleHeight.value
+
+  function onMouseMove(e: MouseEvent): void {
+    const delta = e.clientY - startY
+    consoleHeight.value = Math.min(consoleMaxHeight, Math.max(consoleMinHeight, startHeight - delta))
+  }
+
+  function onMouseUp(): void {
+    document.removeEventListener('mousemove', onMouseMove)
+    document.removeEventListener('mouseup', onMouseUp)
+    localStorage.setItem(consoleHeightStorageKey, String(consoleHeight.value))
   }
 
   document.addEventListener('mousemove', onMouseMove)
@@ -148,6 +180,11 @@ const menuItems = computed<MenuItem[]>(() => [
         command: () => openLoadDialog(),
       },
       {
+        label: t('pipelineEditor.pipelineNameDialog.open'),
+        icon: 'pi pi-pencil',
+        command: () => openRenameDialog(),
+      },
+      {
         separator: true
       },
       {
@@ -161,6 +198,22 @@ const menuItems = computed<MenuItem[]>(() => [
         command: () => triggerImportPipeline(),
       },
     ]
+  },
+  {
+    icon: 'pi pi-wrench',
+    label: t('pipelineEditor.menu.tools'),
+    items: [
+      {
+        label: t('pipelineEditor.tabs.variables'),
+        icon: 'pi pi-database',
+        command: () => openVariablesDialog(),
+      },
+      {
+        label: t('pipelineEditor.tabs.console'),
+        icon: 'pi pi-code',
+        command: () => openConsoleDock(),
+      },
+    ],
   },
   {
     icon: 'pi pi-cog',
@@ -204,6 +257,26 @@ const environmentOptions = computed(() => {
   }))
 })
 const activeEnvironmentId = computed(() => store.activeEnvironment?.id ?? null)
+const variableEditorSuggestions = computed(() =>
+  store.pipeline.variables.map((variable) => `#${variable.name}`),
+)
+const variableEditorSnippets = computed(() => [
+  {
+    label: t('pipelineEditor.variables.snippets.jsonObjectLabel'),
+    insertText: '{\n  "$1": "$2"\n}',
+    detail: t('pipelineEditor.variables.snippets.jsonObjectDetail'),
+  },
+  {
+    label: t('pipelineEditor.variables.snippets.jsonArrayLabel'),
+    insertText: '[\n  "$1"\n]',
+    detail: t('pipelineEditor.variables.snippets.jsonArrayDetail'),
+  },
+  {
+    label: t('pipelineEditor.variables.snippets.variableTokenLabel'),
+    insertText: '#${1:variableName}',
+    detail: t('pipelineEditor.variables.snippets.variableTokenDetail'),
+  },
+])
 const environmentActionsMenu = computed(() => [
   {
     label: t('pipelineEditor.variables.removeEnvironment'),
@@ -218,8 +291,12 @@ watch(newTabVariableName, () => {
   tabVariableError.value = null
 })
 
-function addVariable(name: string, value: string): void {
-  store.addVariable(name, value)
+watch(isAdvancedVariableEditor, (enabled) => {
+  localStorage.setItem(variableEditorModeStorageKey, String(enabled))
+})
+
+function addVariable(name: string, value: string, secret = false): void {
+  store.addVariable(name, value, secret)
 }
 
 function addVariableFromTab(): void {
@@ -242,12 +319,16 @@ function addVariableFromTab(): void {
     return
   }
 
-  addVariable(trimmedName, newTabVariableValue.value)
+  addVariable(trimmedName, newTabVariableValue.value, newTabVariableSecret.value)
   cancelAddTabVariable()
 }
 
 function countVariableLines(value: string): number {
   return value.split('\n').length
+}
+
+function toggleVariableEditorMode(): void {
+  isAdvancedVariableEditor.value = !isAdvancedVariableEditor.value
 }
 
 function selectTabVariable(variableId: string): void {
@@ -261,6 +342,7 @@ function startAddTabVariable(): void {
   isAddingTabVariable.value = true
   newTabVariableName.value = ''
   newTabVariableValue.value = ''
+  newTabVariableSecret.value = false
   tabVariableError.value = null
 }
 
@@ -268,6 +350,7 @@ function cancelAddTabVariable(): void {
   isAddingTabVariable.value = false
   newTabVariableName.value = ''
   newTabVariableValue.value = ''
+  newTabVariableSecret.value = false
   tabVariableError.value = null
 }
 
@@ -277,6 +360,10 @@ function updateVariableName(variableId: string, value: string): void {
 
 function updateVariableValue(variableId: string, value: string): void {
   store.updateVariableValueForActiveEnvironment(variableId, value)
+}
+
+function updateVariable(variableId: string, updates: { secret?: boolean }): void {
+  store.updateVariable(variableId, updates)
 }
 
 function switchActiveEnvironment(environmentId: string): void {
@@ -379,6 +466,23 @@ function toggleLanguage(): void {
 function openRunDialog(runId: string): void {
   selectedRunId.value = runId
   showRunDialog.value = true
+}
+
+function resetVariablesDialogState(): void {
+  selectedTabVariableId.value = null
+  isAddingTabVariable.value = false
+  tabVariableError.value = null
+}
+
+function openVariablesDialog(): void {
+  resetVariablesDialogState()
+  showVariablesDialog.value = true
+}
+
+async function openConsoleDock(): Promise<void> {
+  showConsoleDock.value = true
+  await nextTick()
+  consoleDockRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function openRenameDialog(): void {
@@ -503,6 +607,13 @@ function loadTemplate(templateId: string): void {
   showLoadDialog.value = false
 }
 
+function deletePipelines(pipelineIds: string[]): void {
+  pipelineIds.forEach((id) => {
+    deleteSavedPipeline(id)
+  })
+  store.refreshSavedPipelines()
+}
+
 watch(autoOpenConsoleOnRunEnd, (enabled) => {
   localStorage.setItem(autoOpenConsoleOnRunEndStorageKey, String(enabled))
 })
@@ -528,6 +639,12 @@ watch(nodeSelectionShortcutsEnabled, (enabled) => {
   localStorage.setItem(nodeSelectionShortcutsEnabledStorageKey, String(enabled))
 })
 
+watch(showVariablesDialog, (visible) => {
+  if (visible) {
+    resetVariablesDialogState()
+  }
+})
+
 function resetPreferences(): void {
   const keys = [
     autoOpenConsoleOnRunEndStorageKey,
@@ -548,9 +665,9 @@ function resetPreferences(): void {
 
 watch(
   () => store.isRunning,
-  (isRunning, wasRunning) => {
+  async (isRunning, wasRunning) => {
     if (wasRunning && !isRunning && autoOpenConsoleOnRunEnd.value) {
-      activeTab.value = 'console'
+      await openConsoleDock()
     }
   },
 )
@@ -580,37 +697,40 @@ if (!reopenLastPipelineOnLaunch.value) {
           </RouterLink>
           <Badge>BETA</Badge>
           <span class="title-separator" aria-hidden="true" />
-          <span class="pipeline-name-display pipeline-name-chip">{{ store.pipeline.name }}</span>
-          <Button
-            icon="pi pi-pencil"
-            severity="secondary"
-            text
-            rounded
+          <span
+            class="pipeline-name-display pipeline-name-chip pipeline-name-chip--clickable"
+            role="button"
+            tabindex="0"
             :aria-label="t('pipelineEditor.pipelineNameDialog.open')"
-            v-tooltip.right="t('pipelineEditor.pipelineNameDialog.open')"
+            v-tooltip.bottom="t('pipelineEditor.pipelineNameDialog.open')"
             @click="openRenameDialog"
-          />
-          <span class="title-separator" aria-hidden="true" />
+            @keydown.enter.prevent="openRenameDialog"
+            @keydown.space.prevent="openRenameDialog"
+          >
+            {{ store.pipeline.name }}
+          </span>
           <span
             class="autosave-tooltip-trigger"
             v-tooltip.right="autoSaveEnabled ? t('pipelineEditor.settings.autoSaveStatusEnabled') : t('pipelineEditor.settings.autoSaveStatusDisabled')"
           >
             <AutoSaveIcon :is-enabled="autoSaveEnabled" />
           </span>
-          <span class="title-separator" aria-hidden="true" />
         </div>
       </template>
       <template #end>
-        <Button
-          :label="languageInitials"
-          icon="pi pi-language"
-          severity="secondary"
-          text
-          rounded
-          :aria-label="switchLanguageLabel"
-          v-tooltip.left="switchLanguageLabel"
-          @click="toggleLanguage"
-        />
+        <div class="toolbar-actions">
+          <Button
+            icon="pi pi-language"
+            severity="secondary"
+            text
+            rounded
+            class="toolbar-quick-action"
+            :aria-label="switchLanguageLabel"
+            v-tooltip.bottom="switchLanguageLabel"
+            @click="toggleLanguage"
+          />
+          <span class="language-chip" aria-hidden="true">{{ languageInitials }}</span>
+        </div>
       </template>
     </Menubar>
 
@@ -726,6 +846,7 @@ if (!reopenLastPipelineOnLaunch.value) {
       :saved-pipelines="store.savedPipelines"
       @load-selected="loadSelectedPipeline"
       @load-template="loadTemplate"
+      @delete-pipelines="deletePipelines"
     />
 
     <PipelineRunDialog
@@ -837,239 +958,320 @@ if (!reopenLastPipelineOnLaunch.value) {
       </div>
     </Dialog>
 
-    <Tabs v-model:value="activeTab" class="workspace-tabs">
-      <TabList>
-        <Tab value="flow">{{ t('pipelineEditor.tabs.flow') }}</Tab>
-        <Tab value="variables">{{ t('pipelineEditor.tabs.variables') }}</Tab>
-        <Tab value="console">{{ t('pipelineEditor.tabs.console') }}</Tab>
-      </TabList>
-      <TabPanels>
-        <TabPanel value="flow">
-          <section
-            class="workspace-grid"
-            :class="{ 'workspace-grid--inspector-open': !!store.selectedNode }"
-            :style="store.selectedNode ? { '--inspector-width': inspectorWidth + 'px' } : {}"
-          >
-            <NodePalette />
-            <PipelineCanvas
-              :auto-fit-on-open="autoFitOnOpen"
-              :selection-shortcuts-enabled="nodeSelectionShortcutsEnabled"
-            />
-            <div class="inspector-wrapper" :style="store.selectedNode ? { width: inspectorWidth + 'px' } : {}">
-              <div class="inspector-resize-handle" @mousedown="startInspectorResize" />
-              <InspectorPanel />
-            </div>
-          </section>
-          <section class="run-history" aria-label="run-history">
-            <div class="run-history-header">
-              <h3>{{ t('pipelineEditor.history.title') }}</h3>
-            </div>
+    <section class="workspace-main">
+      <section
+        class="workspace-grid"
+        :class="{ 'workspace-grid--inspector-open': !!store.selectedNode }"
+        :style="store.selectedNode ? { '--inspector-width': inspectorWidth + 'px' } : {}"
+      >
+        <NodePalette />
+        <PipelineCanvas
+          :auto-fit-on-open="autoFitOnOpen"
+          :selection-shortcuts-enabled="nodeSelectionShortcutsEnabled"
+          :fit-trigger-tick="store.viewportFitTick"
+        />
+        <div class="inspector-wrapper" :style="store.selectedNode ? { width: inspectorWidth + 'px' } : {}">
+          <div class="inspector-resize-handle" @mousedown="startInspectorResize" />
+          <InspectorPanel />
+        </div>
+      </section>
 
-            <Message v-if="lastRuns.length === 0" severity="info" :closable="false">
-              {{ t('pipelineEditor.history.empty') }}
-            </Message>
+      <section class="run-history" aria-label="run-history">
+        <div class="run-history-header">
+          <h3>{{ t('pipelineEditor.history.title') }}</h3>
+        </div>
 
-            <ul v-else class="run-history-list">
-              <li v-for="run in lastRuns" :key="run.id" class="run-history-item">
-                <div class="run-history-item-head">
-                  <Tag
-                    :value="run.success ? t('pipelineEditor.history.success') : t('pipelineEditor.history.error')"
-                    :severity="run.success ? 'success' : 'danger'"
+        <Message v-if="lastRuns.length === 0" severity="info" :closable="false">
+          {{ t('pipelineEditor.history.empty') }}
+        </Message>
+
+        <ul v-else class="run-history-list">
+          <li v-for="run in lastRuns" :key="run.id" class="run-history-item">
+            <div class="run-history-item-head">
+              <Tag
+                :value="run.success ? t('pipelineEditor.history.success') : t('pipelineEditor.history.error')"
+                :severity="run.success ? 'success' : 'danger'"
+              />
+              <span class="run-history-time">{{ new Date(run.finishedAt).toLocaleString() }}</span>
+              <span class="run-history-count">{{ t('pipelineEditor.history.eventCount', { count: run.logs.length }) }}</span>
+              <Button
+                icon="pi pi-window-maximize"
+                severity="secondary"
+                outlined
+                :label="t('pipelineEditor.history.expand')"
+                @click="openRunDialog(run.id)"
+              />
+            </div>
+            <p v-if="run.errorMessage" class="run-history-error">{{ run.errorMessage }}</p>
+          </li>
+        </ul>
+      </section>
+    </section>
+
+    <Dialog
+      v-model:visible="showVariablesDialog"
+      :header="t('pipelineEditor.tabs.variables')"
+      :modal="true"
+      :draggable="false"
+      style="width: min(1120px, 96vw)"
+      class="variables-dialog"
+    >
+      <section class="variables-tab">
+        <div class="variables-tab-title">
+          <h3>{{ t('pipelineEditor.variables.title') }}</h3>
+          <p>{{ t('pipelineEditor.variables.description') }}</p>
+        </div>
+
+        <div class="tab-variables-container">
+          <aside class="tab-variables-sidebar">
+            <div class="sidebar-section">
+              <div class="sidebar-section-header">
+                <h4 class="sidebar-section-title">{{ t('pipelineEditor.variables.environment') }}</h4>
+                <Button
+                  size="small"
+                  icon="pi pi-plus"
+                  severity="success"
+                  rounded
+                  text
+                  :aria-label="t('pipelineEditor.variables.addEnvironment')"
+                  @click="openAddEnvironmentDialog"
+                />
+              </div>
+
+              <div class="sidebar-section-content">
+                <div class="environment-control-row">
+                  <Select
+                    :options="environmentOptions"
+                    option-label="label"
+                    option-value="value"
+                    :model-value="activeEnvironmentId"
+                    @update:model-value="handleActiveEnvironmentChange($event)"
+                    class="w-full"
                   />
-                  <span class="run-history-time">{{ new Date(run.finishedAt).toLocaleString() }}</span>
-                  <span class="run-history-count">{{ t('pipelineEditor.history.eventCount', { count: run.logs.length }) }}</span>
-                  <Button
-                    icon="pi pi-window-maximize"
+                  <SplitButton
+                    icon="pi pi-pencil"
+                    size="small"
                     severity="secondary"
                     outlined
-                    :label="t('pipelineEditor.history.expand')"
-                    @click="openRunDialog(run.id)"
+                    :model="environmentActionsMenu"
+                    @click="openRenameEnvironmentDialog"
+                    :aria-label="t('pipelineEditor.variables.renameEnvironment')"
+                    class="environment-splitbutton-icon"
                   />
                 </div>
-                <p v-if="run.errorMessage" class="run-history-error">{{ run.errorMessage }}</p>
-              </li>
-            </ul>
-          </section>
-        </TabPanel>
-        <TabPanel value="console">
-          <section class="console-view">
-            <RunConsole />
-          </section>
-        </TabPanel>
-        <TabPanel value="variables">
-          <section class="variables-tab">
-            <div class="variables-tab-title">
-              <h3>{{ t('pipelineEditor.variables.title') }}</h3>
-              <p>{{ t('pipelineEditor.variables.description') }}</p>
+              </div>
             </div>
 
-            <div class="tab-variables-container">
-              <aside class="tab-variables-sidebar">
-                <!-- Environments Section -->
-                <div class="sidebar-section">
-                  <div class="sidebar-section-header">
-                    <h4 class="sidebar-section-title">{{ t('pipelineEditor.variables.environment') }}</h4>
-                    <Button
-                      size="small"
-                      icon="pi pi-plus"
-                      severity="success"
-                      rounded
-                      text
-                      :aria-label="t('pipelineEditor.variables.addEnvironment')"
-                      @click="openAddEnvironmentDialog"
-                    />
-                  </div>
+            <div class="sidebar-section">
+              <div class="sidebar-section-header">
+                <h4 class="sidebar-section-title">{{ t('pipelineEditor.variables.title') }}</h4>
+                <Button
+                  icon="pi pi-plus"
+                  severity="success"
+                  rounded
+                  text
+                  :aria-label="t('pipelineEditor.variables.add')"
+                  @click="startAddTabVariable"
+                />
+              </div>
 
-                  <div class="sidebar-section-content">
-                    <div class="environment-control-row">
-                      <Select
-                        :options="environmentOptions"
-                        option-label="label"
-                        option-value="value"
-                        :model-value="activeEnvironmentId"
-                        @update:model-value="handleActiveEnvironmentChange($event)"
-                        class="w-full"
-                      />
-                      <SplitButton
-                        icon="pi pi-pencil"
-                        size="small"
-                        severity="secondary"
-                        outlined
-                        :model="environmentActionsMenu"
-                        @click="openRenameEnvironmentDialog"
-                        :aria-label="t('pipelineEditor.variables.renameEnvironment')"
-                        class="environment-splitbutton-icon"
-                      />
-                    </div>
-                  </div>
+              <div class="tab-variables-list">
+                <div v-if="store.pipeline.variables.length === 0" class="tab-list-empty">
+                  {{ t('pipelineEditor.variables.empty') }}
                 </div>
 
-                <!-- Variables List Section -->
-                <div class="sidebar-section">
-                  <div class="sidebar-section-header">
-                    <h4 class="sidebar-section-title">{{ t('pipelineEditor.variables.title') }}</h4>
-                    <Button
-                      icon="pi pi-plus"
-                      severity="success"
-                      rounded
-                      text
-                      :aria-label="t('pipelineEditor.variables.add')"
-                      @click="startAddTabVariable"
-                    />
-                  </div>
+                <button
+                  v-for="variable in store.pipeline.variables"
+                  :key="variable.id"
+                  type="button"
+                  class="tab-list-item"
+                  :class="{ 'tab-list-item--active': selectedTabVariableId === variable.id }"
+                  @click="selectTabVariable(variable.id)"
+                >
+                  <span class="tab-item-icon"><i class="pi pi-circle-fill" /></span>
+                  <span class="tab-item-content">
+                    <span class="tab-item-name">{{ variable.name }}</span>
+                    <span class="tab-item-meta">{{ countVariableLines(variable.value) }} {{ t('pipelineEditor.variables.lines') }}</span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </aside>
 
-                  <div class="tab-variables-list">
-                    <div v-if="store.pipeline.variables.length === 0" class="tab-list-empty">
-                      {{ t('pipelineEditor.variables.empty') }}
-                    </div>
+          <section class="tab-variables-editor">
+            <Message v-if="tabVariableError" severity="error" :closable="true" @close="tabVariableError = null">
+              {{ tabVariableError }}
+            </Message>
 
-                    <button
-                      v-for="variable in store.pipeline.variables"
-                      :key="variable.id"
-                      type="button"
-                      class="tab-list-item"
-                      :class="{ 'tab-list-item--active': selectedTabVariableId === variable.id }"
-                      @click="selectTabVariable(variable.id)"
-                    >
-                      <span class="tab-item-icon"><i class="pi pi-circle-fill" /></span>
-                      <span class="tab-item-content">
-                        <span class="tab-item-name">{{ variable.name }}</span>
-                        <span class="tab-item-meta">{{ countVariableLines(variable.value) }} {{ t('pipelineEditor.variables.lines') }}</span>
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </aside>
+            <div class="tab-editor-toolbar">
+              <span class="tab-editor-toolbar-label">{{ t('pipelineEditor.variables.editorModeLabel') }}</span>
+              <Button
+                size="small"
+                severity="secondary"
+                outlined
+                :icon="isAdvancedVariableEditor ? 'pi pi-code' : 'pi pi-pencil'"
+                :label="isAdvancedVariableEditor ? t('pipelineEditor.variables.editorModeAdvanced') : t('pipelineEditor.variables.editorModeSimple')"
+                @click="toggleVariableEditorMode"
+              />
+            </div>
 
-              <section class="tab-variables-editor">
-                <Message v-if="tabVariableError" severity="error" :closable="true" @close="tabVariableError = null">
-                  {{ tabVariableError }}
-                </Message>
+            <div v-if="isAddingTabVariable" class="tab-editor-content">
+              <h4 class="tab-editor-title">{{ t('pipelineEditor.variables.newVariable') }}</h4>
 
-                <div v-if="isAddingTabVariable" class="tab-editor-content">
-                  <h4 class="tab-editor-title">{{ t('pipelineEditor.variables.newVariable') }}</h4>
+              <div class="tab-form-group">
+                <label class="tab-form-label">{{ t('pipelineEditor.variables.namePlaceholder') }}</label>
+                <InputText
+                  :model-value="newTabVariableName"
+                  :placeholder="t('pipelineEditor.variables.namePlaceholder')"
+                  @update:model-value="newTabVariableName = String($event)"
+                />
+              </div>
 
-                  <div class="tab-form-group">
-                    <label class="tab-form-label">{{ t('pipelineEditor.variables.namePlaceholder') }}</label>
-                    <InputText
-                      :model-value="newTabVariableName"
-                      :placeholder="t('pipelineEditor.variables.namePlaceholder')"
-                      @update:model-value="newTabVariableName = String($event)"
-                    />
-                  </div>
+              <div class="tab-form-group">
+                <label class="tab-form-label">{{ t('pipelineEditor.variables.valuePlaceholder') }}</label>
+                <CodeEditorField
+                  v-if="isAdvancedVariableEditor"
+                  :model-value="newTabVariableValue"
+                  language="json"
+                  :height="280"
+                  :suggestions="variableEditorSuggestions"
+                  :snippets="variableEditorSnippets"
+                  @update:model-value="newTabVariableValue = String($event)"
+                />
+                <Textarea
+                  v-else
+                  :model-value="newTabVariableValue"
+                  auto-resize
+                  rows="8"
+                  :placeholder="t('pipelineEditor.variables.valuePlaceholder')"
+                  @update:model-value="newTabVariableValue = String($event)"
+                />
+                <small v-if="isAdvancedVariableEditor" class="tab-editor-help">{{ t('pipelineEditor.variables.editorHelp') }}</small>
+                <small class="tab-line-count">{{ countVariableLines(newTabVariableValue) }} {{ t('pipelineEditor.variables.lines') }}</small>
+              </div>
 
-                  <div class="tab-form-group">
-                    <label class="tab-form-label">{{ t('pipelineEditor.variables.valuePlaceholder') }}</label>
-                    <Textarea
-                      :model-value="newTabVariableValue"
-                      auto-resize
-                      rows="8"
-                      :placeholder="t('pipelineEditor.variables.valuePlaceholder')"
-                      @update:model-value="newTabVariableValue = String($event)"
-                    />
-                    <small class="tab-line-count">{{ countVariableLines(newTabVariableValue) }} {{ t('pipelineEditor.variables.lines') }}</small>
-                  </div>
+              <div class="tab-form-group tab-form-group-inline">
+                <label class="secret-toggle">
+                  <input
+                    type="checkbox"
+                    :checked="newTabVariableSecret"
+                    @change="newTabVariableSecret = ($event.target as HTMLInputElement).checked"
+                  />
+                  <span>{{ t('pipelineEditor.variables.secret') }}</span>
+                </label>
+                <small class="tab-editor-help">{{ t('pipelineEditor.variables.secretHelp') }}</small>
+              </div>
 
-                  <div class="tab-form-actions">
-                    <Button
-                      :label="t('pipelineEditor.variables.add')"
-                      icon="pi pi-check"
-                      severity="success"
-                      :disabled="!canAddTabVariable"
-                      @click="addVariableFromTab"
-                    />
-                    <Button
-                      :label="t('common.cancel')"
-                      icon="pi pi-times"
-                      severity="secondary"
-                      @click="cancelAddTabVariable"
-                    />
-                  </div>
-                </div>
+              <div class="tab-form-actions">
+                <Button
+                  :label="t('pipelineEditor.variables.add')"
+                  icon="pi pi-check"
+                  severity="success"
+                  :disabled="!canAddTabVariable"
+                  @click="addVariableFromTab"
+                />
+                <Button
+                  :label="t('common.cancel')"
+                  icon="pi pi-times"
+                  severity="secondary"
+                  @click="cancelAddTabVariable"
+                />
+              </div>
+            </div>
 
-                <div v-else-if="selectedTabVariable" class="tab-editor-content">
-                  <h4 class="tab-editor-title">{{ selectedTabVariable.name }}</h4>
+            <div v-else-if="selectedTabVariable" class="tab-editor-content">
+              <h4 class="tab-editor-title">{{ selectedTabVariable.name }}</h4>
 
-                  <div class="tab-form-group">
-                    <label class="tab-form-label">{{ t('pipelineEditor.variables.namePlaceholder') }}</label>
-                    <InputText
-                      :model-value="selectedTabVariable.name"
-                      @update:model-value="updateVariableName(selectedTabVariable.id, String($event))"
-                    />
-                  </div>
+              <div class="tab-form-group">
+                <label class="tab-form-label">{{ t('pipelineEditor.variables.namePlaceholder') }}</label>
+                <InputText
+                  :model-value="selectedTabVariable.name"
+                  @update:model-value="updateVariableName(selectedTabVariable.id, String($event))"
+                />
+              </div>
 
-                  <div class="tab-form-group">
-                    <label class="tab-form-label">{{ t('pipelineEditor.variables.valuePlaceholder') }}</label>
-                    <Textarea
-                      :model-value="store.getVariableValueForActiveEnvironment(selectedTabVariable)"
-                      auto-resize
-                      rows="8"
-                      :placeholder="t('pipelineEditor.variables.valuePlaceholder')"
-                      @update:model-value="updateVariableValue(selectedTabVariable.id, String($event))"
-                    />
-                    <small class="tab-line-count">{{ countVariableLines(store.getVariableValueForActiveEnvironment(selectedTabVariable)) }} {{ t('pipelineEditor.variables.lines') }}</small>
-                  </div>
+              <div class="tab-form-group">
+                <label class="tab-form-label">{{ t('pipelineEditor.variables.valuePlaceholder') }}</label>
+                <CodeEditorField
+                  v-if="isAdvancedVariableEditor"
+                  :model-value="store.getVariableValueForActiveEnvironment(selectedTabVariable)"
+                  language="json"
+                  :height="280"
+                  :suggestions="variableEditorSuggestions"
+                  :snippets="variableEditorSnippets"
+                  @update:model-value="updateVariableValue(selectedTabVariable.id, String($event))"
+                />
+                <Textarea
+                  v-else
+                  :model-value="store.getVariableValueForActiveEnvironment(selectedTabVariable)"
+                  auto-resize
+                  rows="8"
+                  :placeholder="t('pipelineEditor.variables.valuePlaceholder')"
+                  @update:model-value="updateVariableValue(selectedTabVariable.id, String($event))"
+                />
+                <small v-if="isAdvancedVariableEditor" class="tab-editor-help">{{ t('pipelineEditor.variables.editorHelp') }}</small>
+                <small class="tab-line-count">{{ countVariableLines(store.getVariableValueForActiveEnvironment(selectedTabVariable)) }} {{ t('pipelineEditor.variables.lines') }}</small>
+              </div>
 
-                  <div class="tab-form-actions">
-                    <Button
-                      icon="pi pi-trash"
-                      severity="danger"
-                      :label="t('pipelineEditor.variables.remove')"
-                      @click="removeVariable(selectedTabVariable.id)"
-                    />
-                  </div>
-                </div>
+              <div class="tab-form-group tab-form-group-inline">
+                <label class="secret-toggle">
+                  <input
+                    type="checkbox"
+                    :checked="!!selectedTabVariable.secret"
+                    @change="updateVariable(selectedTabVariable.id, { secret: ($event.target as HTMLInputElement).checked })"
+                  />
+                  <span>{{ t('pipelineEditor.variables.secret') }}</span>
+                </label>
+                <small class="tab-editor-help">{{ t('pipelineEditor.variables.secretHelp') }}</small>
+              </div>
 
-                <div v-else class="tab-editor-empty">
-                  <i class="pi pi-inbox" />
-                  <p>{{ t('pipelineEditor.variables.selectOrCreate') }}</p>
-                </div>
-              </section>
+              <div class="tab-form-actions">
+                <Button
+                  icon="pi pi-trash"
+                  severity="danger"
+                  :label="t('pipelineEditor.variables.remove')"
+                  @click="removeVariable(selectedTabVariable.id)"
+                />
+              </div>
+            </div>
+
+            <div v-else class="tab-editor-empty">
+              <i class="pi pi-inbox" />
+              <p>{{ t('pipelineEditor.variables.selectOrCreate') }}</p>
+              <Button
+                icon="pi pi-plus"
+                severity="success"
+                :label="t('pipelineEditor.variables.add')"
+                @click="startAddTabVariable"
+              />
             </div>
           </section>
-        </TabPanel>
-      </TabPanels>
-    </Tabs>
+        </div>
+      </section>
+    </Dialog>
+
+    <section
+      v-if="showConsoleDock"
+      ref="consoleDockRef"
+      class="console-dock"
+      :style="{ '--console-height': consoleHeight + 'px' }"
+    >
+      <div class="console-dock-resize-handle" @mousedown="startConsoleResize" />
+      <div class="console-dock-header">
+        <h3>{{ t('pipelineEditor.tabs.console') }}</h3>
+        <Button
+          icon="pi pi-times"
+          severity="secondary"
+          text
+          rounded
+          :aria-label="t('common.close')"
+          @click="showConsoleDock = false"
+        />
+      </div>
+      <section class="console-dock-body">
+        <RunConsole />
+      </section>
+    </section>
   </main>
 </template>
 
@@ -1101,6 +1303,32 @@ if (!reopenLastPipelineOnLaunch.value) {
 .toolbar-menubar :deep(.p-menubar-end) {
   display: flex;
   align-items: center;
+}
+
+.toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.toolbar-quick-action {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.language-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 1.5rem;
+  padding: 0 0.38rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-soft);
+  border: 1px solid var(--border);
 }
 
 .title-group {
@@ -1188,6 +1416,20 @@ if (!reopenLastPipelineOnLaunch.value) {
   border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
 }
 
+.pipeline-name-chip--clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.pipeline-name-chip--clickable:hover {
+  border-color: var(--primary-color, #0ea5e9);
+}
+
+.pipeline-name-chip--clickable:focus-visible {
+  outline: 2px solid var(--primary-color, #0ea5e9);
+  outline-offset: 2px;
+}
+
 
 
 .rename-dialog-body {
@@ -1199,6 +1441,17 @@ if (!reopenLastPipelineOnLaunch.value) {
 .rename-label {
   font-size: 0.86rem;
   color: var(--text-soft);
+}
+
+.tab-form-group-inline {
+  gap: 0.35rem;
+}
+
+.secret-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
 }
 
 .create-dialog {
@@ -1277,14 +1530,19 @@ if (!reopenLastPipelineOnLaunch.value) {
   letter-spacing: 0.04em;
 }
 
-.workspace-tabs {
+.workspace-main {
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
+.variables-dialog :deep(.p-dialog-content) {
+  max-height: 76vh;
+  overflow: auto;
+}
+
 .variables-tab {
-  min-height: 56vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -1304,7 +1562,7 @@ if (!reopenLastPipelineOnLaunch.value) {
 .tab-variables-container {
   display: grid;
   grid-template-columns: 280px 1fr;
-  gap: 1.5rem;
+  gap: 1rem;
   min-height: 0;
   flex: 1;
 }
@@ -1454,7 +1712,7 @@ if (!reopenLastPipelineOnLaunch.value) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 1rem;
+  padding: 0.85rem;
   border: 1px solid var(--surface-border);
   border-radius: 6px;
   background: var(--surface-50);
@@ -1466,6 +1724,18 @@ if (!reopenLastPipelineOnLaunch.value) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.tab-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tab-editor-toolbar-label {
+  font-size: 0.82rem;
+  color: var(--text-soft);
 }
 
 .tab-editor-title {
@@ -1505,6 +1775,11 @@ if (!reopenLastPipelineOnLaunch.value) {
 }
 
 .tab-line-count {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.tab-editor-help {
   font-size: 0.75rem;
   color: var(--text-soft);
 }
@@ -1610,10 +1885,48 @@ if (!reopenLastPipelineOnLaunch.value) {
   min-height: 60vh;
 }
 
-.console-view {
-  min-height: 56vh;
+.console-dock {
+  margin-top: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  position: relative;
   display: flex;
   flex-direction: column;
+  height: var(--console-height, 280px);
+  min-height: 180px;
+  max-height: 75vh;
+  overflow: hidden;
+}
+
+.console-dock-resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 2;
+}
+
+.console-dock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.console-dock-header h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.console-dock-body {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .whats-new-dialog {
@@ -1715,6 +2028,12 @@ if (!reopenLastPipelineOnLaunch.value) {
     align-items: flex-start;
   }
 
+  .toolbar-actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
   .title-group--inline {
     width: 100%;
     flex-wrap: wrap;
@@ -1746,6 +2065,11 @@ if (!reopenLastPipelineOnLaunch.value) {
 
   .tab-variables-list {
     max-height: 180px;
+  }
+
+  .console-dock {
+    height: 42vh !important;
+    max-height: none;
   }
 }
 </style>

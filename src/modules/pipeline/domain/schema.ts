@@ -172,6 +172,7 @@ const variableSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   value: z.string(),
+  secret: z.boolean().default(false),
   type: z.enum(['string', 'number', 'json', 'object']).optional(),
 })
 

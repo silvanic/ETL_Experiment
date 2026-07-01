@@ -160,3 +160,14 @@ export function savePipeline(definition: PipelineDefinition): void {
   const withoutCurrent = currentIndex.filter((item) => item.id !== definition.id)
   writeIndex([nextSummary, ...withoutCurrent].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
 }
+
+export function deleteSavedPipeline(pipelineId: string): void {
+  removeSavedPipelineReference(pipelineId, true)
+}
+
+export function deleteAllSavedPipelines(): void {
+  const allPipelines = readIndex()
+  for (const pipeline of allPipelines) {
+    removeSavedPipelineReference(pipeline.id, true)
+  }
+}

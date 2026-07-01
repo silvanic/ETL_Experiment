@@ -337,6 +337,23 @@ function parseSetVariableLiteral(rawValue: string): unknown {
   return rawValue
 }
 
+function parseStructuredJsonLiteral(rawValue: string): unknown {
+  const trimmed = rawValue.trim()
+  const isStructuredJson =
+    (trimmed.startsWith('{') && trimmed.endsWith('}'))
+    || (trimmed.startsWith('[') && trimmed.endsWith(']'))
+
+  if (!isStructuredJson) {
+    return rawValue
+  }
+
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return rawValue
+  }
+}
+
 function coerceIterateItems(value: unknown): unknown[] {
   if (Array.isArray(value)) {
     return value
@@ -744,8 +761,13 @@ function resolveMappingTemplate(
     return getByPath(item, token)
   }
 
+  const resolveLiteralOrJson = (rawValue: string): unknown => {
+    const resolvedRaw = resolveConfigValue(rawValue, context)
+    return parseStructuredJsonLiteral(resolvedRaw)
+  }
+
   if (matches.length === 0) {
-    return resolveConfigValue(template, context)
+    return resolveLiteralOrJson(template)
   }
 
   // Si la template est juste {chemin} (sans texte statique autour)
@@ -754,7 +776,7 @@ function resolveMappingTemplate(
     const value = resolveTemplateToken(pathPattern)
 
     if (value === undefined || value === null) {
-      return fallbackValue !== undefined ? resolveConfigValue(fallbackValue, context) : undefined
+      return fallbackValue !== undefined ? resolveLiteralOrJson(fallbackValue) : undefined
     }
 
     return value
@@ -774,7 +796,7 @@ function resolveMappingTemplate(
 
   // Si un chemin n'a pas pu être résolu et qu'on a un fallback, l'utiliser
   if (hasUnresolvedPath && fallbackValue !== undefined) {
-    return resolveConfigValue(fallbackValue, context)
+    return resolveLiteralOrJson(fallbackValue)
   }
 
   return resolveConfigValue(result, context)

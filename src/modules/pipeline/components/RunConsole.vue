@@ -4,6 +4,7 @@ import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditor
 import Tag from 'primevue/tag'
 import Message from 'primevue/message'
 import Panel from 'primevue/panel'
+import Button from 'primevue/button'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
@@ -66,9 +67,64 @@ const { t } = useI18n()
 const props = defineProps<Props>()
 
 const consoleLogs = computed(() => props.logs ?? store.logs)
+const levelFilter = ref<'all' | 'info' | 'error'>('all')
+const nodeFilter = ref('')
+const searchFilter = ref('')
+const isFilterActive = computed(() => {
+	return levelFilter.value !== 'all' || nodeFilter.value.trim().length > 0 || searchFilter.value.trim().length > 0
+})
+const filteredLogs = computed(() => {
+	const nodeQuery = nodeFilter.value.trim().toLowerCase()
+	const searchQuery = searchFilter.value.trim().toLowerCase()
+
+	return consoleLogs.value.filter((log) => {
+		if (levelFilter.value !== 'all' && log.level !== levelFilter.value) {
+			return false
+		}
+
+		if (nodeQuery) {
+			const nodeLabel = `${log.nodeName ?? ''} ${log.nodeType} ${log.nodeId}`.toLowerCase()
+			if (!nodeLabel.includes(nodeQuery)) {
+				return false
+			}
+		}
+
+		if (searchQuery) {
+			const detailsText = log.details === undefined ? '' : formatDetails(log.details)
+			const searchable = `${log.message} ${detailsText}`.toLowerCase()
+			if (!searchable.includes(searchQuery)) {
+				return false
+			}
+		}
+
+		return true
+	})
+})
 const hasLogs = computed(() => consoleLogs.value.length > 0)
-const eventCountLabel = computed(() => t('runConsole.eventCount', { count: consoleLogs.value.length }))
-const autoCollapseGroups = computed(() => consoleLogs.value.length >= 300)
+const hasFilteredLogs = computed(() => filteredLogs.value.length > 0)
+const eventCountLabel = computed(() => {
+	if (isFilterActive.value) {
+		return t('runConsole.eventCountFiltered', {
+			shown: filteredLogs.value.length,
+			total: consoleLogs.value.length,
+		})
+	}
+
+	return t('runConsole.eventCount', { count: consoleLogs.value.length })
+})
+const autoCollapseGroups = computed(() => filteredLogs.value.length >= 300)
+const exportBaseName = computed(() => {
+	const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+	return `pipeline-run-logs-${stamp}`
+})
+const secretValues = computed(() => {
+	const values = store.pipeline.variables
+		.filter((variable) => variable.secret)
+		.map((variable) => store.getVariableValueForActiveEnvironment(variable).trim())
+		.filter((value) => value.length > 0)
+
+	return Array.from(new Set(values)).sort((a, b) => b.length - a.length)
+})
 const collapsedContainerPanels = ref<Record<string, boolean>>({})
 const collapsedIterationPanels = ref<Record<string, boolean>>({})
 const collapsedGroupPanels = ref<Record<string, boolean>>({})
@@ -194,8 +250,8 @@ function resolveContainerAncestor(log: ExecutionLog): { nodeId: string; nodeType
 const timelineEntries = computed<LogTimelineEntry[]>(() => {
 	const entries: LogTimelineEntry[] = []
 
-	for (let index = 0; index < consoleLogs.value.length; index += 1) {
-		const log = consoleLogs.value[index]
+	for (let index = 0; index < filteredLogs.value.length; index += 1) {
+		const log = filteredLogs.value[index]
 		const containerAncestor = resolveContainerAncestor(log)
 		const lastEntry = entries[entries.length - 1]
 
@@ -409,7 +465,7 @@ function executionSectionLabel(entry: ContainerTimelineEntry, section: Container
 }
 
 const totalDurationMs = computed(() =>
-	consoleLogs.value.reduce((sum, log) => sum + (log.durationMs ?? 0), 0)
+	filteredLogs.value.reduce((sum, log) => sum + (log.durationMs ?? 0), 0)
 )
 
 function formatDetails(details: unknown): string {
@@ -437,16 +493,170 @@ function translatedNodeType(nodeType: string): string {
 	if (nodeType === 'output') return t('defaults.nodeLabel.output')
 	return nodeType
 }
+
+function downloadText(content: string, fileName: string, mimeType: string): void {
+	const blob = new Blob([content], { type: mimeType })
+	const url = URL.createObjectURL(blob)
+	const anchor = document.createElement('a')
+	anchor.href = url
+	anchor.download = fileName
+	document.body.appendChild(anchor)
+	anchor.click()
+	document.body.removeChild(anchor)
+	URL.revokeObjectURL(url)
+}
+
+function redactSecretText(raw: string): string {
+	let redacted = raw
+	for (const secret of secretValues.value) {
+		redacted = redacted.split(secret).join('***')
+	}
+
+	return redacted
+}
+
+function redactUnknownValue(value: unknown): unknown {
+	if (typeof value === 'string') {
+		return redactSecretText(value)
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((item) => redactUnknownValue(item))
+	}
+
+	if (value && typeof value === 'object') {
+		const entries = Object.entries(value as Record<string, unknown>).map(([key, entryValue]) => {
+			return [key, redactUnknownValue(entryValue)]
+		})
+		return Object.fromEntries(entries)
+	}
+
+	return value
+}
+
+function buildExportLogs(): ExecutionLog[] {
+	return filteredLogs.value.map((log) => ({
+		...log,
+		nodeName: log.nodeName ? redactSecretText(log.nodeName) : log.nodeName,
+		message: redactSecretText(log.message),
+		details: redactUnknownValue(log.details),
+	}))
+}
+
+function exportLogsAsJson(): void {
+	if (!hasFilteredLogs.value) {
+		return
+	}
+
+	const logsForExport = buildExportLogs()
+
+	const payload = {
+		exportedAt: new Date().toISOString(),
+		count: logsForExport.length,
+		redacted: secretValues.value.length > 0,
+		logs: logsForExport,
+	}
+
+	downloadText(
+		JSON.stringify(payload, null, 2),
+		`${exportBaseName.value}.json`,
+		'application/json',
+	)
+}
+
+function toCsvCell(value: unknown): string {
+	const raw = value === undefined || value === null ? '' : String(value)
+	return `"${raw.replace(/"/g, '""')}"`
+}
+
+function exportLogsAsCsv(): void {
+	if (!hasFilteredLogs.value) {
+		return
+	}
+
+	const logsForExport = buildExportLogs()
+
+	const header = ['at', 'level', 'nodeType', 'nodeId', 'nodeName', 'message', 'durationMs', 'details']
+	const rows = logsForExport.map((log) => [
+		log.at,
+		log.level,
+		log.nodeType,
+		log.nodeId,
+		log.nodeName ?? '',
+		log.message,
+		log.durationMs ?? '',
+		log.details === undefined ? '' : JSON.stringify(log.details),
+	])
+
+	const csv = [header, ...rows]
+		.map((row) => row.map((cell) => toCsvCell(cell)).join(','))
+		.join('\n')
+
+	downloadText(csv, `${exportBaseName.value}.csv`, 'text/csv;charset=utf-8')
+}
 </script>
 
 <template>
 	<div class="console-container">
 		<div class="console-header">
-			<h2>{{ t('runConsole.title') }}</h2>
-			<Tag :value="eventCountLabel" severity="contrast" />
+			<div class="console-header-main">
+				<h2>{{ t('runConsole.title') }}</h2>
+				<Tag :value="eventCountLabel" severity="contrast" />
+			</div>
+			<div v-if="hasLogs" class="console-header-actions">
+				<Button
+					type="button"
+					size="small"
+					severity="secondary"
+					icon="pi pi-file"
+					:label="t('runConsole.exportJson')"
+					:disabled="!hasFilteredLogs"
+					@click="exportLogsAsJson"
+				/>
+				<Button
+					type="button"
+					size="small"
+					severity="secondary"
+					icon="pi pi-table"
+					:label="t('runConsole.exportCsv')"
+					:disabled="!hasFilteredLogs"
+					@click="exportLogsAsCsv"
+				/>
+			</div>
 		</div>
 		<p v-if="hasLogs" class="console-subtitle">{{ t('runConsole.subtitleWithLogs') }}</p>
 		<p v-else class="console-subtitle">{{ t('runConsole.subtitleEmpty') }}</p>
+		<p v-if="hasLogs" class="console-hint console-hint-warning">{{ t('runConsole.shareWarning') }}</p>
+		<p v-if="hasLogs && secretValues.length > 0" class="console-hint">{{ t('runConsole.redactionHint') }}</p>
+
+		<div v-if="hasLogs" class="filters-row">
+			<label class="filter-field">
+				<span>{{ t('runConsole.levelFilterLabel') }}</span>
+				<select v-model="levelFilter" class="filter-input">
+					<option value="all">{{ t('runConsole.allLevels') }}</option>
+					<option value="info">{{ t('runConsole.infoLevel') }}</option>
+					<option value="error">{{ t('runConsole.errorLevel') }}</option>
+				</select>
+			</label>
+			<label class="filter-field">
+				<span>{{ t('runConsole.nodeFilterLabel') }}</span>
+				<input
+					v-model="nodeFilter"
+					type="text"
+					class="filter-input"
+					:placeholder="t('runConsole.nodeFilterPlaceholder')"
+				/>
+			</label>
+			<label class="filter-field filter-field--wide">
+				<span>{{ t('runConsole.searchFilterLabel') }}</span>
+				<input
+					v-model="searchFilter"
+					type="text"
+					class="filter-input"
+					:placeholder="t('runConsole.searchFilterPlaceholder')"
+				/>
+			</label>
+		</div>
 
 		<Panel v-if="environmentVariables.length > 0" toggleable class="console-panel environment-panel">
 			<template #header>
@@ -468,7 +678,7 @@ function translatedNodeType(nodeType: string): string {
 			</ul>
 		</Panel>
 
-		<div v-if="hasLogs" class="groups">
+		<div v-if="hasFilteredLogs" class="groups">
 			<template v-for="entry in timelineEntries" :key="entry.id">
 				<Accordion
 					v-if="entry.kind === 'container'"
@@ -659,8 +869,9 @@ function translatedNodeType(nodeType: string): string {
 				</Accordion>
 			</template>
 		</div>
+		<Message v-else-if="hasLogs" severity="warn" :closable="false">{{ t('runConsole.noMatchMessage') }}</Message>
 		<Message v-else severity="info" :closable="false">{{ t('runConsole.emptyMessage') }}</Message>
-		<Message v-if="hasLogs" severity="secondary" size="large" :closable="false" class="total-duration">
+		<Message v-if="hasFilteredLogs" severity="secondary" size="large" :closable="false" class="total-duration">
 			<span>{{ t('runConsole.totalDuration') }}</span>
 			<span class="duration">{{ totalDurationMs }}ms</span>
 		</Message>
@@ -686,6 +897,19 @@ function translatedNodeType(nodeType: string): string {
 	justify-content: space-between;
 	gap: 0.75rem;
 	margin-bottom: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.console-header-main {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.console-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
 }
 
 h2 {
@@ -699,6 +923,50 @@ h2 {
 	font-size: 0.9rem;
 }
 
+.console-hint {
+	margin: 0 0 0.85rem;
+	font-size: 0.84rem;
+	color: var(--text-soft);
+}
+
+.console-hint-warning {
+	color: color-mix(in srgb, var(--text) 80%, var(--danger));
+}
+
+.filters-row {
+	display: grid;
+	grid-template-columns: minmax(130px, 180px) minmax(160px, 220px) minmax(220px, 1fr);
+	gap: 0.6rem;
+	margin: 0 0 1rem;
+}
+
+.filter-field {
+	display: grid;
+	gap: 0.25rem;
+	font-size: 0.84rem;
+	font-weight: 500;
+	color: var(--text);
+}
+
+.filter-field--wide {
+	min-width: 0;
+}
+
+.filter-input {
+	width: 100%;
+	padding: 0.45rem 0.55rem;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--panel);
+	color: var(--text);
+	font-size: 0.82rem;
+}
+
+.filter-input:focus-visible {
+	outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+	outline-offset: 1px;
+}
+
 .console-panel {
 	border: 1px solid var(--border);
 	border-radius: 10px;
@@ -708,7 +976,7 @@ h2 {
 
 .accordion-shell {
 	background: transparent;
-	margin-left:5px;
+	margin-left: 0.35rem;
 }
 
 .accordion-shell :deep(.p-accordionpanel) {
@@ -923,7 +1191,7 @@ h2 {
 }
 
 .group-id {
-	font-size: 0.75rem;
+	font-size: 0.78rem;
 	color: var(--text-soft);
 }
 
@@ -964,14 +1232,14 @@ h2 {
 	gap: 0.5rem;
 	align-items: center;
 	color: var(--text-soft);
-	font-size: 0.75rem;
+	font-size: 0.78rem;
 	margin-bottom: 0.2rem;
 }
 
 .duration {
 	font-variant-numeric: tabular-nums;
 	font-weight: 600;
-	font-size: 0.72rem;
+	font-size: 0.75rem;
 	color: var(--accent);
 	background: color-mix(in srgb, var(--accent) 12%, transparent);
 	border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
@@ -1006,7 +1274,7 @@ p {
 }
 
 .details-toggle {
-	font-size: 0.75rem;
+	font-size: 0.78rem;
 	color: var(--text-soft);
 	cursor: pointer;
 	user-select: none;
@@ -1039,5 +1307,11 @@ pre {
 	overflow: auto;
 	font-size: 0.78rem;
 	line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+	.filters-row {
+		grid-template-columns: 1fr;
+	}
 }
 </style>

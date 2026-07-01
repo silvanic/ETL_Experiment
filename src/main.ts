@@ -21,7 +21,7 @@ app.use(PrimeVue, {
 		options: {
 			darkModeSelector: ".app-dark",
 		},
-	},
+	}
 })
 app.use(ToastService)
 app.use(ConfirmationService)

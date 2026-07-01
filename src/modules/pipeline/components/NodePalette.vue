@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { usePipelineEditorStore } from '@/modules/pipeline/stores/pipelineEditorStore'
 import type { NodeType } from '@/modules/pipeline/domain/types'
 import Panel from 'primevue/panel'
 import Button from 'primevue/button'
+import InputText from 'primevue/inputtext'
 import { useI18n } from 'vue-i18n'
 
 const store = usePipelineEditorStore()
 const { t } = useI18n()
+const searchQuery = ref('')
 
 const entries = computed<{ type: NodeType; title: string; subtitle: string }[]>(() => [
   {
@@ -62,6 +64,18 @@ const entries = computed<{ type: NodeType; title: string; subtitle: string }[]>(
   },
 ])
 
+const filteredEntries = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) {
+    return entries.value
+  }
+
+  return entries.value.filter((entry) => {
+    const haystack = `${entry.title} ${entry.subtitle} ${entry.type}`.toLowerCase()
+    return haystack.includes(query)
+  })
+})
+
 function nodeButtonClass(type: NodeType): string[] {
   if (type === 'iterate') {
     return ['node-button', 'node-button-iterate']
@@ -85,8 +99,16 @@ function nodeButtonClass(type: NodeType): string[] {
       <p>{{ t('nodePalette.description') }}</p>
     </header>
 
+    <div class="search-row">
+      <InputText
+        v-model="searchQuery"
+        :placeholder="t('nodePalette.searchPlaceholder')"
+        class="search-input"
+      />
+    </div>
+
     <ul>
-      <li v-for="entry in entries" :key="entry.type">
+      <li v-for="entry in filteredEntries" :key="entry.type">
         <Button :class="nodeButtonClass(entry.type)" severity="secondary" outlined @click="store.addNodeByType(entry.type)">
           <span class="node-button-content">
             <strong>{{ entry.title }}</strong>
@@ -95,6 +117,10 @@ function nodeButtonClass(type: NodeType): string[] {
         </Button>
       </li>
     </ul>
+
+    <p v-if="filteredEntries.length === 0" class="empty-search">
+      {{ t('nodePalette.emptySearch') }}
+    </p>
   </Panel>
 </template>
 
@@ -112,6 +138,14 @@ p {
   margin: 0.35rem 0 1rem;
   color: var(--text-soft);
   font-size: 0.9rem;
+}
+
+.search-row {
+  margin-bottom: 0.75rem;
+}
+
+.search-input {
+  width: 100%;
 }
 
 ul {
@@ -173,5 +207,11 @@ span {
   display: grid;
   text-align: left;
   gap: 0.15rem;
+}
+
+.empty-search {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-soft);
 }
 </style>

@@ -52,7 +52,7 @@
 .app-dark {
   --bg: #0f1419;
   --panel: #1a1f2e;
-  --panel-soft: white;
+  --panel-soft: #20283a;
   --text: #e4e7eb;
   --text-soft: #9ca3af;
   --text-soft-edge: rgba(208, 208, 208, 0.89);

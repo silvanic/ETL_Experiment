@@ -1,6 +1,13 @@
 {
   "fr": {
     "common": {
+      "cancel": "@:common.actions.cancel",
+      "close": "@:common.actions.close",
+      "delete": "@:common.actions.delete",
+      "duplicate": "@:common.actions.duplicate",
+      "confirm": "@:common.actions.confirm",
+      "yes": "Oui",
+      "no": "Non",
       "actions": {
         "cancel": "Annuler",
         "confirm": "Confirmer",
@@ -51,6 +58,7 @@
         "running": "Exécution en cours...",
         "runPipeline": "Exécuter le pipeline",
         "save": "Sauvegarder",
+        "tools": "Outils",
         "settings": "@:common.labels.settings"
       },
       "tabs": {
@@ -67,7 +75,10 @@
         "cut": "Couper les nœuds",
         "paste": "Coller les nœuds",
         "duplicate": "Dupliquer les nœuds",
-        "delete": "Supprimer les nœuds"
+        "delete": "Supprimer les nœuds",
+        "alignCenterY": "Aligner sur le centre (axe horizontal)",
+        "alignLeft": "Aligner à gauche",
+        "distributeX": "Distribuer horizontalement"
       },
       "home": {
         "title": "Construisez et exécutez vos pipelines ETL visuellement",
@@ -126,6 +137,8 @@
         "description": "Ajoute des variables globales du pipeline (nom + valeur).",
         "namePlaceholder": "Nom de la variable",
         "valuePlaceholder": "Valeur",
+        "secret": "Variable sensible",
+        "secretHelp": "Masquée automatiquement lors de l'export des logs.",
         "environmentNamePlaceholder": "Nom de l'environnement",
         "add": "Ajouter",
         "addEnvironment": "@:common.actions.create",
@@ -139,6 +152,18 @@
         "nameDuplicate": "Ce nom de variable existe déjà.",
         "nameInvalid": "Le nom doit commencer par une lettre et ne contenir que des lettres, chiffres, _ ou -.",
         "newVariable": "Nouvelle variable",
+        "editorHelp": "Astuce : utilisez Ctrl+Espace pour l'autocomplétion (#nomVariable).",
+        "editorModeLabel": "Mode d'edition",
+        "editorModeSimple": "Simple",
+        "editorModeAdvanced": "Avance",
+        "snippets": {
+          "jsonObjectLabel": "Snippet objet JSON",
+          "jsonObjectDetail": "Insere un objet JSON",
+          "jsonArrayLabel": "Snippet tableau JSON",
+          "jsonArrayDetail": "Insere un tableau JSON",
+          "variableTokenLabel": "Snippet variable pipeline",
+          "variableTokenDetail": "Insere un token #variable"
+        },
         "lines": "lignes",
         "title": "@:common.labels.variables",
         "selectOrCreate": "Sélectionnez une variable ou créez-en une nouvelle"
@@ -182,6 +207,13 @@
         "selectedProject": "Pipeline sélectionné",
         "lastUpdate": "Dernière mise à jour",
         "loadConfirm": "Charger ce pipeline",
+        "selectAll": "Sélectionner tous",
+        "selected": "sélectionnés",
+        "delete": "Supprimer",
+        "deleteAll": "Vider tout",
+        "confirmDeleteOne": "Confirmer la suppression de ce pipeline ?",
+        "confirmDeleteMultiple": "Confirmer la suppression de {count} pipelines ?",
+        "confirmDeleteAll": "Confirmer la suppression de tous les {count} pipelines ?",
         "saveSuccess": "Pipeline sauvegardé",
         "saveSuccessDetail": "Le pipeline a été enregistré dans le stockage local.",
         "importSuccess": "Pipeline importé",
@@ -553,6 +585,8 @@
       "title": "Nœuds",
       "tag": "Palette",
       "description": "Ajoutez des briques puis reliez-les dans le canevas.",
+      "searchPlaceholder": "Rechercher un nœud...",
+      "emptySearch": "Aucun nœud ne correspond à la recherche.",
       "nodes": {
         "start": {
           "title": "@:common.nodes.labels.start",
@@ -599,6 +633,11 @@
     },
     "pipelineCanvas": {
       "nodeNamePlaceholder": "@:common.labels.nodeName",
+      "addNode": "Ajouter un nœud",
+      "addNodeCommandTitle": "Ajouter un nœud",
+      "addNodeCommandPlaceholder": "Rechercher un type de nœud (API, map, condition...)",
+      "addNodeCommandEmpty": "Aucun type de nœud ne correspond à la recherche.",
+      "addNodeShortcutHint": "Raccourcis: / ou Ctrl/Cmd+K",
       "containerTypeIterate": "Iterate: boucle",
       "containerTypeSubflow": "Subflow: unique",
       "iterateHint": "Les nœuds à l'intérieur sont exécutés pour chaque élément du tableau.",
@@ -650,11 +689,18 @@
         "transformTemplateSyntax": "Format à utiliser : {chemin} depuis le contexte, {#variable}. Ex. {user.name} ({#env}).",
         "templateSyntax": "Format à utiliser : {chemin} depuis le contexte, {#variable}. Ex. {firstName} ({#env}).",
         "iterateRuntimeVars": "Dans les nœuds enfants d'Iterate, vous pouvez utiliser __currentItem et __currentIndex.",
-        "subflowBehavior": "Le sous-pipeline s'exécute une seule fois. Pour une exécution par élément d'un tableau, utilisez Iterate."
+        "subflowBehavior": "Le sous-pipeline s'exécute une seule fois. Pour une exécution par élément d'un tableau, utilisez Iterate.",
+        "bodyJsonEditor": "Astuce : utilisez Ctrl+Espace pour #variable et des snippets JSON.",
+        "bodyJsonPreviewMode": "Mode apercu: lecture seule avec variables interpretees. Reclique sur le bouton pour revenir en edition."
       },
       "buttons": {
         "testApi": "Tester l'API",
         "showResult": "Afficher le résultat",
+        "previewBodyJson": "Prévisualiser",
+        "previewLiteralValue": "Prévisualiser la valeur littérale",
+        "previewMappingValue": "Prévisualiser la valeur du mapping",
+        "previewFinalMappedObject": "Prévisualiser l'objet final",
+        "editBodyJson": "Éditer",
         "addHeader": "Ajouter un en-tête",
         "addExtraction": "Ajouter une extraction",
         "addMapping": "Ajouter un mapping"
@@ -663,6 +709,12 @@
         "noApiResult": "Aucun résultat disponible.",
         "startNoConfig": "Le nœud Départ n'a pas de configuration obligatoire.",
         "subflowNoConfig": "Le nœud Subflow n'a pas de configuration obligatoire.",
+        "mapPreviewUnavailable": "Prévisualisation indisponible.",
+        "mapPreviewSourceArrayFirst": "Source: premier élément du tableau résolu.",
+        "mapPreviewSourceArrayEmpty": "Source: tableau vide, prévisualisation basée sur templates.",
+        "mapPreviewSourceObject": "Source: objet résolu.",
+        "mapPreviewSourceFallback": "Source non résolue localement, prévisualisation basée sur templates et variables.",
+        "mapPreviewUnresolvedVariables": "Variables non résolues: {variables}",
         "headersEmpty": "Aucun en-tête configuré.",
         "headersEmptyKey": "Attention : au moins une clé d'en-tête est vide.",
         "headersValid": "{count} en-tête(s) configuré(s).",
@@ -672,10 +724,13 @@
         "bodyJsonInvalid": "Corps JSON invalide. Vérifie les guillemets, les virgules et les accolades.",
         "variableTokenInvalid": "Variable détectée, mais le nom est vide.",
         "variableTokenUnknown": "Variable #{name} introuvable.",
-        "variableTokenValue": "Variable #{name} = {value}"
+        "variableTokenValue": "Variable #{name} = {value}",
+        "variableTemplatePreview": "Prévisualisation résolue : {value}"
       },
       "dialog": {
-        "apiResult": "Résultat API"
+        "apiResult": "Résultat API",
+        "mapPreview": "Prévisualisation objet final (Map)",
+        "transformPreview": "Prévisualisation valeur littérale (Transform)"
       },
       "errors": {
         "missingApiUrl": "URL API manquante.",
@@ -727,9 +782,23 @@
     "runConsole": {
       "title": "Console d'exécution",
       "eventCount": "@:pipelineEditor.history.eventCount",
+      "eventCountFiltered": "{shown}/{total} événement(s)",
       "subtitleWithLogs": "Logs d'exécution les plus récents.",
       "subtitleEmpty": "Aucune exécution pour le moment.",
       "emptyMessage": "Aucune exécution enregistrée.",
+      "exportJson": "Exporter JSON",
+      "exportCsv": "Exporter CSV",
+      "redactionHint": "Les variables marquées secrètes sont masquées dans les exports.",
+      "shareWarning": "Attention: avant de partager un export, vérifiez qu'il ne contient pas d'informations sensibles.",
+      "levelFilterLabel": "Niveau",
+      "nodeFilterLabel": "Nœud",
+      "nodeFilterPlaceholder": "Nom, type ou ID du nœud",
+      "searchFilterLabel": "Recherche",
+      "searchFilterPlaceholder": "Message ou détails",
+      "allLevels": "Tous",
+      "infoLevel": "Info",
+      "errorLevel": "Erreur",
+      "noMatchMessage": "Aucun log ne correspond aux filtres actifs.",
       "showDetails": "Détails",
       "entryLabel": "Entrée",
       "iterationLabel": "Itération {index}",
@@ -821,6 +890,13 @@
   },
   "en": {
     "common": {
+      "cancel": "@:common.actions.cancel",
+      "close": "@:common.actions.close",
+      "delete": "@:common.actions.delete",
+      "duplicate": "@:common.actions.duplicate",
+      "confirm": "@:common.actions.confirm",
+      "yes": "Yes",
+      "no": "No",
       "actions": {
         "cancel": "Cancel",
         "confirm": "Confirm",
@@ -871,6 +947,7 @@
         "running": "Running...",
         "runPipeline": "Run Pipeline",
         "save": "@:common.actions.save",
+        "tools": "Tools",
         "settings": "@:common.labels.settings"
       },
       "tabs": {
@@ -887,7 +964,10 @@
         "cut": "Cut nodes",
         "paste": "Paste nodes",
         "duplicate": "Duplicate nodes",
-        "delete": "Delete nodes"
+        "delete": "Delete nodes",
+        "alignCenterY": "Align center (horizontal axis)",
+        "alignLeft": "Align left",
+        "distributeX": "Distribute horizontally"
       },
       "home": {
         "title": "Build and run your ETL pipelines visually",
@@ -946,6 +1026,8 @@
         "description": "Add global pipeline variables (name + value).",
         "namePlaceholder": "Variable name",
         "valuePlaceholder": "Value",
+        "secret": "Sensitive variable",
+        "secretHelp": "Automatically redacted when exporting logs.",
         "environmentNamePlaceholder": "Environment name",
         "add": "Add",
         "addEnvironment": "@:common.actions.create",
@@ -959,6 +1041,18 @@
         "nameDuplicate": "This variable name already exists.",
         "nameInvalid": "Name must start with a letter and only contain letters, digits, _ or -.",
         "newVariable": "New variable",
+        "editorHelp": "Tip: use Ctrl+Space for autocomplete (#variableName).",
+        "editorModeLabel": "Editor mode",
+        "editorModeSimple": "Simple",
+        "editorModeAdvanced": "Advanced",
+        "snippets": {
+          "jsonObjectLabel": "JSON object snippet",
+          "jsonObjectDetail": "Insert a JSON object",
+          "jsonArrayLabel": "JSON array snippet",
+          "jsonArrayDetail": "Insert a JSON array",
+          "variableTokenLabel": "Pipeline variable snippet",
+          "variableTokenDetail": "Insert a #variable token"
+        },
         "lines": "lines",
         "title": "@:common.labels.variables",
         "selectOrCreate": "Select a variable or create a new one"
@@ -1002,6 +1096,13 @@
         "selectedProject": "Selected pipeline",
         "lastUpdate": "Last update",
         "loadConfirm": "Load this pipeline",
+        "selectAll": "Select all",
+        "selected": "selected",
+        "delete": "Delete",
+        "deleteAll": "Delete all",
+        "confirmDeleteOne": "Confirm deletion of this pipeline?",
+        "confirmDeleteMultiple": "Confirm deletion of {count} pipelines?",
+        "confirmDeleteAll": "Confirm deletion of all {count} pipelines?",
         "saveSuccess": "Pipeline saved",
         "saveSuccessDetail": "Pipeline has been stored in local storage.",
         "importSuccess": "Pipeline imported",
@@ -1373,6 +1474,8 @@
       "title": "Nodes",
       "tag": "Palette",
       "description": "Add blocks and connect them on the canvas.",
+      "searchPlaceholder": "Search nodes...",
+      "emptySearch": "No nodes match your search.",
       "nodes": {
         "start": {
           "title": "@:common.nodes.labels.start",
@@ -1419,6 +1522,11 @@
     },
     "pipelineCanvas": {
       "nodeNamePlaceholder": "@:common.labels.nodeName",
+      "addNode": "Add node",
+      "addNodeCommandTitle": "Add node",
+      "addNodeCommandPlaceholder": "Search a node type (API, map, condition...)",
+      "addNodeCommandEmpty": "No node type matches your search.",
+      "addNodeShortcutHint": "Shortcuts: / or Ctrl/Cmd+K",
       "containerTypeIterate": "Iterate: loop",
       "containerTypeSubflow": "Subflow: once",
       "iterateHint": "Nodes inside are executed once for each item in the array.",
@@ -1470,11 +1578,18 @@
         "transformTemplateSyntax": "Format to use: {path} from context, {#variable}. E.g. {user.name} ({#env}).",
         "templateSyntax": "Format to use: {path} from context, {#variable}. E.g. {firstName} ({#env}).",
         "iterateRuntimeVars": "Inside Iterate child nodes, you can use __currentItem and __currentIndex.",
-        "subflowBehavior": "The sub-pipeline runs once. For per-item execution over an array, use Iterate."
+        "subflowBehavior": "The sub-pipeline runs once. For per-item execution over an array, use Iterate.",
+        "bodyJsonEditor": "Tip: use Ctrl+Space for #variables and JSON snippets.",
+        "bodyJsonPreviewMode": "Preview mode: read-only with interpreted variables. Click again to return to edit mode."
       },
       "buttons": {
         "testApi": "Test API",
         "showResult": "Show result",
+        "previewBodyJson": "Preview",
+        "previewLiteralValue": "Preview literal value",
+        "previewMappingValue": "Preview mapping value",
+        "previewFinalMappedObject": "Preview final object",
+        "editBodyJson": "Edit mode",
         "addHeader": "Add header",
         "addExtraction": "Add extraction",
         "addMapping": "Add mapping"
@@ -1483,6 +1598,12 @@
         "noApiResult": "No result available.",
         "startNoConfig": "The Start node has no required configuration.",
         "subflowNoConfig": "The Subflow node has no required configuration.",
+        "mapPreviewUnavailable": "Preview unavailable.",
+        "mapPreviewSourceArrayFirst": "Source: first resolved array item.",
+        "mapPreviewSourceArrayEmpty": "Source: empty array, template-based preview.",
+        "mapPreviewSourceObject": "Source: resolved object.",
+        "mapPreviewSourceFallback": "Source not resolved locally, template and variable based preview.",
+        "mapPreviewUnresolvedVariables": "Unresolved variables: {variables}",
         "headersEmpty": "No headers configured.",
         "headersEmptyKey": "Warning: at least one header key is empty.",
         "headersValid": "{count} header(s) configured.",
@@ -1492,10 +1613,13 @@
         "bodyJsonInvalid": "Invalid JSON body. Check quotes, commas, and braces.",
         "variableTokenInvalid": "Variable detected, but the name is empty.",
         "variableTokenUnknown": "Variable #{name} was not found.",
-        "variableTokenValue": "Variable #{name} = {value}"
+        "variableTokenValue": "Variable #{name} = {value}",
+        "variableTemplatePreview": "Resolved preview: {value}"
       },
       "dialog": {
-        "apiResult": "API result"
+        "apiResult": "API result",
+        "mapPreview": "Final object preview (Map)",
+        "transformPreview": "Literal value preview (Transform)"
       },
       "errors": {
         "missingApiUrl": "Missing API URL.",
@@ -1547,9 +1671,23 @@
     "runConsole": {
       "title": "Execution console",
       "eventCount": "@:pipelineEditor.history.eventCount",
+      "eventCountFiltered": "{shown}/{total} event(s)",
       "subtitleWithLogs": "Most recent execution logs.",
       "subtitleEmpty": "No execution yet.",
       "emptyMessage": "No execution recorded.",
+      "exportJson": "Export JSON",
+      "exportCsv": "Export CSV",
+      "redactionHint": "Variables marked as secret are redacted in exports.",
+      "shareWarning": "Warning: before sharing an export, verify it does not contain sensitive information.",
+      "levelFilterLabel": "Level",
+      "nodeFilterLabel": "Node",
+      "nodeFilterPlaceholder": "Node name, type, or ID",
+      "searchFilterLabel": "Search",
+      "searchFilterPlaceholder": "Message or details",
+      "allLevels": "All",
+      "infoLevel": "Info",
+      "errorLevel": "Error",
+      "noMatchMessage": "No logs match the active filters.",
       "showDetails": "Details",
       "entryLabel": "Entry",
       "iterationLabel": "Iteration {index}",

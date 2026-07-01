@@ -185,6 +185,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
   const clipboard = ref<{ nodes: PipelineNode[]; edges: PipelineEdge[] }>({ nodes: [], edges: [] })
   const nodeCreationCenter = ref<{ x: number; y: number } | null>(null)
   const nodeCreationTick = ref(0)
+  const viewportFitTick = ref(0)
   const isRunning = ref(false)
   const logs = ref<ExecutionLog[]>([])
   const runHistory = ref<ExecutionRun[]>([])
@@ -327,6 +328,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     selectedNodeIds.value.clear()
     logs.value = []
     runHistory.value = []
+    viewportFitTick.value += 1
   }
 
   function refreshSavedPipelines(): void {
@@ -363,6 +365,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
       selectedNodeIds.value.clear()
       logs.value = []
       runHistory.value = []
+      viewportFitTick.value += 1
       relocalizePipelineLabels()
       refreshSavedPipelines()
 
@@ -403,6 +406,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     selectedNodeIds.value.clear()
     logs.value = []
     runHistory.value = []
+    viewportFitTick.value += 1
     relocalizePipelineLabels()
     refreshSavedPipelines()
 
@@ -415,7 +419,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     return true
   }
 
-  function addVariable(name: string, value: string): boolean {
+  function addVariable(name: string, value: string, secret = false): boolean {
     const trimmedName = name.trim()
     if (!trimmedName || !isValidVariableName(trimmedName)) {
       return false
@@ -434,13 +438,14 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
         id: crypto.randomUUID(),
         name: trimmedName,
         value,
+        secret,
       },
     ]
     pipeline.value.updatedAt = new Date().toISOString()
     return true
   }
 
-  function updateVariable(variableId: string, updates: Partial<Pick<PipelineVariable, 'name' | 'value'>>): void {
+  function updateVariable(variableId: string, updates: Partial<Pick<PipelineVariable, 'name' | 'value' | 'secret'>>): void {
     const previousVariable = pipeline.value.variables.find((variable) => variable.id === variableId) ?? null
     const previousName = previousVariable?.name.trim() ?? ''
 
@@ -455,6 +460,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
         ...variable,
         name: nextName,
         value: updates.value === undefined ? variable.value : updates.value,
+        secret: updates.secret === undefined ? variable.secret : updates.secret,
       }
     })
 
@@ -866,6 +872,11 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
 
   function removeNode(nodeId: string): void {
     const removedNode = nodes.value.find((node) => node.id === nodeId) ?? null
+
+    // Prevent deletion of Start nodes (Départ)
+    if (removedNode?.data.type === 'start') {
+      return
+    }
 
     // Also remove child nodes (for Iterate containers)
     const childIds = nodes.value.filter((n) => n.parentNode === nodeId).map((n) => n.id)
@@ -1283,11 +1294,54 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     })
 
     toast.add({
-      severity: 'warn',
+      severity: 'info',
       summary: t('pipelineEditor.toast.nodesDeleted'),
       detail: t('pipelineEditor.toast.nodesDeletedDetail', { count: nodesToDelete.length }),
       life: 2500,
     })
+  }
+
+  function alignSelectedNodes(mode: 'centerY' | 'left' | 'distributeX'): void {
+    if (selectedNodeIds.value.size < 2) {
+      return
+    }
+
+    const selectedTopLevel = nodes.value.filter(
+      (n) => selectedNodeIds.value.has(n.id) && !n.parentNode,
+    )
+    if (selectedTopLevel.length < 2) {
+      return
+    }
+
+    if (mode === 'centerY') {
+      const avgY =
+        selectedTopLevel.reduce((sum, n) => sum + n.position.y, 0) / selectedTopLevel.length
+      nodes.value = nodes.value.map((n) =>
+        selectedNodeIds.value.has(n.id) && !n.parentNode
+          ? { ...n, position: { ...n.position, y: avgY } }
+          : n,
+      )
+    } else if (mode === 'left') {
+      const minX = Math.min(...selectedTopLevel.map((n) => n.position.x))
+      nodes.value = nodes.value.map((n) =>
+        selectedNodeIds.value.has(n.id) && !n.parentNode
+          ? { ...n, position: { ...n.position, x: minX } }
+          : n,
+      )
+    } else if (mode === 'distributeX') {
+      const sorted = [...selectedTopLevel].sort((a, b) => a.position.x - b.position.x)
+      const minX = sorted[0].position.x
+      const maxX = sorted[sorted.length - 1].position.x
+      const gap = (maxX - minX) / (sorted.length - 1)
+      const indexMap = new Map(sorted.map((n, i) => [n.id, i]))
+      nodes.value = nodes.value.map((n) => {
+        const idx = indexMap.get(n.id)
+        if (idx === undefined) {
+          return n
+        }
+        return { ...n, position: { ...n.position, x: minX + idx * gap } }
+      })
+    }
   }
 
   function duplicateSelectedNodes(): void {
@@ -1433,6 +1487,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     selectedNodeIds.value.clear()
     logs.value = []
     runHistory.value = []
+    viewportFitTick.value += 1
     relocalizePipelineLabels()
 
     toast.add({
@@ -1473,6 +1528,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     activeEnvironment,
     effectiveVariableMap,
     nodeCreationTick,
+    viewportFitTick,
     isRunning,
     logs,
     runHistory,
@@ -1497,6 +1553,7 @@ export const usePipelineEditorStore = defineStore('pipeline-editor', () => {
     pasteNodes,
     deleteSelectedNodes,
     duplicateSelectedNodes,
+    alignSelectedNodes,
     setNodeCreationCenter,
     updateSelectedNodeConfig,
     relocalizePipelineLabels,
